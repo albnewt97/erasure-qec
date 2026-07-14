@@ -1,0 +1,22 @@
+# Threshold sweep, half-converted budget: r_e = 0.5 of the two-qubit error
+# budget becomes heralded erasure, the rest stays unheralded depolarizing.
+# Rounds are always T = d (PLAN.md §9). herald_mwpm vs blind_mwpm on
+# identical shots is the §10 ablation.
+name: erasure_r50
+r_e: 0.5
+distances: [3, 5, 7, 9, 11]
+p_log10_min: -3.0
+p_log10_max: -1.0
+p_points: 13
+# Additive fit-resolution band bracketing the MEASURED r_e=0.5 crossing (~2.2%,
+# from the d>=7 collapse fit). The 13-point log grid lands only ~1-3 points in
+# the fit window, leaving nu under-constrained; these dense linear points
+# straddle the crossing so the finite-size scaling fit resolves nu. Merged with
+# the log grid (sorted, de-duped); existing log points stay collected (resume).
+extra_p: [0.018, 0.020, 0.022, 0.024, 0.026]
+max_shots: 100000
+max_errors: 1000
+decoders: [herald_mwpm, blind_mwpm]
+
+# Fixed sub-threshold p for the Lambda scan (below the r_e=0.5 threshold).
+lambda_p: 0.015

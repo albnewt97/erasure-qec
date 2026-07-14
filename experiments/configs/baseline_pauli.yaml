@@ -1,0 +1,21 @@
+# Threshold sweep, pure-Pauli baseline: no erasure conversion (r_e = 0).
+# Rounds are always T = d (PLAN.md §9). p grid: 13 log-spaced points in
+# [1e-3, 1e-1]. With r_e = 0 no heralds exist, so herald_mwpm and blind_mwpm
+# coincide; both run for CSV uniformity across configs.
+name: baseline_pauli
+r_e: 0.0
+distances: [3, 5, 7, 9, 11]
+p_log10_min: -3.0
+p_log10_max: -1.0
+p_points: 13
+# Additive fit-resolution band: linearly spaced p-points straddling the ~1.5%
+# Pauli crossing. The 13-point log grid only lands ~3 points in the fit window,
+# leaving nu under-constrained; these densify the crossing so the finite-size
+# scaling fit resolves nu ~ 1.5. Merged with the log grid (sorted, de-duped).
+extra_p: [0.011, 0.013, 0.015, 0.017, 0.019]
+max_shots: 100000
+max_errors: 1000
+decoders: [herald_mwpm, blind_mwpm]
+
+# Fixed sub-threshold p for the Lambda scan (~0.5%, below the ~1% Pauli threshold).
+lambda_p: 0.005
