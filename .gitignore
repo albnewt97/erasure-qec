@@ -1,0 +1,28 @@
+# Data & generated figures
+data/
+figures/dev/          # scratch Stim diagrams; canonical copies live in docs/figures/ (tracked)
+!docs/figures/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
