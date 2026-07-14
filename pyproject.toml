@@ -3,7 +3,7 @@ name = "erasure-qec"
 version = "0.1.0"
 description = "Herald-conditioned decoding of the erasure-converted rotated surface code"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
     "stim>=1.14",
@@ -44,7 +44,6 @@ select = ["E", "F", "I", "UP", "B", "SIM", "N"]
 known-first-party = ["erasure_qec"]
 
 [tool.mypy]
-python_version = "3.11"
 strict = true
 files = ["src", "tests"]
 

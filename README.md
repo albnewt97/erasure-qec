@@ -195,24 +195,26 @@ divides a near-zero by a near-zero) is dropped, since its bootstrap CIs otherwis
 
 ## Caveats and limitations
 
-These results are honest about their systematics; the analysis is deliberately conservative.
+A few things worth being straight about.
 
-- **Finite-size drift of the effective crossing.** Curves for small `d` carry the largest finite-size
-  corrections, so an all-distance collapse fit places the *effective* crossing above the asymptotic
-  value — **+0.3–0.4% at `r_e = 0`** (1.38% → 1.71%), and comparable-or-larger at higher `r_e`. **Every
-  threshold quoted here uses the `d ≥ 7` fit** (`fit_threshold(..., d_min=7)`), which drops `d ∈ {3,5}`;
-  the panel annotations do the same whenever ≥3 large distances are available.
-- **ν is weakly constrained at `d ≤ 11`.** With only three large distances and a coarse `p`-grid, the
-  scaling exponent has wide bootstrap bars — `ν = 1.45 ± 1.2` (`r_e = 0`), `2.20 ± 0.9` (`r_e = 0.5`).
-  The exception is **`r_e = 0.98`, where the dense `p`-band through the crossing pins `ν = 1.56 ± 0.48`**
-  — evidence that the fix for the earlier sweeps is denser sampling near the crossing, not more shots.
-  Thresholds (`p_th`) are far better determined than `ν` throughout.
-- **`estimate_crossing` is unreliable on saturated data.** Above threshold the curves re-converge toward
-  the ½ at-chance limit, producing a *spurious* second minimum of the cross-distance spread; a
-  ragged/saturated high-`p` tail can pull the automatic estimate past the real crossing (this bit the
-  `r_e = 0.5` sweep). An ordering-inversion guard rejects candidates where `p_L` already increases with
-  `d`, but the automatic estimate is only a **starting point for the fit window** — all quoted
-  thresholds come from the `d ≥ 7` collapse fit, never from the raw crossing estimate alone.
+The effective crossing drifts with distance. Curves for small `d` carry the largest finite-size
+corrections, so an all-distance collapse fit places the effective crossing above the asymptotic value —
++0.3–0.4% at `r_e = 0` (1.38% → 1.71%), and comparable or larger at higher `r_e`. Every threshold quoted
+here uses the `d ≥ 7` fit (`fit_threshold(..., d_min=7)`), which drops `d ∈ {3,5}`; the panel
+annotations do the same whenever ≥3 large distances are available.
+
+ν is only weakly constrained at `d ≤ 11`. With three large distances and a coarse `p`-grid the scaling
+exponent has wide bootstrap bars — `ν = 1.45 ± 1.2` (`r_e = 0`), `2.20 ± 0.9` (`r_e = 0.5`). The
+exception is `r_e = 0.98`, where the dense `p`-band through the crossing pins `ν = 1.56 ± 0.48`; that
+told me the fix for the earlier sweeps was denser sampling near the crossing, not more shots. The
+thresholds `p_th` are far better determined than `ν` throughout.
+
+`estimate_crossing` is not reliable on saturated data. Above threshold the curves re-converge toward the
+½ at-chance limit, producing a spurious second minimum of the cross-distance spread, and a
+ragged/saturated high-`p` tail can pull the automatic estimate past the real crossing — which is what
+happened on the `r_e = 0.5` sweep. An ordering-inversion guard rejects candidates where `p_L` already
+increases with `d`, but it is only a starting point for the fit window; every quoted threshold comes
+from the `d ≥ 7` collapse fit, never from the raw crossing estimate alone.
 
 ---
 
@@ -231,9 +233,9 @@ test that proves the scheduling logic matters.
 
 ---
 
-## DEM hand-verification — the differentiator
+## DEM hand-verification
 
-The one genuinely error-prone component is the **DEM partition**: splitting Stim's decomposed detector
+The one genuinely error-prone component is the DEM partition: splitting Stim's decomposed detector
 error model into a herald-free Pauli sub-DEM plus a per-herald table of conditioned matching edges.
 Rather than trust it, every mechanism was verified **by hand on paper** on the smallest non-trivial
 instance (d=3, T=2, one `HERALDED_ERASE(0.25)`) and reconciled against Stim's actual output. The full

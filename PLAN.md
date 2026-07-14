@@ -1,5 +1,10 @@
 # PLAN.md — Herald-Conditioned Decoding of the Erasure-Converted Rotated Surface Code
 
+> **Status note (added after completion).** This is the original specification for the project,
+> preserved as written. The build is finished: every milestone M0–M9 is implemented and its gate is
+> green. The forward-looking, imperative voice below is the plan as I first wrote it, left unchanged so
+> it stands as the specification the implementation was measured against.
+
 > **This document is the single source of truth for the build.** Every implementation
 > task references a section number here. Build order is strictly milestone-by-milestone:
 > the noiseless circuit and its determinism tests come first; noise, DEM partitioning,

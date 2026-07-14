@@ -5,14 +5,14 @@ at something committed — a test, a CSV, a figure, or the hand-verification wor
 
 ## Why this problem
 
-I wanted to answer one question: if a fraction of your gate errors are *heralded* — the hardware tells
-you which qubit was disturbed and when — how much does that buy a surface-code memory, and how much of
-the benefit is the physics versus the decoder? The hardware context is current: ¹⁷¹Yb neutral-atom
-Rydberg gates and dual-rail superconducting cavities both natively flag leakage and photon loss.
-Erasure conversion turns those flags into `HERALDED_ERASE` events. The passive benefit — a depolarized
-qubit is cheaper to correct than the Pauli budget it replaced — you get for free. The interesting part
-is the **herald-conditioned decoder** that reads the herald bits per shot and zeroes the corresponding
-matching-graph edges. Nobody hands you that off the shelf: PyMatching decodes a fixed graph, so the
+I wanted to answer one question: if a fraction of the gate errors are *heralded* — the hardware flags
+which qubit was disturbed and when — how much does that buy a surface-code memory, and how much of the
+benefit is the physics versus the decoder? The hardware context is current: ¹⁷¹Yb neutral-atom Rydberg
+gates and dual-rail superconducting cavities both natively flag leakage and photon loss. Erasure
+conversion turns those flags into `HERALDED_ERASE` events. The passive benefit — a depolarized qubit is
+cheaper to correct than the Pauli budget it replaced — is free. The interesting part is the
+herald-conditioned decoder that reads the herald bits per shot and zeroes the corresponding
+matching-graph edges. That part is not available off the shelf: PyMatching decodes a fixed graph, so the
 per-shot reweighting and the DEM bookkeeping behind it were the real work.
 
 ## Noiseless first
@@ -40,9 +40,9 @@ The one component I did not trust to code review is the split of Stim's decompos
 into a Pauli sub-DEM plus a per-herald table of conditioned edges. I verified it on paper first, on the
 smallest nontrivial circuit (d=3, T=2, one erasure), across three probes — a centre data qubit, a corner
 (boundary) qubit, and a mid-round ancilla — predicting each DEM line by hand and reconciling against
-Stim line by line (`docs/dem_worksheet.md`). The payoff was Probe C: a Z error copied onto **two** data
-qubits fired only **one** detector, purely because of CX layer ordering — one neighbour's check reads
-the error in a later layer (fires), the other had already read it before injection (never sees it). That
+Stim line by line (`docs/dem_worksheet.md`). The payoff was Probe C: a Z error copied onto two data
+qubits fired only one detector, purely because of CX layer ordering — one neighbour's check reads the
+error in a later layer (fires), the other had already read it before injection (never sees it). That
 is the concrete demonstration that hook analysis is schedule-dependent, not a slogan. The visual
 evidence is committed at `docs/figures/probe_mid_round_ancilla_2_2_detslice.svg`.
 
