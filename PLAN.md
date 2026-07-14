@@ -1,9 +1,14 @@
 # PLAN.md — Herald-Conditioned Decoding of the Erasure-Converted Rotated Surface Code
 
-> **Status note (added after completion).** This is the original specification for the project,
-> preserved as written. The build is finished: every milestone M0–M9 is implemented and its gate is
-> green. The forward-looking, imperative voice below is the plan as I first wrote it, left unchanged so
-> it stands as the specification the implementation was measured against.
+> **What this is.** This is the specification I wrote before building anything — the plan the whole
+> project was built and measured against, now complete (every milestone M0–M9 is implemented and its
+> gate is green). I gated it on milestones deliberately: each stage had to be verifiably correct before
+> the next began, so a bug in the circuit could never hide behind a decoder. I have preserved it
+> essentially as written, in its original imperative voice, so the build order and the reasoning behind
+> it stay visible. A few details shifted during implementation — the ancilla checkerboard parity turned
+> out mirrored from my initial assumption, and the DEM partition ended up using per-component
+> conditioned edges rather than whole-mechanism hyperedges — and `docs/DEVLOG.md` records what actually
+> happened.
 
 > **This document is the single source of truth for the build.** Every implementation
 > task references a section number here. Build order is strictly milestone-by-milestone:

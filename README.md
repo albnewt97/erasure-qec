@@ -1,13 +1,13 @@
 # Herald-Conditioned Decoding of the Erasure-Converted Rotated Surface Code
 
-This repo studies **erasure conversion** in a distance-`d` rotated surface-code memory [[6]](#references)
-(Z basis, in [Stim](https://github.com/quantumlib/Stim) [[11]](#references)): a fraction `r_e` of each
+This repo studies **erasure conversion** in a distance-`d` rotated surface-code memory [[1]](#references)
+(Z basis, in [Stim](https://github.com/quantumlib/Stim) [[2]](#references)): a fraction `r_e` of each
 two-qubit gate's error budget is turned into *heralded erasures* — the hardware flags *which* qubit was
 disturbed and *when*, rather than letting the error pass silently. This models **¹⁷¹Yb neutral-atom
-Rydberg gates** [[1,8]](#references) and **dual-rail superconducting cavities** [[9,10]](#references),
+Rydberg gates** [[3,4]](#references) and **dual-rail superconducting cavities** [[5,6]](#references),
 where leakage and photon-loss events are natively detected. A heralded error is far easier to correct
 than a blind one: knowing its location lets a **herald-conditioned matching decoder**
-(PyMatching [[12]](#references), wrapped as a `sinter.Decoder` [[11]](#references)) zero that edge's
+(PyMatching [[7]](#references), wrapped as a `sinter.Decoder` [[2]](#references)) zero that edge's
 weight — a heralded site has conditional error probability ½, so `ln((1−p)/p) = 0` and a correction
 routes through it for free.
 
@@ -41,12 +41,12 @@ line (with bootstrap CI band) is the fitted threshold `p_th` from the **asymptot
 | `r_e` | `herald_mwpm` `p_th` | `blind_mwpm` `p_th` | notes |
 |---|---|---|---|
 | 0.0 | **1.38%** | **1.44%** | control: no heralds, so the decoders agree (as required) |
-| 0.5 | **2.30% ± 0.15%** | **1.73% ± 0.10%** | |
-| 0.98 | **6.27% ± 0.54%** (ν = 1.56) | **2.29% ± 0.18%** | |
+| 0.5 | **2.30% ± 0.15%** | **1.73% ± 0.10%** | herald and blind first diverge measurably |
+| 0.98 | **6.27% ± 0.54%** (ν = 1.56) | **2.29% ± 0.18%** | near-full conversion (¹⁷¹Yb target); only sweep whose dense `p`-band pins ν |
 
 ### Comparison to the literature
 
-Wu et al. [[1]](#references) — the paper that introduced this erasure-conversion scheme for ¹⁷¹Yb —
+Wu et al. [[3]](#references) — the paper that introduced this erasure-conversion scheme for ¹⁷¹Yb —
 report circuit-level surface-code thresholds rising from **0.937%** (no conversion) to **4.15%** at 98%
 erasure conversion. This work measures **1.38% → 6.27%** over the same range. The two are consistent in
 structure (a several-fold threshold gain from near-total erasure conversion) and comparable in
@@ -83,8 +83,8 @@ The full factor is `1.6× · 2.7× ≈ 4.5×`.
 
 ### Noise channels (§5)
 
-The biased-erasure model follows Wu et al. [[1]](#references); "biased" refers to the leakage favoring
-one computational state, in the sense of Sahay et al. [[3]](#references). Per two-qubit gate on qubits
+The biased-erasure model follows Wu et al. [[3]](#references); "biased" refers to the leakage favoring
+one computational state, in the sense of Sahay et al. [[8]](#references). Per two-qubit gate on qubits
 `(a, b)`, with physical rate `p` and erasure fraction `r_e`:
 
 | Channel | Rate | Where |
@@ -101,8 +101,8 @@ non-trivial Pauli has probability ½.
 
 ### Detector algebra (§3.4)
 
-The surface-code detector/syndrome construction is standard, following Dennis et al. [[4]](#references)
-and Fowler et al. [[5]](#references). Let `s_a(t)` be ancilla `a`'s outcome in round `t`, `m_q` the final
+The surface-code detector/syndrome construction is standard, following Dennis et al. [[9]](#references)
+and Fowler et al. [[10]](#references). Let `s_a(t)` be ancilla `a`'s outcome in round `t`, `m_q` the final
 data measurement.
 
 | Where | Detector | Declared for |
@@ -127,7 +127,7 @@ with fixed points `P_L_shot = ½ → p_L = ½` and `T = 1 → p_L = P_L_shot`.
 ### Finite-size scaling ansatz (§10)
 
 Near the crossing the collapsed data fit the quadratic finite-size-scaling ansatz of Wang, Harrington &
-Preskill [[7]](#references):
+Preskill [[11]](#references):
 
 ```
 p_L(p, d) = A + B·x + C·x²,     x = (p − p_th)·d^{1/ν}
@@ -225,7 +225,7 @@ from the `d ≥ 7` collapse fit, never from the raw crossing estimate alone.
 `shortest_graphlike_error()` length vs `d` for the hook-safe CX schedule (§3.2) and a deliberately
 **broken** one — computed directly from the circuit builder, no Monte Carlo. Hook errors and the
 CX-ordering that controls them are the surface-code "measurement gadget" analysis of
-Dennis et al. [[4]](#references) and Fowler et al. [[5]](#references). The hook-safe schedule orients
+Dennis et al. [[9]](#references) and Fowler et al. [[10]](#references). The hook-safe schedule orients
 every mid-window ancilla-fault hook *perpendicular* to the logical operator, so the graphlike distance
 tracks `d`. The broken schedule (both bases sharing the ᴎ-order) runs the X-ancilla hooks
 *parallel* to the vertical logical, halving the distance to `⌈(d+1)/2⌉`. This figure is the regression
@@ -316,7 +316,7 @@ were green. See [PLAN.md](PLAN.md) for the full specification.
 
 ## Reproducing
 
-Setup (Python ≥ 3.11, [uv](https://github.com/astral-sh/uv)):
+Setup (Python ≥ 3.12, [uv](https://github.com/astral-sh/uv)):
 
 ```bash
 uv sync --group dev
@@ -365,35 +365,35 @@ collected in [`docs/FUTURE_WORK.md`](docs/FUTURE_WORK.md).
 
 ## References
 
-1. Wu, Y., Kolkowitz, S., Puri, S. & Thompson, J. D. *Erasure conversion for fault-tolerant quantum
+1. Tomita, Y. & Svore, K. M. *Low-distance surface codes under realistic quantum noise.* Phys. Rev. A
+   **90**, 062320 (2014). [arXiv:1404.3747](https://arxiv.org/abs/1404.3747)
+2. Gidney, C. *Stim: a fast stabilizer circuit simulator.* Quantum **5**, 497 (2021).
+   [arXiv:2103.02202](https://arxiv.org/abs/2103.02202)
+3. Wu, Y., Kolkowitz, S., Puri, S. & Thompson, J. D. *Erasure conversion for fault-tolerant quantum
    computing in alkaline earth Rydberg atom arrays.* Nat. Commun. **13**, 4657 (2022).
    [arXiv:2201.03540](https://arxiv.org/abs/2201.03540)
-2. Barrett, S. D. & Stace, T. M. *Fault Tolerant Quantum Computation with Very High Threshold for Loss
-   Errors.* Phys. Rev. Lett. **105**, 200502 (2010).
-   [arXiv:1005.2456](https://arxiv.org/abs/1005.2456)
-3. Sahay, K., Jin, J., Claes, J., Thompson, J. D. & Puri, S. *High-Threshold Codes for Neutral-Atom
+4. Ma, S. et al. *High-fidelity gates and mid-circuit erasure conversion in an atomic qubit.* Nature
+   **622**, 279 (2023).
+5. Kubica, A. et al. *Erasure Qubits: Overcoming the T₁ Limit in Superconducting Circuits.* Phys. Rev. X
+   **13**, 041022 (2023). [arXiv:2208.05461](https://arxiv.org/abs/2208.05461)
+6. Teoh, J. D. et al. *Dual-rail encoding with superconducting cavities.* PNAS **120**, e2221736120
+   (2023). [arXiv:2212.12077](https://arxiv.org/abs/2212.12077)
+7. Higgott, O. & Gidney, C. *Sparse Blossom: correcting a million errors per core second with
+   minimum-weight matching.* Quantum **9**, 1600 (2025).
+   [arXiv:2303.15933](https://arxiv.org/abs/2303.15933)
+8. Sahay, K., Jin, J., Claes, J., Thompson, J. D. & Puri, S. *High-Threshold Codes for Neutral-Atom
    Qubits with Biased Erasure Errors.* Phys. Rev. X **13**, 041013 (2023).
    [arXiv:2302.03063](https://arxiv.org/abs/2302.03063)
-4. Dennis, E., Kitaev, A., Landahl, A. & Preskill, J. *Topological quantum memory.* J. Math. Phys.
+9. Dennis, E., Kitaev, A., Landahl, A. & Preskill, J. *Topological quantum memory.* J. Math. Phys.
    **43**, 4452 (2002). [arXiv:quant-ph/0110143](https://arxiv.org/abs/quant-ph/0110143)
-5. Fowler, A. G., Mariantoni, M., Martinis, J. M. & Cleland, A. N. *Surface codes: Towards practical
-   large-scale quantum computation.* Phys. Rev. A **86**, 032324 (2012).
-6. Tomita, Y. & Svore, K. M. *Low-distance surface codes under realistic quantum noise.* Phys. Rev. A
-   **90**, 062320 (2014). [arXiv:1404.3747](https://arxiv.org/abs/1404.3747)
-7. Wang, C., Harrington, J. & Preskill, J. *Confinement-Higgs transition in a disordered gauge theory
-   and the accuracy threshold for quantum memory.* Ann. Phys. **303**, 31 (2003).
-   [arXiv:quant-ph/0207088](https://arxiv.org/abs/quant-ph/0207088)
-8. Ma, S. et al. *High-fidelity gates and mid-circuit erasure conversion in an atomic qubit.* Nature
-   **622**, 279 (2023).
-9. Kubica, A. et al. *Erasure Qubits: Overcoming the T₁ Limit in Superconducting Circuits.* Phys. Rev. X
-   **13**, 041022 (2023). [arXiv:2208.05461](https://arxiv.org/abs/2208.05461)
-10. Teoh, J. D. et al. *Dual-rail encoding with superconducting cavities.* PNAS **120**, e2221736120
-    (2023). [arXiv:2212.12077](https://arxiv.org/abs/2212.12077)
-11. Gidney, C. *Stim: a fast stabilizer circuit simulator.* Quantum **5**, 497 (2021).
-    [arXiv:2103.02202](https://arxiv.org/abs/2103.02202)
-12. Higgott, O. & Gidney, C. *Sparse Blossom: correcting a million errors per core second with
-    minimum-weight matching.* Quantum **9**, 1600 (2025).
-    [arXiv:2303.15933](https://arxiv.org/abs/2303.15933)
+10. Fowler, A. G., Mariantoni, M., Martinis, J. M. & Cleland, A. N. *Surface codes: Towards practical
+    large-scale quantum computation.* Phys. Rev. A **86**, 032324 (2012).
+11. Wang, C., Harrington, J. & Preskill, J. *Confinement-Higgs transition in a disordered gauge theory
+    and the accuracy threshold for quantum memory.* Ann. Phys. **303**, 31 (2003).
+    [arXiv:quant-ph/0207088](https://arxiv.org/abs/quant-ph/0207088)
+12. Barrett, S. D. & Stace, T. M. *Fault Tolerant Quantum Computation with Very High Threshold for Loss
+    Errors.* Phys. Rev. Lett. **105**, 200502 (2010).
+    [arXiv:1005.2456](https://arxiv.org/abs/1005.2456)
 
 ## License
 
