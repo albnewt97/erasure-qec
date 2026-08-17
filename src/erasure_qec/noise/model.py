@@ -8,6 +8,11 @@ from dataclasses import dataclass
 
 from erasure_qec.config import NoiseParams
 
+# A heralded erasure replaces the qubit with the maximally mixed state, i.e. a
+# uniform Pauli in {I, X, Y, Z}; it is a *non-identity* error only 3/4 of the
+# time (the I outcome still heralds but causes no syndrome).
+_ERASURE_NONIDENTITY_FRACTION = 0.75
+
 
 @dataclass(frozen=True)
 class ChannelRates:
@@ -21,15 +26,34 @@ class ChannelRates:
 
 
 def channel_rates(params: NoiseParams) -> ChannelRates:
-    """Convert ``NoiseParams`` into the concrete channel probabilities of §5.
+    """Convert ``NoiseParams`` into the concrete per-instruction probabilities.
 
-    Per two-qubit gate on (a, b): ``DEPOLARIZE2(p * (1 - r_e))`` is the
-    residual Pauli component, and ``HERALDED_ERASE(p * r_e / 2)`` is applied
-    independently to each of a and b.
+    The two-qubit-gate error budget is held constant across ``r_e``: PLAN.md §0
+    defines ``r_e`` as the fraction of the physical error budget per two-qubit
+    gate that is converted into heralded erasures, so the total non-identity
+    error probability per gate must equal ``p`` for every ``r_e``.
+
+    - Residual Pauli: ``DEPOLARIZE2(p * (1 - r_e))`` — non-identity mass
+      ``p * (1 - r_e)``.
+    - Erasure: ``HERALDED_ERASE(q)`` independently on each of the two qubits.
+      An erasure is a non-identity error only 3/4 of the time, so the two
+      qubits contribute ``2 * q * (3/4)`` of non-identity mass to first order in
+      ``p``. Setting that equal to the erasure share ``p * r_e`` gives
+      ``q = p * r_e / (2 * 3/4) = (2/3) * p * r_e``.
+
+    To first order in ``p`` the per-gate non-identity probability is then ``p``
+    for every ``r_e``, and ``r_e`` is exactly the heralded fraction of the
+    two-qubit-gate error budget. Measurement, reset, and idle errors are *not*
+    erasure-converted (they model separate physical processes), so the
+    circuit-wide heralded fraction is below ``r_e``.
+
+    This corrects the earlier ``p * r_e / 2`` rate, under which the per-gate
+    non-identity budget shrank to ``p * (1 - r_e/4)`` as ``r_e`` grew, inflating
+    the apparent threshold (see docs/AUDIT.md).
     """
     return ChannelRates(
         depolarize2=params.p * (1.0 - params.r_e),
-        herald=params.p * params.r_e / 2.0,
+        herald=params.p * params.r_e / (2.0 * _ERASURE_NONIDENTITY_FRACTION),
         meas_flip=params.meas,
         reset_flip=params.reset,
         idle_depolarize=params.idle,
