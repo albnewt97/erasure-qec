@@ -163,7 +163,11 @@ mass; setting that equal to the erasure share `p·r_e` gives the rate `q = (2/3)
 per-gate non-identity error probability at `p` for **every** `r_e` (exactly `p` at `r_e = 0`, falling
 only by the O(p²) overlap to `p − p²/4` at `r_e = 1`; see
 `test_error_budget_invariance`), so `r_e` genuinely *converts* the 2q-gate error budget rather than
-shrinking it.
+shrinking it. We chose this budget-conserving convention (option (a) of the audit's §2.2) precisely so
+that **`p` is itself the iso-noise axis**: the [threshold panels](#threshold-scaling) are already plotted
+against a budget-conserving `x`-axis. A "true" non-identity-probability axis would move each point by at
+most `p²/4` (≤ 0.5% of `p` at `p = 0.02`) — invisible on the panels and below the fit CIs — so no
+separate rescaled panel is needed; the threshold in `p` and in exact-budget agree to the digits quoted.
 
 > **`r_e` is the 2q-gate fraction, not the circuit-wide heralded fraction.** Measurement and reset errors
 > are never erasure-converted, and idle errors only when `convert_idle` is set, so the fraction of *total
