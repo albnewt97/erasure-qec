@@ -416,9 +416,11 @@ uv run python experiments/make_synthetic_fixtures.py
 ## Related work and future directions
 
 Directions this project does not yet build on — imperfect/delayed heralds, other hardware profiles
-(trapped ions), logical algorithms, alternative decoders, and a denser high-`r_e` sweep to resolve the
-`r_e = 0.98` herald threshold — with a concrete next step for each, are collected in
-[`docs/FUTURE_WORK.md`](docs/FUTURE_WORK.md).
+(trapped ions), logical algorithms, and alternative decoders — with a concrete next step and a
+motivating paper for each, are collected in [`docs/FUTURE_WORK.md`](docs/FUTURE_WORK.md). The nearest
+methodological next step — a denser, higher-statistics `p`-grid (and possibly larger distances) to
+resolve the `r_e = 0.98` herald threshold that the current sweep leaves unconverged — is noted in
+[Caveats](#caveats-and-limitations) above.
 
 ## References
 
