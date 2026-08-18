@@ -52,19 +52,17 @@ _N_PARAMS = 5  # (p_th, nu, A, B, C)
 _MIN_DOF = 3
 
 # Per-round p_L at or above this is saturated (approaching the 1/2 at-chance
-# limit) and outside the quadratic ansatz's validity. Used only inside
-# estimate_crossing, where a p is dropped if *any* distance saturates: the
-# ordering-inversion guard needs the saturated large-d points present at a p to
-# recognise (and reject) an above-threshold point, so per-point filtering here
-# would defeat it.
+# limit) and outside the local quadratic ansatz's validity, so it is excluded
+# from both the crossing estimate and the fit window. The cut is on the
+# *per-round* rate (the variable the finite-size collapse is fit in), NOT the
+# shot-level rate: at large T a legitimate near-crossing point still has
+# P_L_shot -> 1/2 (per-round ~0.1 over T~11 rounds gives P_L_shot ~0.45), so a
+# shot-level cap wrongly deletes near-crossing large-d data and breaks
+# high-threshold fits (r_e=0.98). Imprecise near-saturation points are instead
+# downweighted by their large 1-sigma Wilson errors. In estimate_crossing a p
+# is dropped if *any* distance saturates, keeping the saturated large-d points
+# present so the ordering-inversion guard can reject an above-threshold p.
 _SATURATION_CAP = 0.4
-
-# The fit window (_select_window) instead excludes points on the *shot-level*
-# rate: a distance failing this fraction of shots is at/above its own threshold
-# and carries little threshold information. The cut must be on P_L_shot, not the
-# per-round rate — a per-round cap of 0.4 corresponds to P_L_shot ~ 0.5 over T
-# rounds, so it fails to exclude coin-flip data (see docs/AUDIT.md).
-_SHOT_SATURATION_CAP = 0.4
 
 # nu optimiser bounds; a fit landing on either is unconstrained, not converged.
 _NU_BOUNDS = (0.5, 6.0)
@@ -202,7 +200,8 @@ def _select_window(
     return [
         pt
         for pt in points
-        if lo <= pt.p <= hi and pt.p_l_shot < _SHOT_SATURATION_CAP
+        if lo <= pt.p <= hi
+        and per_round_p_l(pt.p_l_shot, pt.rounds) < _SATURATION_CAP
     ]
 
 
@@ -277,7 +276,14 @@ def fit_threshold(
     )
 
     a0 = float(np.median(y))
-    p0: _FitParams = (center, nu_guess, a0, 0.0, 0.0)
+    # The p_th initial guess must be inside the p-range of the *windowed* points
+    # (curve_fit rejects an out-of-bounds p0). The data-driven ``center`` can
+    # fall outside it after the coin-flip cut removes above-crossing points at
+    # large d, so clamp it; if the crossing truly sits above every retained
+    # point, the fit then pins p_th at the bound and is reported as not
+    # converged rather than crashing.
+    p_th0 = float(min(max(center, p_arr.min()), p_arr.max()))
+    p0: _FitParams = (p_th0, nu_guess, a0, 0.0, 0.0)
     bounds = (
         [p_arr.min(), _NU_BOUNDS[0], -1.0, -1e6, -1e6],
         [p_arr.max(), _NU_BOUNDS[1], 1.0, 1e6, 1e6],

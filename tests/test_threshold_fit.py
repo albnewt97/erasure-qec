@@ -144,14 +144,12 @@ def test_default_fit_on_real_baseline_recovers_threshold() -> None:
     p_center) recovers an effective crossing p_th in [0.012, 0.020] for both
     decoders with a physical herald nu.
 
-    On the densified baseline the all-d fit's bootstrap errors are tight
-    (~0.0008), and the all-d effective crossing is finite-size-biased *by a
-    different amount* for each decoder, so the two all-d p_th values no longer
-    agree at 1 sigma. The all-d effective nu is itself an artefact of mixing
-    small and large distances: it is inflated well above the physical value
-    (~2.6 for herald here, after the coin-flip fit-window cut raised it from
-    the earlier ~2.2), which is exactly why we report the asymptotic d>=7 fit
-    instead (see :func:`test_asymptotic_d_min_fit_on_real_baseline`)."""
+    The all-d effective crossing is finite-size-biased *by a different amount*
+    for each decoder, so the two all-d p_th values no longer agree at 1 sigma.
+    The all-d effective nu is itself an artefact of mixing small and large
+    distances: it is inflated above the physical value (~2.2 for herald here),
+    which is exactly why we report the asymptotic d>=7 fit instead (see
+    :func:`test_asymptotic_d_min_fit_on_real_baseline`)."""
     herald = fit_threshold(_real_baseline("herald_mwpm"))
     blind = fit_threshold(_real_baseline("blind_mwpm"))
 
