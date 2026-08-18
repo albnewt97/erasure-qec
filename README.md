@@ -16,17 +16,23 @@ converts errors rather than removing them — see [Noise channels](#noise-channe
 from erasure comes almost entirely from **reading the herald bits**, not from the conversion itself:
 
 - The **blind** decoder (which discards the herald bits and folds erasures into extra depolarizing
-  noise) barely moves the threshold as `r_e` grows: **1.44% → 1.49% → 1.64%** at `r_e = 0 / 0.5 / 0.98`.
-- The **herald-conditioned** decoder lifts it substantially: **1.38% → 2.32%** at `r_e = 0.5`, and the
-  herald-vs-blind advantage compounds with code distance and erasure fraction (the
-  [ablation](#the-herald-aware-vs-blind-ablation)) — reaching a large factor at `d = 11, r_e = 0.98`.
+  noise) barely moves the threshold from baseline to `r_e = 0.5`: **1.44% → 1.49%** (95% CIs
+  `[1.35, 1.57]` → `[1.42, 2.15]`).
+- The **herald-conditioned** decoder lifts it substantially over the same range: **1.38% → 2.32%**
+  (`[1.33, 1.47]` → `[2.19, 2.64]`), and the herald-vs-blind advantage compounds with code distance and
+  erasure fraction (the [ablation](#the-herald-aware-vs-blind-ablation)) — reaching a large factor at
+  `d = 11, r_e = 0.98`.
 
-At **`r_e = 0.98`** the herald crossing sits near **~6%**, but the largest codes (`d = 9, 11`) saturate
-to the ½ coin-flip limit within one grid step above it, so the `d ≥ 7` collapse fit **does not converge**
-(ν rails to its bound). We report that as a **non-result**, not a number, and lead the near-full-conversion
-story with the deterministic ablation instead. This corrects an earlier version of this README, whose
-"6.27% ± 0.54%" headline was an artifact of a bug that reported a bound-pinned fit as converged, run on a
-noise model whose per-gate budget shrank with `r_e` (see [`docs/AUDIT.md`](docs/AUDIT.md)).
+At **`r_e = 0.98`** the collapse fit resolves **neither** decoder's threshold: the herald crossing sits
+near ~6% but the largest codes (`d = 9, 11`) saturate to the ½ coin-flip limit within one grid step above
+it, so the `d ≥ 7` fit does not converge (ν rails to its bound); and the blind fit, though it returns a
+point value ~1.6%, has a 95% bootstrap CI spanning `[1.5, ~8]%` (the crossing is bistable under
+resampling). Both are reported as **non-results**, and the near-full-conversion story leads with the
+deterministic ablation instead. All CIs here are 95% *bootstrap percentile* intervals from a bootstrap
+that re-runs the whole pipeline per replicate (see [ansatz](#finite-size-scaling-ansatz-10)); they are
+wider and more honest than the `± σ` an earlier version reported. That earlier "6.27% ± 0.54%" headline
+was an artifact of a bug that reported a bound-pinned fit as converged, on a noise model whose per-gate
+budget shrank with `r_e` (see [`docs/AUDIT.md`](docs/AUDIT.md)).
 
 ![Threshold panels](figures/threshold_panels.png)
 
@@ -51,19 +57,31 @@ single scaling variable `x = (p − p_th)·d^{1/ν}`.
 
 ### Measured thresholds (`d ≥ 7` collapse fit)
 
-| `r_e` | `herald_mwpm` `p_th` | `blind_mwpm` `p_th` | χ²/dof (h / b) | notes |
-|---|---|---|---|---|
-| 0.0 | **1.38% ± 0.11%** (ν = 1.45) | **1.44% ± 0.12%** (ν = 2.12) | 1.02 / 1.15 | control: no heralds, so the decoders agree within error bars (as required) |
-| 0.5 | **2.32% ± 0.30%** (ν = 1.90) | **1.49% ± 0.11%** (ν = 1.58) | 0.62 / 0.47 | herald clearly above blind |
-| 0.98 | **does not converge** | **1.64% ± 0.08%** (ν = 1.72) | — / 0.20 † | herald crossing ~6%, but `d = 9,11` saturate immediately above it → ν unconstrained |
+`p_th` is the point estimate; the interval is a **95% bootstrap percentile CI** (default `n_boot = 200`,
+`seed = 0`; the full-pipeline bootstrap below, so the intervals are asymmetric and honest).
 
-All quoted `p_th ± σ` come from a seeded parametric bootstrap over the sinter counts. † The `r_e = 0.98`
-blind fit has only 9 in-window points (dof = 4); its χ²/dof = 0.20 is a small-sample over-fit flag, so
-read it as ~1.6% with a wide systematic, not a precise value. The `r_e = 0.98` **herald** threshold is a
-genuine non-result under this pipeline: `fit_threshold(..., d_min=7)` returns `converged=False` with
-`nu at upper bound`. The all-`d` fit "reaches" ~6–8.5% depending on the window, but mixes the
-finite-size-corrected small distances and rests on the ragged, `max_errors`-limited data just above the
-crossing, so we do not quote it as a threshold.
+| `r_e` | `herald_mwpm` `p_th` [95% CI] | `blind_mwpm` `p_th` [95% CI] | χ²/dof (h / b) | notes |
+|---|---|---|---|---|
+| 0.0 | **1.38%** `[1.33, 1.47]` (ν = 1.45) | **1.44%** `[1.35, 1.57]` (ν = 2.12) | 1.02 / 1.15 | control: no heralds, so the decoders agree within CIs (as required) |
+| 0.5 | **2.32%** `[2.19, 2.64]` (ν = 1.90) | **1.49%** `[1.42, 2.15]` (ν = 1.58) | 0.62 / 0.47 | herald point well above blind; blind CI is skewed up |
+| 0.98 | **not resolved** (fit non-converged) | **not resolved** (`[1.5, ~8]`, bistable) | 0.55 / 0.20 | at near-full conversion the collapse fit resolves neither threshold |
+
+At `r_e = 0.98` neither `d ≥ 7` fit yields a usable threshold: the herald fit returns `converged=False`
+(ν pinned at its bound — `d = 9, 11` saturate to ½ within one grid step above the ~6% crossing), and the
+blind fit, though it returns a point value ~1.6%, has a 95% CI spanning ~`[1.5, 8]%` that shifts with the
+bootstrap seed — its crossing estimate is bistable, so the number is not trustworthy. The high-`r_e`
+evidence is the [ablation](#the-herald-aware-vs-blind-ablation), which needs no fit. At `r_e = 0.5` the
+herald and blind *point* estimates are clearly separated (2.32% vs 1.49%) and the ablation confirms the
+gap, though the blind CI's upper edge (2.15%) reaches the herald CI's lower edge (2.19%), so the
+threshold separation alone is marginal at 95%.
+
+All quoted intervals are 95% bootstrap percentile CIs (see [ansatz](#finite-size-scaling-ansatz-10)).
+The `r_e = 0.98` blind fit has only 9 in-window points (χ²/dof = 0.20, a small-sample over-fit flag) and
+a CI that both spans ~`[1.5, 8]%` and moves with the seed, so its ~1.6% point value is not a resolved
+threshold. The `r_e = 0.98` herald fit is a non-result by construction: `fit_threshold(..., d_min=7)`
+returns `converged=False` with `nu at upper bound`. The all-`d` fit "reaches" ~6–8.5% depending on the
+window, but mixes the finite-size-corrected small distances and rests on ragged, `max_errors`-limited
+data just above the crossing, so we do not quote it either.
 
 ### Comparison to the literature
 
@@ -91,10 +109,11 @@ With the per-gate budget held constant, the ablation splits cleanly and the spli
 what an "erasure conversion is intrinsically cheaper" intuition suggests:
 
 - **Erasure conversion alone** — the `blind_mwpm` decoder, which discards the herald bits — moves the
-  threshold hardly at all: **1.44% → 1.49% → 1.64%** across `r_e = 0 / 0.5 / 0.98`. Once the total
-  per-gate error budget is fixed, replacing residual Pauli with (blind) erasure noise is close to a wash.
+  threshold hardly at all where we can resolve it: **1.44% → 1.49%** from `r_e = 0` to `0.5` (and its
+  `r_e = 0.98` fit does not resolve). Once the total per-gate error budget is fixed, replacing residual
+  Pauli with (blind) erasure noise is close to a wash.
 - **Herald-conditioned decoding** — reading each shot's herald bits and zeroing the conditioned edges —
-  is where the benefit lives: **1.38% → 2.32%** at `r_e = 0.5` alone, and a growing sub-threshold
+  is where the benefit lives: **1.38% → 2.32%** from `r_e = 0` to `0.5`, and a growing sub-threshold
   suppression at higher `r_e` and distance (below). Knowing *where* the erasure occurred is the whole
   advantage.
 
@@ -170,7 +189,17 @@ for `(p_th, ν, A, B, C)` by weighted least squares, weighting each point by its
 error** (the 95% Wilson half-width ÷ `z₀.₉₇₅`) in per-round space. Points at or above per-round
 `p_L = 0.4` (saturating toward the ½ limit, outside the local ansatz) are excluded, and the fit reports
 its **χ²/dof**; a fit whose `p_th` or `ν` pins at an optimiser bound is reported `converged=False` rather
-than as a spurious number. `p_th ± σ` comes from a seeded parametric bootstrap over the sinter counts.
+than as a spurious number.
+
+Uncertainty is a **95% bootstrap percentile CI**, from a parametric bootstrap that re-runs the *entire*
+pipeline per replicate: resample `errors ~ Binomial(shots, P_L_shot)` over **all** points for the decoder
+(not just the selected window), then re-run the crossing estimate, the window selection, and the same
+weighted fit as the point estimate. Replicates whose window is too thin or whose fit fails are counted
+(`n_boot_failed`), not dropped, and because the `p_th` distribution is skewed the interval is a
+percentile CI, not `± σ`. Measuring the same estimator the point fit uses — weighted, full-pipeline — is
+what keeps the interval honest; an earlier bootstrap refit an *unweighted* model from the point estimate
+on a *frozen* window and dropped failures, all of which reported the CI too narrow (e.g. the `r_e = 0.98`
+blind fit looked like `± 0.08%` but its honest CI spans several percent).
 
 ---
 
@@ -240,12 +269,14 @@ divides a near-zero by a near-zero) is dropped, since its bootstrap CIs otherwis
 
 A few things worth being straight about.
 
-**The `r_e = 0.98` herald threshold is not measured here.** At near-full conversion the herald crossing
-sits near ~6%, where distances 9 and 11 saturate to the ½ coin-flip limit within one `p`-grid step, so
-the `d ≥ 7` collapse window holds too few above-crossing large-`d` points to constrain `ν`; the fit rails
-`ν` to its bound and is reported `converged=False`. Resolving it would need a denser, higher-statistics
-`p`-grid straddling the crossing and possibly larger distances — future work. The ablation (above) is the
-robust high-`r_e` result.
+**Neither `r_e = 0.98` threshold is measured here.** At near-full conversion the herald crossing sits
+near ~6%, where distances 9 and 11 saturate to the ½ coin-flip limit within one `p`-grid step, so the
+`d ≥ 7` collapse window holds too few above-crossing large-`d` points to constrain `ν`; the herald fit
+rails `ν` to its bound and is reported `converged=False`. The blind fit returns a point value ~1.6% but
+its full-pipeline bootstrap CI spans ~`[1.5, 8]%` and shifts with the seed (a bistable crossing
+estimate), so that number is not trustworthy either. Resolving either would need a denser,
+higher-statistics `p`-grid straddling the crossing and possibly larger distances — future work. The
+ablation (above), which needs no fit, is the robust high-`r_e` result.
 
 **The effective crossing drifts with distance.** Curves for small `d` carry the largest finite-size
 corrections, so an all-distance collapse fit places the effective crossing above the asymptotic value —

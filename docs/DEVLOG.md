@@ -109,23 +109,35 @@ shot-level saturation cut and had to revert it — at large T a legitimate near-
 `P_L_shot → ½`, so the cut deleted the near-crossing large-d data and broke exactly the high-threshold
 fit I cared about. The cap belongs on the per-round rate.
 
+## A fourth bug: the bootstrap measured the wrong estimator
+
+One more that the audit didn't list but the same scrutiny caught: my CI was too narrow because the
+bootstrap wasn't the same estimator as the fit. It refit an *unweighted* model, starting from the
+point-estimate parameters, on a *frozen* window, and silently dropped replicates that failed — all four
+shrink the reported σ. I rewrote it to run the whole pipeline per replicate (resample every point,
+re-run the crossing estimate, the window, and the *weighted* fit), count failures, and report a
+percentile CI since the p_th distribution is skewed. A coverage test now checks the 95% CI actually
+covers a known p_th ~95% of the time. This mattered: the r_e=0.98 *blind* fit that looked like
+`1.64% ± 0.08%` has an honest 95% CI spanning roughly `[1.5, 8]%` and shifting with the seed — its
+crossing is bistable, so it is not a resolved threshold either.
+
 ## The result, honestly
 
-From the re-collected fixed-model sweeps in `data/`, `figures/threshold_panels.png` (d≥7 collapse fits):
+From the re-collected fixed-model sweeps in `data/`, `figures/threshold_panels.png` (d≥7 collapse fits;
+95% bootstrap percentile CI, seed 0):
 
 | r_e | herald | blind | χ²/dof |
 |---|---|---|---|
-| 0 | 1.38% ± 0.11% | 1.44% ± 0.12% | ~1.0 |
-| 0.5 | 2.32% ± 0.30% | 1.49% ± 0.11% | 0.6 / 0.5 |
-| 0.98 | **does not converge** | 1.64% ± 0.08% | — / 0.20 |
+| 0 | 1.38% `[1.33, 1.47]` | 1.44% `[1.35, 1.57]` | ~1.0 |
+| 0.5 | 2.32% `[2.19, 2.64]` | 1.49% `[1.42, 2.15]` | 0.6 / 0.5 |
+| 0.98 | **not resolved** | **not resolved** `[1.5, ~8]` | — / 0.20 |
 
-The r_e=0 row is a control: with no heralds the two decoders agree within error bars, and they do. The
-honest story is the *opposite* of what I first wrote. With the budget held constant, the **blind**
-threshold barely moves (1.44% → 1.49% → 1.64%) — erasure conversion on its own is close to a wash. The
-gain is almost entirely **herald-conditioning**: 1.38% → 2.32% at r_e=0.5. At r_e=0.98 the herald
-crossing is near ~6% but the large codes saturate immediately above it, so the collapse fit rails ν to
-its bound and I report it as a non-result rather than the 6.27% I once quoted. The robust
-high-r_e evidence is the ablation (`scripts/ablation_table.py`, identical shots, no fit): the herald
-advantage grows to ~1000× at d=11 — a low-statistics lower bound, but unambiguous in direction. That
-ablation is the thing worth building; the threshold table is honest about where it can and cannot resolve
-a number.
+The r_e=0 row is a control: with no heralds the two decoders agree within their CIs, and they do. The
+honest story is the *opposite* of what I first wrote. Where the fit resolves, with the budget held
+constant the **blind** threshold barely moves (1.44% → 1.49% from r_e=0 to 0.5) — erasure conversion on
+its own is close to a wash. The gain is almost entirely **herald-conditioning**: 1.38% → 2.32%. At
+r_e=0.98 the collapse fit resolves *neither* threshold (herald rails ν to its bound; blind is bistable),
+so I quote neither, rather than the 6.27% I once did. The robust high-r_e evidence is the ablation
+(`scripts/ablation_table.py`, identical shots, no fit): the herald advantage grows to ~1000× at d=11 — a
+low-statistics lower bound, but unambiguous in direction. That ablation is the thing worth building; the
+threshold table is honest about where it can and cannot resolve a number.
