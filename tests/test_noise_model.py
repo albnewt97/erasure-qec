@@ -140,6 +140,7 @@ def test_channel_rates_formula() -> None:
     assert rates.meas_flip == 0.01
     assert rates.reset_flip == 0.03
     assert rates.idle_depolarize == 0.005
+    assert rates.idle_herald == 0.0  # convert_idle defaults False
 
 
 def test_channel_rates_hold_gate_budget_constant() -> None:
@@ -188,6 +189,38 @@ def test_channel_rates_defaults_meas_reset_idle_to_p() -> None:
     assert rates.meas_flip == 0.03
     assert rates.reset_flip == 0.03
     assert rates.idle_depolarize == 0.03
+    assert rates.idle_herald == 0.0  # convert_idle defaults False
+
+
+def test_convert_idle_holds_idle_budget_constant() -> None:
+    """convert_idle splits the idle DEPOLARIZE1 budget like the 2q gate, but a
+    single idle qubit carries one erasure, so idle_herald = (4/3) p_idle r_e and
+    the idle budget dep + (3/4) herald stays at p_idle for every r_e."""
+    p_idle = 0.01
+    for r_e in (0.0, 0.5, 0.9, 1.0):
+        rates = channel_rates(
+            NoiseParams(p=0.02, r_e=r_e, p_idle=p_idle, convert_idle=True)
+        )
+        assert rates.idle_depolarize == pytest.approx(p_idle * (1 - r_e))
+        assert rates.idle_herald == pytest.approx(p_idle * r_e / 0.75)
+        assert rates.idle_depolarize + 0.75 * rates.idle_herald == pytest.approx(p_idle)
+
+
+def _herald_count(circuit: stim.Circuit) -> int:
+    return sum(1 for xy in circuit.get_detector_coordinates().values()
+               if len(xy) == 4 and xy[3] == 1.0)
+
+
+def test_convert_idle_emits_extra_heralds_and_is_noiseless_at_p_zero() -> None:
+    gate_only = build(5, 5, ErasureInjector(NoiseParams(p=0.02, r_e=0.98)))
+    with_idle = build(
+        5, 5, ErasureInjector(NoiseParams(p=0.02, r_e=0.98, convert_idle=True))
+    )
+    assert _herald_count(with_idle) > _herald_count(gate_only)
+    # p = 0 stays byte-identical to the noiseless circuit even with convert_idle.
+    reference = build(5, 5, NullInjector())
+    zero = build(5, 5, ErasureInjector(NoiseParams(p=0.0, r_e=0.98, convert_idle=True)))
+    assert zero == reference
 
 
 def test_noise_params_rejects_out_of_range_values() -> None:

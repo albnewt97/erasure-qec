@@ -48,8 +48,14 @@ class NoiseInjector(Protocol):
         """
         ...
 
-    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
-        """Append idle noise (e.g. ``DEPOLARIZE1``) for qubits idle during a TICK."""
+    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
+        """Append idle noise (e.g. ``DEPOLARIZE1``) for qubits idle during a TICK.
+
+        Returns the qubit indices that received a ``HERALDED_ERASE`` (idle
+        erasure, only when ``convert_idle`` is set), in herald-record order --
+        empty otherwise. The builder emits a sentinel detector per returned
+        qubit, exactly as for ``on_two_qubit_gate``.
+        """
         ...
 
 
@@ -67,8 +73,8 @@ class NullInjector:
     ) -> list[int]:
         return []
 
-    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
-        return None
+    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
+        return []
 
 
 class ErasureInjector:
@@ -113,9 +119,16 @@ class ErasureInjector:
         circuit.append("HERALDED_ERASE", flattened, self._rates.herald)
         return flattened
 
-    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
-        if qubits and self._rates.idle_depolarize > 0.0:
-            circuit.append("DEPOLARIZE1", list(qubits), self._rates.idle_depolarize)
+    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
+        if not qubits:
+            return []
+        idle = list(qubits)
+        if self._rates.idle_depolarize > 0.0:
+            circuit.append("DEPOLARIZE1", idle, self._rates.idle_depolarize)
+        if self._rates.idle_herald <= 0.0:
+            return []
+        circuit.append("HERALDED_ERASE", idle, self._rates.idle_herald)
+        return idle
 
 
 class PauliOnlyInjector:
@@ -149,5 +162,5 @@ class PauliOnlyInjector:
     ) -> list[int]:
         return self._delegate.on_two_qubit_gate(circuit, pairs)
 
-    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
-        self._delegate.on_idle(circuit, qubits)
+    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
+        return self._delegate.on_idle(circuit, qubits)

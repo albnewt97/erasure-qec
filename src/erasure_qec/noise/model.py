@@ -23,6 +23,7 @@ class ChannelRates:
     meas_flip: float  # X_ERROR immediately before M/MR
     reset_flip: float  # X_ERROR immediately after R
     idle_depolarize: float  # DEPOLARIZE1 on qubits idle during a TICK
+    idle_herald: float  # HERALDED_ERASE on an idle qubit (0 unless convert_idle)
 
 
 def channel_rates(params: NoiseParams) -> ChannelRates:
@@ -43,20 +44,31 @@ def channel_rates(params: NoiseParams) -> ChannelRates:
 
     To first order in ``p`` the per-gate non-identity probability is then ``p``
     for every ``r_e``, and ``r_e`` is exactly the heralded fraction of the
-    two-qubit-gate error budget. Measurement, reset, and idle errors are *not*
-    erasure-converted (they model separate physical processes), so the
-    circuit-wide heralded fraction is below ``r_e``.
+    two-qubit-gate error budget. Measurement and reset errors are never
+    erasure-converted here. Idle errors are converted only when
+    ``params.convert_idle`` is set: a single idle qubit carries one erasure, so
+    ``0.75 * idle_herald = p_idle * r_e`` gives ``idle_herald = (4/3) * p_idle *
+    r_e`` and ``DEPOLARIZE1(p_idle * (1 - r_e))``, again holding the idle budget
+    at ``p_idle``. With ``convert_idle=False`` (the default) idle stays a plain
+    ``DEPOLARIZE1(p_idle)`` and ``idle_herald`` is 0, so the circuit-wide
+    heralded fraction is well below ``r_e``.
 
     This corrects the earlier ``p * r_e / 2`` rate, under which the per-gate
     non-identity budget shrank to ``p * (1 - r_e/4)`` as ``r_e`` grew, inflating
     the apparent threshold (see docs/AUDIT.md).
     """
+    convert = params.convert_idle
     return ChannelRates(
         depolarize2=params.p * (1.0 - params.r_e),
         herald=params.p * params.r_e / (2.0 * _ERASURE_NONIDENTITY_FRACTION),
         meas_flip=params.meas,
         reset_flip=params.reset,
-        idle_depolarize=params.idle,
+        idle_depolarize=params.idle * (1.0 - params.r_e) if convert else params.idle,
+        idle_herald=(
+            params.idle * params.r_e / _ERASURE_NONIDENTITY_FRACTION
+            if convert
+            else 0.0
+        ),
     )
 
 

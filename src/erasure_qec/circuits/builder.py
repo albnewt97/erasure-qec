@@ -214,7 +214,14 @@ def _emit_round(
         heralded = injector.on_two_qubit_gate(circuit, pairs)
         meas_count = _emit_herald_detectors(circuit, heralded, rev_index, meas_count)
         active = {q for pair in pairs for q in pair}
-        injector.on_idle(circuit, [i for i in all_indices if i not in active])
+        idle_heralded = injector.on_idle(
+            circuit, [i for i in all_indices if i not in active]
+        )
+        # Idle-erasure herald bits land in the record right after the gate
+        # heralds (before the TICK), so their detectors are emitted here too.
+        meas_count = _emit_herald_detectors(
+            circuit, idle_heralded, rev_index, meas_count
+        )
         circuit.append("TICK")
         meas_count = _emit_probe_erasures(
             circuit, mid_round_probes.get(layer, []), index, rev_index, meas_count, probe_q
