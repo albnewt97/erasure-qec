@@ -38,19 +38,34 @@ import numpy.typing as npt
 from scipy.optimize import curve_fit
 
 from erasure_qec.analysis.statistics import (
+    Z_95,
     SweepPoint,
     per_round_estimate,
     per_round_p_l,
 )
 
 _FitParams = tuple[float, float, float, float, float]
+_N_PARAMS = 5  # (p_th, nu, A, B, C)
 
-# Per-round p_L at or above this is treated as saturated (approaching the 1/2
-# at-chance limit) and outside the quadratic ansatz's validity: such points are
-# excluded from both crossing estimation and the fit. Real sub-threshold sweeps
-# sit well below this; it only guards against noise-limited or above-threshold
-# points. Near a ~1-5% threshold the crossing p_L is ~1-5%, far below the cap.
+# Minimum degrees of freedom (points - parameters) for a fit to be trusted.
+# Fewer than this and the 5-parameter ansatz is fitting noise, not signal.
+_MIN_DOF = 3
+
+# Per-round p_L at or above this is saturated (approaching the 1/2 at-chance
+# limit) and outside the local quadratic ansatz's validity, so it is excluded
+# from both the crossing estimate and the fit window. The cut is on the
+# *per-round* rate (the variable the finite-size collapse is fit in), NOT the
+# shot-level rate: at large T a legitimate near-crossing point still has
+# P_L_shot -> 1/2 (per-round ~0.1 over T~11 rounds gives P_L_shot ~0.45), so a
+# shot-level cap wrongly deletes near-crossing large-d data and breaks
+# high-threshold fits (r_e=0.98). Imprecise near-saturation points are instead
+# downweighted by their large 1-sigma Wilson errors. In estimate_crossing a p
+# is dropped if *any* distance saturates, keeping the saturated large-d points
+# present so the ordering-inversion guard can reject an above-threshold p.
 _SATURATION_CAP = 0.4
+
+# nu optimiser bounds; a fit landing on either is unconstrained, not converged.
+_NU_BOUNDS = (0.5, 6.0)
 
 
 @dataclass(frozen=True)
@@ -68,6 +83,7 @@ class FitResult:
     distances: tuple[int, ...]
     n_points: int
     d_min: int | None = None  # if set, only distances >= d_min were fit
+    chi2_dof: float = float("nan")  # reduced chi-squared of the fit
     message: str = ""
     # Points actually used, as parallel arrays (for plotting the collapse).
     used_p: npt.NDArray[np.float64] = field(
@@ -136,10 +152,11 @@ def estimate_crossing(points: Sequence[SweepPoint]) -> float:
     curves for different ``d`` cross and the spread across distances is
     minimized *there*. Three robustness fixes over a naive ``max - min`` search:
 
-    1. **Exclude saturated points** (``p_L >= 0.4``): a distance whose ``p_L``
-       has reached the ~1/2 at-chance limit is already *above* its own
-       threshold, so any ``p`` where some distance saturates is not a crossing
-       candidate and is skipped entirely.
+    1. **Exclude saturated points** (per-round ``p_L >= _SATURATION_CAP``): a
+       ``p`` where any distance has reached the ~1/2 at-chance limit is already
+       above threshold and is skipped entirely, keeping the saturated
+       large-d values present so the ordering-inversion guard below can see
+       them.
     2. **Exclude inverted (above-threshold) orderings** (:func:`_ordering_inverted`):
        the estimator must sit at the transition between the below-threshold
        regime (``p_L`` decreasing in d) and the above-threshold regime
@@ -217,7 +234,7 @@ def fit_threshold(
     used = _select_window(points, center, window_factor)
     distances = tuple(sorted({pt.d for pt in used}))
 
-    def _fail(msg: str) -> FitResult:
+    def _fail(msg: str, chi2_dof: float = float("nan")) -> FitResult:
         return FitResult(
             converged=False,
             p_th=float("nan"),
@@ -230,28 +247,46 @@ def fit_threshold(
             distances=distances,
             n_points=len(used),
             d_min=d_min,
+            chi2_dof=chi2_dof,
             message=msg,
         )
 
-    # 5 free parameters; need >= 6 points and >= 2 distances to constrain them.
-    if len(used) < 6 or len(distances) < 2:
+    # 5 free parameters; require >= _MIN_DOF degrees of freedom and >= 2
+    # distances so the ansatz is constrained by data rather than fitting noise.
+    min_points = _N_PARAMS + _MIN_DOF
+    if len(used) < min_points or len(distances) < 2:
         return _fail(
             f"insufficient data in window: {len(used)} points, "
-            f"{len(distances)} distances (need >= 6 points, >= 2 distances)"
+            f"{len(distances)} distances (need >= {min_points} points "
+            f"for {_MIN_DOF} dof, >= 2 distances)"
         )
 
     p_arr = np.array([pt.p for pt in used], dtype=float)
     d_arr = np.array([pt.d for pt in used], dtype=float)
     y = np.array([per_round_p_l(pt.p_l_shot, pt.rounds) for pt in used])
+    # per_round_estimate is a 95% Wilson interval, so its half-width is ~Z_95
+    # standard errors; divide by Z_95 to recover a ~1-sigma weight for the fit.
+    # (The earlier code used the 95% half-width directly as 1 sigma, deflating
+    # chi^2/dof by ~Z_95^2 ~ 3.84x; see docs/AUDIT.md.)
     sigma = np.array(
-        [max((e.high - e.low) / 2.0, 1e-9) for e in map(per_round_estimate, used)]
+        [
+            max((e.high - e.low) / (2.0 * Z_95), 1e-9)
+            for e in map(per_round_estimate, used)
+        ]
     )
 
     a0 = float(np.median(y))
-    p0: _FitParams = (center, nu_guess, a0, 0.0, 0.0)
+    # The p_th initial guess must be inside the p-range of the *windowed* points
+    # (curve_fit rejects an out-of-bounds p0). The data-driven ``center`` can
+    # fall outside it after the coin-flip cut removes above-crossing points at
+    # large d, so clamp it; if the crossing truly sits above every retained
+    # point, the fit then pins p_th at the bound and is reported as not
+    # converged rather than crashing.
+    p_th0 = float(min(max(center, p_arr.min()), p_arr.max()))
+    p0: _FitParams = (p_th0, nu_guess, a0, 0.0, 0.0)
     bounds = (
-        [p_arr.min(), 0.5, -1.0, -1e6, -1e6],
-        [p_arr.max(), 6.0, 1.0, 1e6, 1e6],
+        [p_arr.min(), _NU_BOUNDS[0], -1.0, -1e6, -1e6],
+        [p_arr.max(), _NU_BOUNDS[1], 1.0, 1e6, 1e6],
     )
     try:
         popt, _ = curve_fit(
@@ -261,12 +296,38 @@ def fit_threshold(
     except (RuntimeError, ValueError) as exc:
         return _fail(f"curve_fit failed: {exc}")
 
+    resid = (y - _model((p_arr, d_arr), *popt)) / sigma
+    dof = len(used) - _N_PARAMS  # > 0 by the min_points gate above
+    chi2_dof = float(np.sum(resid**2) / dof)
+
+    # A parameter pinned at its optimiser bound means the data did not
+    # constrain it: the crossing sits at/outside the fit window (p_th at the
+    # p-range edge) or nu ran to a bound. Report these as *not converged* even
+    # though curve_fit returned, so a reviewer is not misled by a bound value.
+    p_span = float(p_arr.max() - p_arr.min())
+    edge_tol = max(1e-3 * p_span, 1e-9)
+    pinned: list[str] = []
+    if abs(float(popt[0]) - p_arr.min()) <= edge_tol:
+        pinned.append("p_th at window minimum")
+    elif abs(float(popt[0]) - p_arr.max()) <= edge_tol:
+        pinned.append("p_th at window maximum")
+    if abs(float(popt[1]) - _NU_BOUNDS[0]) <= 1e-3:
+        pinned.append("nu at lower bound")
+    elif abs(float(popt[1]) - _NU_BOUNDS[1]) <= 1e-3:
+        pinned.append("nu at upper bound")
+
     boot = _refit_bootstrap(used, popt, bounds, seed=seed, n_boot=n_boot)
     p_th_err = float(np.std(boot[:, 0])) if boot.size else float("nan")
     nu_err = float(np.std(boot[:, 1])) if boot.size else float("nan")
 
+    converged = not pinned
+    message = (
+        "ok"
+        if converged
+        else "not converged: " + "; ".join(pinned) + " pinned at optimiser bound"
+    )
     return FitResult(
-        converged=True,
+        converged=converged,
         p_th=float(popt[0]),
         p_th_err=p_th_err,
         nu=float(popt[1]),
@@ -277,7 +338,8 @@ def fit_threshold(
         distances=distances,
         n_points=len(used),
         d_min=d_min,
-        message="ok",
+        chi2_dof=chi2_dof,
+        message=message,
         used_p=p_arr,
         used_d=d_arr.astype(np.int64),
         used_p_l=y,

@@ -75,9 +75,11 @@ class BiasedErasureInjector:
     """Full biased-erasure noise model (PLAN.md §5).
 
     Per two-qubit gate: ``DEPOLARIZE2(p * (1 - r_e))`` residual Pauli noise,
-    plus ``HERALDED_ERASE(p * r_e / 2)`` independently on each qubit of the
-    pair. ``X_ERROR`` around every reset/measurement, ``DEPOLARIZE1`` on idle
-    qubits. Every rate that resolves to exactly 0 is skipped entirely (no
+    plus ``HERALDED_ERASE`` independently on each qubit at the rate set by
+    :func:`~erasure_qec.noise.model.channel_rates` (``(2/3) * p * r_e``, chosen
+    so the per-gate non-identity error budget is ``p`` for every ``r_e``).
+    ``X_ERROR`` around every reset/measurement, ``DEPOLARIZE1`` on idle qubits.
+    Every rate that resolves to exactly 0 is skipped entirely (no
     zero-probability instructions are ever appended), so ``p=0`` reproduces
     the noiseless circuit byte-for-byte.
     """

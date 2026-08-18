@@ -132,10 +132,26 @@ def test_channel_rates_formula() -> None:
     params = NoiseParams(p=0.02, r_e=0.9, p_meas=0.01, p_reset=0.03, p_idle=0.005)
     rates = channel_rates(params)
     assert rates.depolarize2 == 0.02 * (1 - 0.9)
-    assert rates.herald == 0.02 * 0.9 / 2
+    # Expected herald rate changed from p*r_e/2 to (2/3)*p*r_e: the old rate let
+    # the per-gate non-identity budget shrink with r_e because it ignored that
+    # an erasure is a non-identity error only 3/4 of the time (see docs/AUDIT.md
+    # and channel_rates docstring). q solves 2*q*(3/4) = p*r_e.
+    assert rates.herald == 0.02 * 0.9 / (2 * 0.75)
     assert rates.meas_flip == 0.01
     assert rates.reset_flip == 0.03
     assert rates.idle_depolarize == 0.005
+
+
+def test_channel_rates_hold_gate_budget_constant() -> None:
+    """The per-two-qubit-gate non-identity error probability is ~p for every
+    r_e (to first order), so r_e converts errors rather than removing them."""
+    p = 0.02
+    for r_e in (0.0, 0.5, 0.9, 0.98, 1.0):
+        rates = channel_rates(NoiseParams(p=p, r_e=r_e))
+        # DEPOLARIZE2 contributes its full probability; each of the two heralds
+        # contributes 3/4 of its probability (non-identity fraction).
+        budget = rates.depolarize2 + 2 * rates.herald * 0.75
+        assert budget == pytest.approx(p)
 
 
 def test_channel_rates_defaults_meas_reset_idle_to_p() -> None:

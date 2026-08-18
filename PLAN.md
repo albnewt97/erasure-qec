@@ -196,9 +196,14 @@ p_meas = p_reset = p_idle = p for the uniform sweep.
 
 Per two-qubit gate on (a, b):
 1. `DEPOLARIZE2(p · (1 − r_e))` on (a, b)  — residual Pauli component.
-2. `HERALDED_ERASE(p · r_e / 2)` on a, and independently on b.
+2. `HERALDED_ERASE((2/3) · p · r_e)` on a, and independently on b.
    Stim semantics: with prob q the qubit is replaced by I/2 (uniform Pauli
    {I,X,Y,Z} each q/4) AND a herald bit is appended to the measurement record.
+   Rate rationale: an erasure is a non-identity error only ¾ of the time, so the
+   two qubits contribute `2·q·¾` of non-identity mass; setting that equal to the
+   erasure share `p·r_e` gives `q = (2/3)·p·r_e` and holds the per-gate
+   non-identity budget at `p` for every r_e. (Corrected from an earlier
+   `p·r_e/2`, under which the budget shrank with r_e — see docs/AUDIT.md.)
 
 Supporting channels:
 - `X_ERROR(p_meas)` immediately before every `MR`/`M`.

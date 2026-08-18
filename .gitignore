@@ -1,5 +1,11 @@
 # Data & generated figures
-data/
+# Ignore data/ scratch (logs, smoke tests, preserved stale sweeps) but COMMIT
+# the three canonical fixed-model sweeps that the README figures are built from,
+# so every quoted number is reproducible from committed data.
+data/*
+!data/baseline_pauli.csv
+!data/erasure_r50.csv
+!data/erasure_r98.csv
 figures/dev/          # scratch Stim diagrams; canonical copies live in docs/figures/ (tracked)
 !docs/figures/
 
