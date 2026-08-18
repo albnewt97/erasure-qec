@@ -87,17 +87,45 @@ Including the small distances (d=3,5) pulls the effective crossing up by +0.3–
 fit looked best, every threshold I quote uses the d≥7 collapse fit (`fit_threshold(..., d_min=7)`), and
 the drift is written down as a systematic in `README.md` under "Caveats and limitations."
 
-## The result
+## An external audit, and what it cost me
 
-From the real sweeps in `data/`, plotted in `figures/threshold_panels.png` (d≥7 collapse fits):
+An external reviewer checked the repo and found the circuit builder, DEM partition, and the
+herald-vs-blind ablation correct — but two things wrong that the tests hadn't caught, both of which had
+inflated my headline. `docs/AUDIT.md` records the reproduction and the fixes; the short version:
 
-| r_e | herald | blind |
-|---|---|---|
-| 0 | 1.38% | 1.44% |
-| 0.5 | 2.30% | 1.73% |
-| 0.98 | 6.27% | 2.29% |
+**The noise budget shrank with r_e.** I sized the heralded-erase rate at `p·r_e/2`, forgetting that an
+erasure is a non-identity error only ¾ of the time. So the total per-gate non-identity probability fell
+from `p` to `~0.75p` as `r_e → 0.98`. Part of my "rising threshold" was just *less noise* at high r_e —
+not a measurement of erasure conversion at all. Fix: rate `(2/3)·p·r_e`, so `2·q·¾ = p·r_e` and the
+per-gate budget is held at `p` for every r_e (commit `6b6b87d`). This invalidated every erasure sweep on
+disk, so I re-collected r_e=0.5 and r_e=0.98 under the fixed model and committed them.
 
-The r_e=0 row is a control: with no heralds the two decoders must agree, and they do. The threshold
-rises 1.4% → 6.3%, a ≈4.5× gain. Erasure conversion alone — the blind decoder at r_e=0.98 — accounts for
-1.4% → 2.3%; the herald-conditioned decoder does the rest, 2.3% → 6.3%. The decoder is more than half the
-total gain, which is the whole reason it was worth building.
+**The fit reported bound-pinned results as converged.** `curve_fit` not raising was treated as success,
+so an r_e=0.98 fit sitting exactly on the top of its p-range came back "converged" with a clean-looking
+number. And I was using the 95% Wilson half-width as the 1σ weight, deflating χ²/dof by ~3.8× so nothing
+ever looked over-parameterised. Fixes (commits `0ce6ff5`, `df70ddc`): report bound-pinning as
+`converged=False`; use the real 1σ error; require ≥3 dof; add a `chi2_dof` field. I also tried a
+shot-level saturation cut and had to revert it — at large T a legitimate near-crossing point still has
+`P_L_shot → ½`, so the cut deleted the near-crossing large-d data and broke exactly the high-threshold
+fit I cared about. The cap belongs on the per-round rate.
+
+## The result, honestly
+
+From the re-collected fixed-model sweeps in `data/`, `figures/threshold_panels.png` (d≥7 collapse fits):
+
+| r_e | herald | blind | χ²/dof |
+|---|---|---|---|
+| 0 | 1.38% ± 0.11% | 1.44% ± 0.12% | ~1.0 |
+| 0.5 | 2.32% ± 0.30% | 1.49% ± 0.11% | 0.6 / 0.5 |
+| 0.98 | **does not converge** | 1.64% ± 0.08% | — / 0.20 |
+
+The r_e=0 row is a control: with no heralds the two decoders agree within error bars, and they do. The
+honest story is the *opposite* of what I first wrote. With the budget held constant, the **blind**
+threshold barely moves (1.44% → 1.49% → 1.64%) — erasure conversion on its own is close to a wash. The
+gain is almost entirely **herald-conditioning**: 1.38% → 2.32% at r_e=0.5. At r_e=0.98 the herald
+crossing is near ~6% but the large codes saturate immediately above it, so the collapse fit rails ν to
+its bound and I report it as a non-result rather than the 6.27% I once quoted. The robust
+high-r_e evidence is the ablation (`scripts/ablation_table.py`, identical shots, no fit): the herald
+advantage grows to ~1000× at d=11 — a low-statistics lower bound, but unambiguous in direction. That
+ablation is the thing worth building; the threshold table is honest about where it can and cannot resolve
+a number.
