@@ -1,0 +1,109 @@
+"""Herald-vs-blind sub-threshold suppression table, direct from circuits.
+
+The most reproducible result in the repo: for a fixed sub-threshold physical
+error rate ``p``, decode identical shots with the herald-conditioned matcher and
+the blind matcher and report the suppression ratio ``p_L(blind) / p_L(herald)``
+per distance and erasure fraction. This is computed **directly from circuits**
+with a fixed seed — no CSV, no threshold fit, and independent of how the noise
+budget is normalised across ``r_e`` — so a reviewer can regenerate every number
+here in minutes.
+
+    uv run python scripts/ablation_table.py                 # default 100k shots
+    uv run python scripts/ablation_table.py --shots 200000
+
+Cells where the herald decoder produces very few errors are low-statistics
+lower bounds and are flagged; the ratio then divides a small count and its
+relative error is large.
+"""
+
+from __future__ import annotations
+
+import argparse
+
+import numpy as np
+
+from erasure_qec.analysis.statistics import per_round_p_l, wilson_interval
+from erasure_qec.circuits.builder import build
+from erasure_qec.config import NoiseParams
+from erasure_qec.decoding.herald_matching import (
+    BlindMatchingDecoder,
+    HeraldMatchingDecoder,
+)
+from erasure_qec.noise.injector import BiasedErasureInjector
+
+# Fixed sub-threshold operating point and the grid the table sweeps.
+FIXED_P = 0.01
+R_ES = (0.5, 0.98)
+DISTANCES = (3, 5, 7, 9, 11)
+# Below this many herald errors the ratio is a low-statistics lower bound.
+_LOW_STAT_ERRORS = 20
+
+
+def _errors(pred: np.ndarray, obs: np.ndarray) -> int:
+    return int((pred[:, 0] != obs[:, 0]).sum())
+
+
+def ablation_cell(d: int, p: float, r_e: float, shots: int) -> dict[str, float]:
+    """Decode ``shots`` identical shots with both decoders; return the ratio."""
+    circ = build(d, d, BiasedErasureInjector(NoiseParams(p=p, r_e=r_e)))
+    dets, obs = circ.compile_detector_sampler(seed=0).sample(
+        shots, separate_observables=True
+    )
+    h_err = _errors(HeraldMatchingDecoder.from_circuit(circ).decode_batch(dets), obs)
+    b_err = _errors(BlindMatchingDecoder(circ).decode_batch(dets), obs)
+    h_pl = per_round_p_l(h_err / shots, d)
+    b_pl = per_round_p_l(b_err / shots, d)
+    ratio = b_pl / h_pl if h_pl > 0 else float("inf")
+    return {"ratio": ratio, "h_err": h_err, "b_err": b_err, "h_pl": h_pl, "b_pl": b_pl}
+
+
+def _fmt_ratio(cell: dict[str, float]) -> str:
+    ratio = cell["ratio"]
+    low = cell["h_err"] < _LOW_STAT_ERRORS
+    if not np.isfinite(ratio):
+        return f"inf (herald 0/{int(cell['h_err'])}) †"
+    body = f"{ratio:.1f}×"
+    return f"{body} †" if low else body
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--shots", type=int, default=100_000)
+    args = parser.parse_args()
+
+    cells = {
+        (r_e, d): ablation_cell(d, FIXED_P, r_e, args.shots)
+        for r_e in R_ES
+        for d in DISTANCES
+    }
+
+    header = f"p_L(blind)/p_L(herald) at p={FIXED_P:.1%}, {args.shots:,} shots, seed=0"
+    print(header)
+    print("-" * len(header))
+    print("| `d` | " + " | ".join(f"`r_e = {r}`" for r in R_ES) + " |")
+    print("|---|" + "---|" * len(R_ES))
+    for d in DISTANCES:
+        row = " | ".join(_fmt_ratio(cells[(r_e, d)]) for r_e in R_ES)
+        print(f"| {d} | {row} |")
+    print(f"\n† low-statistics (herald errors < {_LOW_STAT_ERRORS}): "
+          "ratio is a lower bound, not a precise value.")
+
+    print("\nraw counts (herald_err / blind_err):")
+    for d in DISTANCES:
+        parts = " | ".join(
+            f"r_e={r_e}: {int(cells[(r_e, d)]['h_err'])}/{int(cells[(r_e, d)]['b_err'])}"
+            for r_e in R_ES
+        )
+        print(f"  d={d:2d}  {parts}")
+    # Wilson 95% CI on the herald shot-rate at the highest-d, highest-r_e cell,
+    # to make the low-statistics caveat concrete.
+    worst = cells[(R_ES[-1], DISTANCES[-1])]
+    lo, hi = wilson_interval(int(worst["h_err"]), args.shots)
+    print(
+        f"\nherald shot-rate CI at d={DISTANCES[-1]}, r_e={R_ES[-1]}: "
+        f"{worst['h_err'] / args.shots:.2e} in [{lo:.2e}, {hi:.2e}] (95% Wilson)"
+    )
+
+
+if __name__ == "__main__":
+    main()
