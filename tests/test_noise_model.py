@@ -7,7 +7,7 @@ from erasure_qec.circuits.builder import build, num_detectors
 from erasure_qec.circuits.layout import ancilla_coords, plaquette_neighbors
 from erasure_qec.config import NoiseParams
 from erasure_qec.noise.injector import BiasedErasureInjector, NullInjector, PauliOnlyInjector
-from erasure_qec.noise.model import channel_rates
+from erasure_qec.noise.model import channel_rates, nonidentity_pauli_probability
 
 DISTANCES = [3, 5, 7]
 
@@ -152,6 +152,34 @@ def test_channel_rates_hold_gate_budget_constant() -> None:
         # contributes 3/4 of its probability (non-identity fraction).
         budget = rates.depolarize2 + 2 * rates.herald * 0.75
         assert budget == pytest.approx(p)
+
+
+def test_error_budget_invariance() -> None:
+    """Encodes the chosen convention (a): the exact per-2q-gate non-identity
+    Pauli probability is p-conserving across r_e -- it equals p minus only the
+    O(p^2) inclusion-exclusion overlap for every r_e, NOT the linear p(1 - r_e/4)
+    shrink of the old p*r_e/2 rate.
+
+    The correction p^2*(r_e - 3/4 r_e^2) is not monotone: it is 0 at r_e=0,
+    peaks at ~p^2/3 near r_e=2/3, and is exactly p^2/4 at r_e=1.
+    """
+    p = 0.02
+    r_es = [0.0, 0.25, 0.5, 2.0 / 3.0, 0.9, 0.98, 1.0]
+    probs = [nonidentity_pauli_probability(NoiseParams(p=p, r_e=r)) for r in r_es]
+
+    # Endpoints are exact: p at r_e=0 (no erasure), p - p^2/4 at r_e=1.
+    assert probs[0] == pytest.approx(p)
+    assert probs[-1] == pytest.approx(p - p * p / 4.0)
+    # Every r_e stays within one O(p^2) overlap of p (the whole spread is < p^2/3
+    # ~ 1.3e-4 here), i.e. the budget is CONSERVED, not shrunk by ~p*r_e.
+    for prob in probs:
+        assert p - p * p / 3.0 - 1e-12 <= prob <= p + 1e-12
+    assert 0 < max(probs) - min(probs) < p * p / 3.0 + 1e-12
+
+    # The old p*r_e/2 rate would fail this: at r_e=0.98 it gave p*(1-r_e/4) =
+    # 0.755p, a 24.5% (=O(p), not O(p^2)) shrink far below the invariance band.
+    old_budget = p * (1.0 - 0.98 / 4.0)
+    assert old_budget < p - p * p / 3.0
 
 
 def test_channel_rates_defaults_meas_reset_idle_to_p() -> None:

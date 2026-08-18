@@ -58,3 +58,29 @@ def channel_rates(params: NoiseParams) -> ChannelRates:
         reset_flip=params.reset,
         idle_depolarize=params.idle,
     )
+
+
+def nonidentity_pauli_probability(params: NoiseParams) -> float:
+    """Exact probability a two-qubit-gate location yields >=1 non-identity Pauli.
+
+    The gate location applies three *independent* channels: one ``DEPOLARIZE2``
+    on the pair and one ``HERALDED_ERASE`` on each qubit. ``DEPOLARIZE2(q)`` is
+    non-identity with probability exactly ``q``; ``HERALDED_ERASE(h)`` is
+    non-identity with probability ``(3/4) h`` -- the ``I/4`` branch heralds but
+    causes no Pauli. Independence gives
+
+        P(non-identity) = 1 - (1 - dep) * (1 - (3/4) h)^2 .
+
+    This is the tested error-budget axis (tests/test_noise_model.py::
+    test_error_budget_invariance). Under the constant-budget convention
+    (``herald = (2/3) p r_e``) the *linear* part is
+    exactly ``p`` for every ``r_e``; the only ``r_e`` dependence is the O(p^2)
+    inclusion-exclusion overlap -- ``p`` at ``r_e = 0`` falling to ``p - p^2/4``
+    at ``r_e = 1``. Contrast the earlier ``p r_e / 2`` rate, whose budget fell
+    *linearly* to ``p (1 - r_e/4)`` (a 25% shrink at ``r_e = 0.98``); ``p`` was
+    not an iso-noise axis then. See docs/AUDIT.md.
+    """
+    rates = channel_rates(params)
+    return 1.0 - (1.0 - rates.depolarize2) * (
+        1.0 - _ERASURE_NONIDENTITY_FRACTION * rates.herald
+    ) ** 2
