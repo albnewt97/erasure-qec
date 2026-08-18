@@ -25,13 +25,21 @@ is configurable; widen it when the sweep is coarse, narrow it when the ansatz
 starts to bend. The exact window and the points used are recorded on the
 returned :class:`FitResult`.
 
-Confidence on ``p_th`` comes from a seeded parametric bootstrap over the sinter
-counts: resample ``errors ~ Binomial(shots, P_L_shot)`` per point, refit, and
-report the mean and standard deviation of the recovered ``p_th``.
+Confidence on ``p_th`` comes from a seeded parametric bootstrap that re-runs the
+*entire* pipeline per replicate: resample ``errors ~ Binomial(shots, P_L_shot)``
+over **all** points for the decoder (not just the previously-selected window),
+then re-run :func:`estimate_crossing`, the window selection, and the *weighted*
+``curve_fit`` with the same ``p0``/``sigma`` construction as the point estimate.
+Replicates whose window is too thin or whose fit fails are counted
+(``n_boot_failed``), not silently dropped, and the reported interval is a
+percentile CI (the ``p_th`` distribution is skewed), not merely a std. Measuring
+the same estimator the point fit uses is what keeps the interval honest: the
+earlier bootstrap refit an *unweighted* model from the point estimate on a
+*frozen* window and dropped failures, all of which biased the CI narrow.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import numpy.typing as npt
@@ -67,6 +75,9 @@ _SATURATION_CAP = 0.4
 # nu optimiser bounds; a fit landing on either is unconstrained, not converged.
 _NU_BOUNDS = (0.5, 6.0)
 
+# Bootstrap CI percentiles (a 95% two-sided *percentile* interval).
+_CI_PERCENTILES = (2.5, 97.5)
+
 
 @dataclass(frozen=True)
 class FitResult:
@@ -84,6 +95,12 @@ class FitResult:
     n_points: int
     d_min: int | None = None  # if set, only distances >= d_min were fit
     chi2_dof: float = float("nan")  # reduced chi-squared of the fit
+    # 95% bootstrap *percentile* CIs (skewed distribution -> asymmetric, and a
+    # better summary than +/- one std); p_th_err/nu_err keep the bootstrap std.
+    p_th_ci: tuple[float, float] = (float("nan"), float("nan"))
+    nu_ci: tuple[float, float] = (float("nan"), float("nan"))
+    n_boot: int = 0  # bootstrap replicates attempted
+    n_boot_failed: int = 0  # replicates whose window was too thin or fit failed
     message: str = ""
     # Points actually used, as parallel arrays (for plotting the collapse).
     used_p: npt.NDArray[np.float64] = field(
@@ -253,35 +270,137 @@ def fit_threshold(
 
     # 5 free parameters; require >= _MIN_DOF degrees of freedom and >= 2
     # distances so the ansatz is constrained by data rather than fitting noise.
-    min_points = _N_PARAMS + _MIN_DOF
-    if len(used) < min_points or len(distances) < 2:
+    if not _sufficient(used):
         return _fail(
             f"insufficient data in window: {len(used)} points, "
-            f"{len(distances)} distances (need >= {min_points} points "
+            f"{len(distances)} distances (need >= {_N_PARAMS + _MIN_DOF} points "
             f"for {_MIN_DOF} dof, >= 2 distances)"
         )
 
+    core = _weighted_fit_arrays(used, center, nu_guess)
+    if core is None:
+        return _fail("curve_fit failed on the point estimate")
+    popt = core.popt
+
+    resid = (core.y - _model((core.p_arr, core.d_arr), *popt)) / core.sigma
+    dof = len(used) - _N_PARAMS  # > 0 by the min_points gate above
+    chi2_dof = float(np.sum(resid**2) / dof)
+
+    # A parameter pinned at its optimiser bound means the data did not
+    # constrain it: the crossing sits at/outside the fit window (p_th at the
+    # p-range edge) or nu ran to a bound. Report these as *not converged* even
+    # though curve_fit returned, so a reviewer is not misled by a bound value.
+    p_span = float(core.p_arr.max() - core.p_arr.min())
+    edge_tol = max(1e-3 * p_span, 1e-9)
+    pinned: list[str] = []
+    if abs(popt[0] - core.p_arr.min()) <= edge_tol:
+        pinned.append("p_th at window minimum")
+    elif abs(popt[0] - core.p_arr.max()) <= edge_tol:
+        pinned.append("p_th at window maximum")
+    if abs(popt[1] - _NU_BOUNDS[0]) <= 1e-3:
+        pinned.append("nu at lower bound")
+    elif abs(popt[1] - _NU_BOUNDS[1]) <= 1e-3:
+        pinned.append("nu at upper bound")
+
+    # Parametric bootstrap that re-runs the *whole* pipeline (resample all
+    # points -> estimate_crossing -> window -> weighted fit), so the CI reflects
+    # the same estimator the point fit uses, including crossing/window variance.
+    boot, n_boot_failed = _bootstrap_pipeline(
+        points, window_factor=window_factor, p_center=p_center,
+        nu_guess=nu_guess, seed=seed, n_boot=n_boot,
+    )
+    if boot.size:
+        lo_pct, hi_pct = _CI_PERCENTILES
+        p_th_err = float(np.std(boot[:, 0]))
+        nu_err = float(np.std(boot[:, 1]))
+        p_th_ci = (
+            float(np.percentile(boot[:, 0], lo_pct)),
+            float(np.percentile(boot[:, 0], hi_pct)),
+        )
+        nu_ci = (
+            float(np.percentile(boot[:, 1], lo_pct)),
+            float(np.percentile(boot[:, 1], hi_pct)),
+        )
+    else:
+        p_th_err = nu_err = float("nan")
+        p_th_ci = nu_ci = (float("nan"), float("nan"))
+
+    converged = not pinned
+    message = (
+        "ok"
+        if converged
+        else "not converged: " + "; ".join(pinned) + " pinned at optimiser bound"
+    )
+    return FitResult(
+        converged=converged,
+        p_th=popt[0],
+        p_th_err=p_th_err,
+        nu=popt[1],
+        nu_err=nu_err,
+        coeffs=(popt[2], popt[3], popt[4]),
+        p_center=center,
+        window_factor=window_factor,
+        distances=distances,
+        n_points=len(used),
+        d_min=d_min,
+        chi2_dof=chi2_dof,
+        p_th_ci=p_th_ci,
+        nu_ci=nu_ci,
+        n_boot=n_boot,
+        n_boot_failed=n_boot_failed,
+        message=message,
+        used_p=core.p_arr,
+        used_d=core.d_arr.astype(np.int64),
+        used_p_l=core.y,
+    )
+
+
+@dataclass(frozen=True)
+class _CoreFit:
+    """One weighted curve_fit and the arrays it ran on (for chi^2 / plotting)."""
+
+    popt: _FitParams
+    p_arr: npt.NDArray[np.float64]
+    d_arr: npt.NDArray[np.float64]
+    y: npt.NDArray[np.float64]
+    sigma: npt.NDArray[np.float64]
+
+
+def _sufficient(used: Sequence[SweepPoint]) -> bool:
+    """Whether ``used`` can constrain the 5-parameter ansatz with >= _MIN_DOF."""
+    return (
+        len(used) >= _N_PARAMS + _MIN_DOF
+        and len({pt.d for pt in used}) >= 2
+    )
+
+
+def _weighted_fit_arrays(
+    used: Sequence[SweepPoint], center: float, nu_guess: float
+) -> _CoreFit | None:
+    """Build the weighted-LSQ arrays for ``used`` and run ``curve_fit`` once.
+
+    This is the *single* definition of the ``p0`` / ``sigma`` / ``bounds``
+    construction, shared by the point estimate and every bootstrap replicate so
+    they measure the same (weighted) estimator. Returns ``None`` if the fit
+    raises. The caller must have already checked :func:`_sufficient`.
+    """
     p_arr = np.array([pt.p for pt in used], dtype=float)
     d_arr = np.array([pt.d for pt in used], dtype=float)
     y = np.array([per_round_p_l(pt.p_l_shot, pt.rounds) for pt in used])
     # per_round_estimate is a 95% Wilson interval, so its half-width is ~Z_95
     # standard errors; divide by Z_95 to recover a ~1-sigma weight for the fit.
-    # (The earlier code used the 95% half-width directly as 1 sigma, deflating
-    # chi^2/dof by ~Z_95^2 ~ 3.84x; see docs/AUDIT.md.)
     sigma = np.array(
         [
             max((e.high - e.low) / (2.0 * Z_95), 1e-9)
             for e in map(per_round_estimate, used)
         ]
     )
-
     a0 = float(np.median(y))
-    # The p_th initial guess must be inside the p-range of the *windowed* points
+    # The p_th initial guess must be inside the p-range of the windowed points
     # (curve_fit rejects an out-of-bounds p0). The data-driven ``center`` can
-    # fall outside it after the coin-flip cut removes above-crossing points at
-    # large d, so clamp it; if the crossing truly sits above every retained
-    # point, the fit then pins p_th at the bound and is reported as not
-    # converged rather than crashing.
+    # fall outside it after saturated points are dropped, so clamp it; if the
+    # crossing truly sits above every retained point the fit then pins p_th at
+    # the bound and is reported not-converged rather than crashing.
     p_th0 = float(min(max(center, p_arr.min()), p_arr.max()))
     p0: _FitParams = (p_th0, nu_guess, a0, 0.0, 0.0)
     bounds = (
@@ -293,85 +412,54 @@ def fit_threshold(
             _model, (p_arr, d_arr), y, p0=p0, sigma=sigma,
             absolute_sigma=True, bounds=bounds, maxfev=20000,
         )
-    except (RuntimeError, ValueError) as exc:
-        return _fail(f"curve_fit failed: {exc}")
-
-    resid = (y - _model((p_arr, d_arr), *popt)) / sigma
-    dof = len(used) - _N_PARAMS  # > 0 by the min_points gate above
-    chi2_dof = float(np.sum(resid**2) / dof)
-
-    # A parameter pinned at its optimiser bound means the data did not
-    # constrain it: the crossing sits at/outside the fit window (p_th at the
-    # p-range edge) or nu ran to a bound. Report these as *not converged* even
-    # though curve_fit returned, so a reviewer is not misled by a bound value.
-    p_span = float(p_arr.max() - p_arr.min())
-    edge_tol = max(1e-3 * p_span, 1e-9)
-    pinned: list[str] = []
-    if abs(float(popt[0]) - p_arr.min()) <= edge_tol:
-        pinned.append("p_th at window minimum")
-    elif abs(float(popt[0]) - p_arr.max()) <= edge_tol:
-        pinned.append("p_th at window maximum")
-    if abs(float(popt[1]) - _NU_BOUNDS[0]) <= 1e-3:
-        pinned.append("nu at lower bound")
-    elif abs(float(popt[1]) - _NU_BOUNDS[1]) <= 1e-3:
-        pinned.append("nu at upper bound")
-
-    boot = _refit_bootstrap(used, popt, bounds, seed=seed, n_boot=n_boot)
-    p_th_err = float(np.std(boot[:, 0])) if boot.size else float("nan")
-    nu_err = float(np.std(boot[:, 1])) if boot.size else float("nan")
-
-    converged = not pinned
-    message = (
-        "ok"
-        if converged
-        else "not converged: " + "; ".join(pinned) + " pinned at optimiser bound"
+    except (RuntimeError, ValueError):
+        return None
+    params: _FitParams = (
+        float(popt[0]), float(popt[1]), float(popt[2]), float(popt[3]), float(popt[4]),
     )
-    return FitResult(
-        converged=converged,
-        p_th=float(popt[0]),
-        p_th_err=p_th_err,
-        nu=float(popt[1]),
-        nu_err=nu_err,
-        coeffs=(float(popt[2]), float(popt[3]), float(popt[4])),
-        p_center=center,
-        window_factor=window_factor,
-        distances=distances,
-        n_points=len(used),
-        d_min=d_min,
-        chi2_dof=chi2_dof,
-        message=message,
-        used_p=p_arr,
-        used_d=d_arr.astype(np.int64),
-        used_p_l=y,
-    )
+    return _CoreFit(params, p_arr, d_arr, y, sigma)
 
 
-def _refit_bootstrap(
-    used: Sequence[SweepPoint],
-    p0: npt.NDArray[np.float64],
-    bounds: tuple[list[float], list[float]],
+def _bootstrap_pipeline(
+    points: Sequence[SweepPoint],
     *,
+    window_factor: float,
+    p_center: float | None,
+    nu_guess: float,
     seed: int,
     n_boot: int,
-) -> npt.NDArray[np.float64]:
-    """Parametric bootstrap: return the (n_boot, 5) array of refit parameters."""
+) -> tuple[npt.NDArray[np.float64], int]:
+    """Full-pipeline parametric bootstrap of ``(p_th, nu)``.
+
+    Each replicate resamples ``errors ~ Binomial(shots, P_L_shot)`` over **all**
+    ``points`` (the same d-filtered set the point estimate saw, not the frozen
+    window), then re-runs :func:`estimate_crossing`, :func:`_select_window`, and
+    the weighted fit exactly as the point estimate does. Returns the
+    ``(n_ok, 2)`` array of recovered ``(p_th, nu)`` and the number of replicates
+    that failed (thin window or non-converging fit) -- reported, never dropped.
+    """
     rng = np.random.default_rng(seed)
-    p_arr = np.array([pt.p for pt in used], dtype=float)
-    d_arr = np.array([pt.d for pt in used], dtype=float)
-    shots = np.array([pt.shots for pt in used])
-    p_shot = np.array([pt.p_l_shot for pt in used])
-    rounds = np.array([pt.rounds for pt in used])
-    out: list[npt.NDArray[np.float64]] = []
+    shots = np.array([pt.shots for pt in points])
+    p_shot = np.array([pt.p_l_shot for pt in points])
+    out: list[tuple[float, float]] = []
+    n_failed = 0
     for _ in range(n_boot):
-        resampled = rng.binomial(shots, p_shot) / shots
-        y = np.array(
-            [per_round_p_l(float(v), int(t)) for v, t in zip(resampled, rounds, strict=True)]
+        drawn = rng.binomial(shots, p_shot)
+        resampled = [
+            replace(pt, errors=int(e))
+            for pt, e in zip(points, drawn, strict=True)
+        ]
+        center = (
+            estimate_crossing(resampled) if p_center is None else p_center
         )
-        try:
-            popt, _ = curve_fit(
-                _model, (p_arr, d_arr), y, p0=p0, bounds=bounds, maxfev=20000
-            )
-            out.append(popt)
-        except (RuntimeError, ValueError):
+        used = _select_window(resampled, center, window_factor)
+        if not _sufficient(used):
+            n_failed += 1
             continue
-    return np.array(out) if out else np.empty((0, 5))
+        core = _weighted_fit_arrays(used, center, nu_guess)
+        if core is None:
+            n_failed += 1
+            continue
+        out.append((core.popt[0], core.popt[1]))
+    arr = np.array(out, dtype=float) if out else np.empty((0, 2))
+    return arr, n_failed

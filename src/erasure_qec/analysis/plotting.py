@@ -127,12 +127,19 @@ def _mark_threshold(ax: Axes, fit: FitResult) -> None:
         )
         return
     ax.axvline(fit.p_th, color="crimson", linestyle="--", linewidth=1.0)
-    if np.isfinite(fit.p_th_err) and fit.p_th_err > 0:
-        ax.axvspan(fit.p_th - fit.p_th_err, fit.p_th + fit.p_th_err, color="crimson", alpha=0.12)
+    lo, hi = fit.p_th_ci
+    has_ci = np.isfinite(lo) and np.isfinite(hi) and hi > lo
+    if has_ci:
+        # Asymmetric 95% bootstrap percentile band (the p_th distribution is
+        # skewed, so this is the honest interval, not p_th +/- one std).
+        ax.axvspan(lo, hi, color="crimson", alpha=0.12)
     scope = f"$d\\geq{fit.d_min}$ fit" if fit.d_min is not None else "all-$d$ fit"
+    ci_line = (
+        f"\n95% CI [{lo*100:.2f}, {hi*100:.2f}]" if has_ci else ""
+    )
     ax.text(
         0.97, 0.03,
-        f"{scope}\n$p_{{th}}={fit.p_th*100:.2f}\\pm{fit.p_th_err*100:.2f}\\%$\n$\\nu={fit.nu:.2f}$",
+        f"{scope}\n$p_{{th}}={fit.p_th*100:.2f}\\%${ci_line}\n$\\nu={fit.nu:.2f}$",
         transform=ax.transAxes, fontsize=6.5, va="bottom", ha="right", color="crimson",
     )
 

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from erasure_qec.analysis.statistics import SweepPoint, shot_p_l_from_per_round
@@ -193,6 +194,68 @@ def _real_erasure_r50(decoder: str) -> list[SweepPoint]:
     from erasure_qec.analysis.statistics import load_sweep
 
     return [p for p in load_sweep(FIXTURES / "real_erasure_r50.csv") if p.decoder == decoder]
+
+
+# --- Bootstrap CI calibration: coverage of a known p_th at ~nominal rate. ---
+
+_COV_P_TH, _COV_NU = 0.015, 1.5
+_COV_A, _COV_B, _COV_C = 0.05, 1.0, 2.0
+_COV_GRID = [0.008, 0.011, 0.013, 0.015, 0.017, 0.019, 0.021, 0.024]
+_COV_DIST = (3, 5, 7, 9, 11)
+_COV_SHOTS = 30_000
+
+
+def _cov_truth(p: float, d: int) -> float:
+    x = (p - _COV_P_TH) * d ** (1.0 / _COV_NU)
+    return min(max(_COV_A + _COV_B * x + _COV_C * x * x, 1e-6), 0.45)
+
+
+def _noisy_realization(rng: np.random.Generator) -> list[SweepPoint]:
+    """One sweep drawn with real Binomial noise around the known ansatz."""
+    points: list[SweepPoint] = []
+    for d in _COV_DIST:
+        for p in _COV_GRID:
+            p_shot = shot_p_l_from_per_round(_cov_truth(p, d), d)
+            errors = int(rng.binomial(_COV_SHOTS, p_shot))
+            points.append(SweepPoint("herald_mwpm", d, d, p, 0.0, _COV_SHOTS, errors))
+    return points
+
+
+@pytest.mark.slow
+def test_bootstrap_ci_covers_known_p_th_at_nominal_rate() -> None:
+    """The 95% bootstrap percentile CI must cover the injected p_th at roughly
+    its nominal rate over many independent noisy realizations. The old bootstrap
+    (unweighted refit from popt on a frozen window, failures dropped) reports a
+    CI too narrow to hit this; the full-pipeline bootstrap does. Seeded, so the
+    coverage number is deterministic.
+
+    The CI must also stay *informative* (not trivially wide): a fit could reach
+    100% coverage by returning an absurd interval, so the median CI width is
+    bounded too.
+    """
+    rng = np.random.default_rng(12345)
+    n_real = 40
+    covered = 0
+    n_converged = 0
+    rel_widths: list[float] = []
+    for i in range(n_real):
+        fit = fit_threshold(_noisy_realization(rng), n_boot=100, seed=i)
+        if not fit.converged:
+            continue
+        n_converged += 1
+        lo, hi = fit.p_th_ci
+        if lo <= _COV_P_TH <= hi:
+            covered += 1
+        rel_widths.append((hi - lo) / _COV_P_TH)
+
+    assert n_converged >= 0.9 * n_real, n_converged
+    coverage = covered / n_converged
+    # Nominal 0.95; allow Monte-Carlo slack + the mild under-coverage typical of
+    # bootstrap percentile intervals on a nonlinear fit. Well below 0.8 would
+    # mean the CI is too narrow (the bug this fix removes).
+    assert 0.80 <= coverage <= 1.0, (coverage, covered, n_converged)
+    # Informative: the interval is a small fraction of p_th, not absurdly wide.
+    assert float(np.median(rel_widths)) < 0.20, float(np.median(rel_widths))
 
 
 def test_estimate_crossing_r50_not_pulled_by_saturated_tail() -> None:
