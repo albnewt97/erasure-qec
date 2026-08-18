@@ -9,11 +9,13 @@ I wanted to answer one question: if a fraction of the gate errors are *heralded*
 which qubit was disturbed and when — how much does that buy a surface-code memory, and how much of the
 benefit is the physics versus the decoder? The hardware context is current: ¹⁷¹Yb neutral-atom Rydberg
 gates and dual-rail superconducting cavities both natively flag leakage and photon loss. Erasure
-conversion turns those flags into `HERALDED_ERASE` events. The passive benefit — a depolarized qubit is
-cheaper to correct than the Pauli budget it replaced — is free. The interesting part is the
+conversion turns those flags into `HERALDED_ERASE` events. The interesting part is the
 herald-conditioned decoder that reads the herald bits per shot and zeroes the corresponding
 matching-graph edges. That part is not available off the shelf: PyMatching decodes a fixed graph, so the
-per-shot reweighting and the DEM bookkeeping behind it were the real work.
+per-shot reweighting and the DEM bookkeeping behind it were the real work. (I originally wrote that the
+"passive benefit — a depolarized qubit is cheaper to correct than the Pauli budget it replaced — is
+free"; that was hand-waving. Both the residual DEPOLARIZE2 and the erasure's I/2 are Pauli channels, and
+once the per-gate budget is held constant the blind decoder barely improves at all — see "The result".)
 
 ## Noiseless first
 

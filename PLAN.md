@@ -208,7 +208,13 @@ Per two-qubit gate on (a, b):
 Supporting channels:
 - `X_ERROR(p_meas)` immediately before every `MR`/`M`.
 - `X_ERROR(p_reset)` immediately after every `R`.
-- `DEPOLARIZE1(p_idle)` on qubits idle during a TICK.
+- `DEPOLARIZE1(p_idle)` on qubits idle during a TICK. With
+  `NoiseParams.convert_idle` (default `False`) this is split like the gate:
+  `DEPOLARIZE1(p_idle(1−r_e))` + `HERALDED_ERASE((4/3)·p_idle·r_e)` on the idle
+  qubit (one erasure per qubit, so `¾·h = p_idle·r_e`), heralded like the gate
+  erasures. `r_e` is thus the 2q-gate (and, if converted, idle) heralded
+  fraction, NOT the circuit-wide one — meas/reset are never heralded. Report the
+  circuit-wide fraction with `analysis.dem_stats.heralded_fraction`.
 
 Every herald record bit gets `DETECTOR(x, y, t, 1)` (sentinel per §3.4).
 The builder must append these herald detectors in the same round they occur.

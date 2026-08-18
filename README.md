@@ -89,11 +89,16 @@ Wu et al. [[3]](#references) — the paper that introduced this erasure-conversi
 report circuit-level surface-code thresholds rising from **0.937%** (no conversion) to **4.15%** at 98%
 erasure conversion. Our measurements are **consistent in structure** — a several-fold gain from erasure
 conversion, concentrated in herald-aware decoding — and comparable in magnitude at low `r_e` (our
-baseline 1.38% vs their 0.937%, same order). We deliberately **do not** claim a matching 98% number: our
-`d ≥ 7` herald fit does not converge at `r_e = 0.98`, so we have no clean threshold to compare there.
-Where we can compare, the absolute values differ for honest reasons:
+baseline 1.38% vs their 0.937%, same order). We deliberately **do not** claim a matching 98% number, for
+two independent reasons: our `d ≥ 7` herald fit does not converge at `r_e = 0.98` (so we have no clean
+threshold to compare), **and** the axes are not the same — our `r_e` is the fraction of the *two-qubit
+gate* budget converted, whereas Wu et al.'s `R_e` is the fraction of *all* errors converted. At
+`r_e = 0.98` only **~55%** of our circuit-wide DEM error mass is heralded (see
+[Noise channels](#noise-channels-5)), so "our 98%" and "their 98%" are different quantities. Also, ours
+is a **Z-memory** threshold under a single observable, not a full X+Z circuit-level threshold. Where we
+can compare, the absolute values differ for honest reasons:
 
-- **Noise model.** Our per-gate channel — `DEPOLARIZE2(p(1−r_e))` plus an independent
+- **Noise model.** Our per-gate channel — `DEPOLARIZE2(p(1−r_e))` plus an independent unbiased
   `HERALDED_ERASE((2/3)·p·r_e)` on *each* qubit, sized to hold the per-gate non-identity budget at `p`
   for every `r_e` — need not match Wu et al.'s channel exactly; how the erasure and residual-Pauli
   weight are apportioned shifts the threshold.
@@ -117,9 +122,18 @@ what an "erasure conversion is intrinsically cheaper" intuition suggests:
   suppression at higher `r_e` and distance (below). Knowing *where* the erasure occurred is the whole
   advantage.
 
-(An earlier version of this README decomposed a `4.5×` gain into `1.6×` blind and `2.7×` herald. That
-decomposition came from the pre-fix pipeline on the budget-shrinking noise model and does not survive
-either correction — the blind factor in particular was largely the shrinking-budget artifact.)
+**Re-deriving the old "erasure conversion alone gives 1.6×" claim.** That number decomposed a `4.5×`
+gain into `1.6×` blind and `2.7×` herald, from the pre-fix pipeline on the budget-shrinking noise model.
+It does not survive. Two effects were entangled in it: (i) **budget shrink** — the old `p·r_e/2` rate let
+the per-gate non-identity budget fall to `p(1 − r_e/4)`, so the "threshold" partly rose because there was
+simply less noise (removed by the constant-budget fix; see
+[Noise channels](#noise-channels-5)); and (ii) the **structural change** from a *correlated two-qubit*
+`DEPOLARIZE2` to *independent single-qubit* `I/2` erasures. With the budget now held constant, the blind
+decoder moves only `1.44% → 1.49%` (≈`1.03×`) at `r_e = 0.5`, so whatever remains of effect (ii) is small
+— and we do **not** claim to separate it cleanly from the residual O(p²) budget term, so we make no
+causal claim about *why* (both channels are Pauli; "depolarizing noise is cheaper to correct" would be
+hand-waving). The honest statement is just: with a fixed budget, blind erasure conversion barely helps;
+the gain is the decoder.
 
 ---
 
@@ -127,9 +141,11 @@ either correction — the blind factor in particular was largely the shrinking-b
 
 ### Noise channels (§5)
 
-The biased-erasure model follows Wu et al. [[3]](#references); "biased" refers to the leakage favoring
-one computational state, in the sense of Sahay et al. [[8]](#references). Per two-qubit gate on qubits
-`(a, b)`, with physical rate `p` and erasure fraction `r_e`:
+The erasure model follows Wu et al. [[3]](#references). The `HERALDED_ERASE` channel is **unbiased** — it
+replaces the qubit with the maximally-mixed `I/2` (all four Paulis equal, conditioned on the herald); the
+threshold advantage here is from herald-conditioned *decoding*, not from any Pauli bias (contrast the
+Z-biased erasure of [Modelling assumptions](#modelling-assumptions), which we do not model). Per
+two-qubit gate on qubits `(a, b)`, with physical rate `p` and erasure fraction `r_e`:
 
 | Channel | Rate | Where |
 |---|---|---|
@@ -144,10 +160,26 @@ one computational state, in the sense of Sahay et al. [[8]](#references). Per tw
 non-trivial Pauli has probability ½. An erasure is a *non-identity* error only ¾ of the time (the `I`
 outcome still heralds but causes no syndrome), so the two qubits contribute `2·q·¾` of non-identity
 mass; setting that equal to the erasure share `p·r_e` gives the rate `q = (2/3)·p·r_e`. This holds the
-per-gate non-identity error probability at `p` for **every** `r_e`, so `r_e` genuinely *converts* the
-2q-gate error budget rather than shrinking it. (Measurement/reset/idle errors are not erasure-converted,
-so the *circuit-wide* heralded fraction is below `r_e` — at `d = 5, p = 0.02, r_e = 0.98` about 55% of
-the DEM error mass is heralded, not 98%.)
+per-gate non-identity error probability at `p` for **every** `r_e` (exactly `p` at `r_e = 0`, falling
+only by the O(p²) overlap to `p − p²/4` at `r_e = 1`; see
+`test_error_budget_invariance`), so `r_e` genuinely *converts* the 2q-gate error budget rather than
+shrinking it.
+
+> **`r_e` is the 2q-gate fraction, not the circuit-wide heralded fraction.** Measurement and reset errors
+> are never erasure-converted, and idle errors only when `convert_idle` is set, so the fraction of *total
+> DEM error mass* that is actually heralded is **well below `r_e`** — and this is the number to compare
+> with Wu et al.'s `R_e` (fraction of *all* errors converted). Measured by
+> `analysis.dem_stats.heralded_fraction` (`scripts/heralded_fraction.py`) at `d = 5, p = 0.02`:
+>
+> | `r_e` | heralded fraction (gate-only, `convert_idle=False`) | heralded fraction (`convert_idle=True`) |
+> |---|---|---|
+> | 0.5 | 0.30 | 0.42 |
+> | 0.98 | **0.55** | 0.72 |
+>
+> The committed sweeps use `convert_idle=False`, so the `r_e = 0.98` runs herald **55%** of the error
+> mass, not 98%. `convert_idle=True` erasure-converts the idle budget too (the physical ¹⁷¹Yb case) and
+> raises it to 72%, still below `r_e` because meas/reset stay unheralded. The literature comparison must
+> be read with this in mind: our `r_e` and Wu et al.'s `R_e` are **not** the same axis.
 
 ### Detector algebra (§3.4)
 
@@ -265,6 +297,32 @@ divides a near-zero by a near-zero) is dropped, since its bootstrap CIs otherwis
 
 ---
 
+## Modelling assumptions
+
+This is an idealized erasure model. Each assumption below is **systematically
+optimistic** — a real device is worse in each respect — so the thresholds and suppression ratios here
+are upper bounds on what this scheme delivers in hardware, not predictions of it.
+
+- **Erasure is injected *after* the CX, independently per qubit.** There is no mid-gate erasure that
+  propagates through the remainder of the gate, and no correlated two-qubit erasure — the two qubits of a
+  gate erase independently. Real leakage happens *during* the gate and can corrupt both qubits together.
+- **The erased qubit keeps participating perfectly in all later rounds.** `HERALDED_ERASE` replaces the
+  qubit with `I/2` for that instant only; it is a fully-functional qubit again on the next tick. A real
+  ¹⁷¹Yb erasure is an atom *leaked out of the qubit subspace* — it stays broken until physically
+  re-prepared, so a single erasure should degrade many subsequent rounds, which we do not model.
+- **Heralds are perfect.** Instantaneous, 100% reliable, zero false positives, zero latency. Real
+  fluorescence heralding has finite fidelity, false positives/negatives, and a latency the decoder would
+  have to tolerate.
+- **The erasure is unbiased.** `HERALDED_ERASE` is `I/2` (all four Paulis equal). The Z-biased leakage of
+  Sahay et al. [[8]](#references) would give a *further* threshold advantage that we deliberately do not
+  model (see [Noise channels](#noise-channels-5)); our advantage is from herald-conditioned decoding
+  alone.
+- **Z-memory only, single logical observable.** Every "threshold" here is the **Z-basis memory**
+  threshold under a single observable — not a full X+Z circuit-level threshold, and not a logical-gate or
+  computation threshold. Read every number in this repo with the "Z-memory" qualifier attached.
+
+---
+
 ## Caveats and limitations
 
 A few things worth being straight about.
@@ -378,6 +436,7 @@ src/erasure_qec/
     ├── statistics.py      # per-round conversion, Wilson/bootstrap CIs, Λ  [§10]
     ├── threshold_fit.py    # finite-size scaling collapse fit  [§10]
     ├── synthetic.py        # ansatz-exact fixtures for the deterministic tests
+    ├── dem_stats.py        # circuit-wide heralded fraction of the DEM budget  [§2.1]
     └── plotting.py         # all figures -> figures/  (deterministic)
 
 experiments/
@@ -388,7 +447,8 @@ experiments/
 
 scripts/
 ├── audit_checks.py              # re-runnable reproduction of the external audit (docs/AUDIT.md)
-└── ablation_table.py            # herald-vs-blind suppression table, direct from circuits
+├── ablation_table.py            # herald-vs-blind suppression table, direct from circuits
+└── heralded_fraction.py         # circuit-wide heralded fraction of DEM error mass  [§2.1]
 ```
 
 Build order was strictly milestone-by-milestone (M0–M9): the noiseless circuit and its determinism
@@ -419,6 +479,7 @@ Reproduce the audit checks and the herald-vs-blind suppression table:
 ```bash
 uv run python scripts/audit_checks.py       # docs/AUDIT.md table (pre-fix expectations vs HEAD)
 uv run python scripts/ablation_table.py      # sub-threshold suppression, direct from circuits
+uv run python scripts/heralded_fraction.py   # circuit-wide heralded fraction vs r_e
 ```
 
 Re-collect the real Monte-Carlo sweeps (resumable; re-run to accumulate). To collect under the fixed
