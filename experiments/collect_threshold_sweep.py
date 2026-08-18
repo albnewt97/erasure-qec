@@ -22,7 +22,7 @@ import sinter
 from erasure_qec.circuits.builder import build
 from erasure_qec.config import ExperimentConfig, NoiseParams, load_experiment_config
 from erasure_qec.decoding.sinter_adapter import CUSTOM_DECODERS, contract_dem
-from erasure_qec.noise.injector import BiasedErasureInjector
+from erasure_qec.noise.injector import ErasureInjector
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -32,7 +32,7 @@ def tasks_from_config(config: ExperimentConfig) -> Iterator[sinter.Task]:
     for d in config.distances:
         for p in config.p_values:
             circuit = build(
-                d, d, BiasedErasureInjector(NoiseParams(p=p, r_e=config.r_e))
+                d, d, ErasureInjector(NoiseParams(p=p, r_e=config.r_e))
             )
             yield sinter.Task(
                 circuit=circuit,

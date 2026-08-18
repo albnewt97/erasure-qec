@@ -35,7 +35,7 @@ from erasure_qec.decoding.herald_matching import (
     HeraldMatchingDecoder,
 )
 from erasure_qec.noise.injector import (
-    BiasedErasureInjector,
+    ErasureInjector,
     NullInjector,
     PauliOnlyInjector,
 )
@@ -139,7 +139,7 @@ def test_two_tier_dispatch_batch_equals_per_shot_decoding() -> None:
     """Mixed batch (some shots heralded, some not) must produce identical
     results whether decoded together or one shot at a time — i.e. the fast/slow
     dispatch is transparent."""
-    circuit = build(3, 2, BiasedErasureInjector(NoiseParams(p=0.02, r_e=0.5)))
+    circuit = build(3, 2, ErasureInjector(NoiseParams(p=0.02, r_e=0.5)))
     decoder = HeraldMatchingDecoder.from_circuit(circuit)
     partition = partition_dem(circuit)
 
@@ -168,7 +168,7 @@ def test_ablation_herald_beats_blind_on_biased_erasure_circuit() -> None:
     information is most of the error budget, so the herald-aware decoder must
     make strictly fewer logical errors than the blind one on identical shots.
     Verified live with this seed: 371 vs 544 failures of 2048."""
-    circuit = build(3, 3, BiasedErasureInjector(NoiseParams(p=0.03, r_e=0.9)))
+    circuit = build(3, 3, ErasureInjector(NoiseParams(p=0.03, r_e=0.9)))
     herald = HeraldMatchingDecoder.from_circuit(circuit)
     blind = BlindMatchingDecoder(circuit)
 

@@ -6,7 +6,7 @@ import stim
 from erasure_qec.circuits.builder import build, num_detectors
 from erasure_qec.circuits.layout import ancilla_coords, plaquette_neighbors
 from erasure_qec.config import NoiseParams
-from erasure_qec.noise.injector import BiasedErasureInjector, NullInjector, PauliOnlyInjector
+from erasure_qec.noise.injector import ErasureInjector, NullInjector, PauliOnlyInjector
 from erasure_qec.noise.model import channel_rates, nonidentity_pauli_probability
 
 DISTANCES = [3, 5, 7]
@@ -54,7 +54,7 @@ def test_probe_supports_multiple_simultaneous_erasures() -> None:
     assert len(herald) == 2
 
 
-# --- General analytic herald count for a full BiasedErasureInjector circuit. ---
+# --- General analytic herald count for a full ErasureInjector circuit. ---
 
 
 def _expected_herald_count(d: int, rounds: int) -> int:
@@ -75,7 +75,7 @@ def _expected_herald_count(d: int, rounds: int) -> int:
 def test_full_circuit_herald_count_matches_analytic_expectation() -> None:
     for d in DISTANCES:
         rounds = d
-        circuit = build(d, rounds, BiasedErasureInjector(NoiseParams(p=0.01, r_e=0.9)))
+        circuit = build(d, rounds, ErasureInjector(NoiseParams(p=0.01, r_e=0.9)))
         coords = circuit.get_detector_coordinates()
         herald_count = sum(1 for xy in coords.values() if len(xy) == 4 and xy[3] == 1.0)
         assert herald_count == _expected_herald_count(d, rounds)
@@ -85,13 +85,13 @@ def test_full_circuit_herald_count_matches_analytic_expectation() -> None:
 # --- Gate: with p=0 the circuit is byte-identical to the noiseless one. ---
 
 
-def test_biased_erasure_at_p_zero_is_byte_identical_to_noiseless() -> None:
+def test_erasure_injector_at_p_zero_is_byte_identical_to_noiseless() -> None:
     for d in DISTANCES:
         rounds = d
         reference = build(d, rounds, NullInjector())
-        biased = build(d, rounds, BiasedErasureInjector(NoiseParams(p=0.0, r_e=0.7)))
-        assert biased == reference
-        assert str(biased) == str(reference)
+        erasure = build(d, rounds, ErasureInjector(NoiseParams(p=0.0, r_e=0.7)))
+        assert erasure == reference
+        assert str(erasure) == str(reference)
 
 
 def test_pauli_only_at_p_zero_is_byte_identical_to_noiseless() -> None:
@@ -107,14 +107,14 @@ def test_pauli_only_at_p_zero_is_byte_identical_to_noiseless() -> None:
 
 
 def test_r_e_zero_never_emits_heralded_erase_or_herald_detectors() -> None:
-    circuit = build(3, 3, BiasedErasureInjector(NoiseParams(p=0.01, r_e=0.0)))
+    circuit = build(3, 3, ErasureInjector(NoiseParams(p=0.01, r_e=0.0)))
     assert "HERALDED_ERASE" not in str(circuit)
     coords = circuit.get_detector_coordinates()
     assert all(len(xy) == 3 for xy in coords.values())
 
 
 def test_r_e_one_never_emits_depolarize2() -> None:
-    circuit = build(3, 3, BiasedErasureInjector(NoiseParams(p=0.01, r_e=1.0)))
+    circuit = build(3, 3, ErasureInjector(NoiseParams(p=0.01, r_e=1.0)))
     assert "DEPOLARIZE2" not in str(circuit)
     assert "HERALDED_ERASE" in str(circuit)
 
@@ -202,8 +202,8 @@ def test_noise_params_rejects_out_of_range_values() -> None:
 # --- Compiles and samples correctly at a nonzero noise rate (sanity). ---
 
 
-def test_biased_circuit_compiles() -> None:
-    circuit = build(5, 5, BiasedErasureInjector(NoiseParams(p=0.005, r_e=0.5)))
+def test_erasure_circuit_compiles() -> None:
+    circuit = build(5, 5, ErasureInjector(NoiseParams(p=0.005, r_e=0.5)))
     sampler = circuit.compile_detector_sampler()
     dets, obs = sampler.sample(100, separate_observables=True)
     assert dets.shape[1] == circuit.num_detectors

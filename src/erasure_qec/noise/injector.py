@@ -71,8 +71,13 @@ class NullInjector:
         return None
 
 
-class BiasedErasureInjector:
-    """Full biased-erasure noise model (PLAN.md §5).
+class ErasureInjector:
+    """Full erasure noise model (PLAN.md §5).
+
+    NB: ``HERALDED_ERASE`` replaces the qubit with the maximally-mixed ``I/2`` --
+    an *unbiased* erasure (all four Paulis equally likely, conditioned on the
+    herald). This does not model the Z-biased leakage of Sahay et al.; the
+    threshold advantage here comes from herald-conditioned decoding, not bias.
 
     Per two-qubit gate: ``DEPOLARIZE2(p * (1 - r_e))`` residual Pauli noise,
     plus ``HERALDED_ERASE`` independently on each qubit at the rate set by
@@ -116,14 +121,14 @@ class BiasedErasureInjector:
 class PauliOnlyInjector:
     """Residual-Pauli-only noise: the ``r_e = 0`` special case of §5.
 
-    Equivalent to ``BiasedErasureInjector`` with the erasure fraction forced
+    Equivalent to ``ErasureInjector`` with the erasure fraction forced
     to zero: ``DEPOLARIZE2(p)`` per two-qubit gate, no ``HERALDED_ERASE`` and
     no herald detectors at all. Useful as the non-erasure baseline (e.g. the
     ``baseline_pauli`` experiment config) and for the §4 distance invariants.
     """
 
     def __init__(self, params: NoiseParams) -> None:
-        self._delegate = BiasedErasureInjector(
+        self._delegate = ErasureInjector(
             NoiseParams(
                 p=params.p,
                 r_e=0.0,

@@ -22,7 +22,7 @@ import sinter
 from erasure_qec.circuits.builder import build
 from erasure_qec.config import NoiseParams
 from erasure_qec.decoding.sinter_adapter import CUSTOM_DECODERS, contract_dem
-from erasure_qec.noise.injector import BiasedErasureInjector
+from erasure_qec.noise.injector import ErasureInjector
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -34,7 +34,7 @@ def test_throughput_fast_vs_heralded_slow_path() -> None:
     n = 10_000
     rates: dict[float, float] = {}
     for r_e in (0.0, 0.98):
-        circuit = build(5, 5, BiasedErasureInjector(NoiseParams(p=3e-2, r_e=r_e)))
+        circuit = build(5, 5, ErasureInjector(NoiseParams(p=3e-2, r_e=r_e)))
         compiled = CUSTOM_DECODERS["herald_mwpm"].compile_decoder_for_dem(
             dem=contract_dem(circuit)
         )
@@ -60,7 +60,7 @@ def test_end_to_end_smoke_p_l_decreases_with_distance() -> None:
     n = 10_000
     tasks = []
     for d in (3, 5):
-        circuit = build(d, d, BiasedErasureInjector(NoiseParams(p=1e-2, r_e=0.5)))
+        circuit = build(d, d, ErasureInjector(NoiseParams(p=1e-2, r_e=0.5)))
         tasks.append(
             sinter.Task(
                 circuit=circuit,
