@@ -84,12 +84,16 @@ def test_config_satisfies_sweep_grid_requirements(name: str) -> None:
         assert any(v == pytest.approx(p) for v in config.p_values)
     extra = [v for v in config.p_values if not any(v == pytest.approx(p) for p in base)]
     # Each config adds a dense fit-resolution band bracketing its crossing:
-    # baseline ~1.4%, r50 ~2.2% (measured), r98 ~3-5% (predicted, to validate).
+    # baseline ~1.4%, r50 ~2.6% (measured under the fixed model). The r98 band
+    # was extended up to 0.085 when the corrected constant-budget model raised
+    # the erasure rate ~33% and shifted the herald crossing higher (see the
+    # config comment); the test tracks that config change.
     expected_band = {
         "baseline_pauli": [0.011, 0.013, 0.015, 0.017, 0.019],
         "erasure_r50": [0.018, 0.020, 0.022, 0.024, 0.026],
         "erasure_r98": [0.030, 0.035, 0.040, 0.045, 0.050,
-                        0.052, 0.055, 0.058, 0.061, 0.064],
+                        0.052, 0.055, 0.058, 0.061, 0.064,
+                        0.067, 0.070, 0.073, 0.076, 0.080, 0.085],
     }[name]
     assert extra == pytest.approx(expected_band)
 

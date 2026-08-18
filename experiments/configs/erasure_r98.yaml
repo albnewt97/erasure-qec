@@ -10,15 +10,16 @@ p_log10_max: -1.0
 p_points: 13
 # Additive fit-resolution bands bracketing the r_e=0.98 herald crossing.
 # First band (0.030-0.050) was a prediction extrapolated from the measured
-# r_e=0 (~1.4%) and r_e=0.5 (~2.2%) crossings -- it UNDERSHOT: the herald_mwpm
-# curves are still below threshold at p=0.050 and the d-ordering does not
-# invert until before p=0.068, so the MEASURED crossing sits in [0.050, 0.068].
-# Second band (0.052-0.064) re-centers on that observed bracket. Both bands are
-# kept (the sweep is resumable; the first band's points stay collected and
-# still trace the sub-threshold curve). blind_mwpm crosses much lower (~0.025),
-# which the existing log grid + first band already resolve adequately, so no
-# extra points are added there. Merged with the log grid (sorted, de-duped).
-extra_p: [0.030, 0.035, 0.040, 0.045, 0.050, 0.052, 0.055, 0.058, 0.061, 0.064]
+# r_e=0 (~1.4%) and r_e=0.5 (~2.2%) crossings -- it UNDERSHOT under the old
+# (budget-shrinking) noise model, where the crossing sat in [0.050, 0.068]. The
+# corrected constant-budget model (2/3*p*r_e herald rate) RAISES the erasure
+# rate ~33% at r_e=0.98, shifting the herald crossing higher again, so a third
+# band (0.067-0.085) brackets the fixed-model crossing. All bands are kept (the
+# sweep is resumable; sub-threshold points still trace the curve). blind_mwpm
+# crosses much lower, which the log grid + lower bands already resolve. Merged
+# with the log grid (sorted, de-duped).
+extra_p: [0.030, 0.035, 0.040, 0.045, 0.050, 0.052, 0.055, 0.058, 0.061, 0.064,
+          0.067, 0.070, 0.073, 0.076, 0.080, 0.085]
 max_shots: 100000
 max_errors: 1000
 decoders: [herald_mwpm, blind_mwpm]
