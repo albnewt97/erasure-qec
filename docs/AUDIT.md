@@ -89,30 +89,43 @@ shrunk; it is still well below `r_e` because meas/reset/idle stay unheralded —
 so "r_e" remains the *2q-gate* heralded fraction, not a circuit-wide one, and
 the README must say so.
 
-**Root causes 3, 4, 5 — fit pipeline (fixed, commit `0ce6ff5`).**
-- Bound-pinning is now reported as `converged=False`. r50 herald `d_min=None`,
-  which used to report `converged=True` pinned at `p_arr.max`, now returns
-  `converged=False`.
-- The fit requires ≥ 3 degrees of freedom (≥ 8 points for 5 params). r50 herald
-  `d_min=7` no longer produces a (meaningless, dof≈1) fit — it returns
-  `converged=False, "insufficient data"`. The committed r50 sweep's `d ≥ 7`
-  grid is too sparse to fit the 5-parameter ansatz honestly.
+**Root causes 3, 4, 5 — fit pipeline (fixed, commits `0ce6ff5`, `df70ddc`).**
+- Bound-pinning is now reported as `converged=False`. Both r50 and r98 herald
+  `d_min=None` fits, which used to report `converged=True` pinned at a bound,
+  now return `converged=False` with a message naming the pinned parameter.
+- The fit requires ≥ 3 degrees of freedom (≥ 8 points for 5 params), so it
+  cannot "converge" on a dof≈1 window.
 - σ is now the ~1σ Wilson standard error (95% half-width ÷ Z_95). On the valid
-  committed baseline this brings χ²/dof from ~0.2 to ~0.9–1.0 (i.e. the model
-  now fits at the noise level rather than "too well"). `FitResult` carries a
-  `chi2_dof` field.
-- The fit window excludes coin-flip data on the *shot-level* rate; the max
-  P_L_shot admitted to any baseline window dropped below 0.4.
+  committed baseline this brings χ²/dof from ~0.2 to ~1.0 (the model now fits at
+  the noise level rather than "too well"). `FitResult` carries a `chi2_dof`
+  field.
+- Saturated points are excluded on the *per-round* rate (the variable the
+  collapse is fit in), not the shot-level rate. An initial shot-level cut
+  (`0ce6ff5`) was reverted in `df70ddc`: at large T a near-crossing point still
+  has `P_L_shot → ½`, so a shot cut deletes near-crossing large-d data and
+  breaks high-threshold fits; imprecise near-saturation points are instead
+  downweighted by their (now correct) 1σ Wilson errors. The result is
+  cap-insensitive for caps in {0.2, 0.25, 0.3, 0.4}.
+- The p_th initial guess is clamped into the windowed p-range so `curve_fit`
+  cannot raise on an out-of-bounds guess (it now proceeds and reports
+  bound-pinning instead).
 
-**Re-measured baseline threshold (committed `real_baseline_pauli.csv`, fixed
-pipeline), `d ≥ 7`:** herald `p_th = 1.380% ± 0.039%`, ν = 1.45 ± 0.41,
-χ²/dof = 0.89; blind `p_th = 1.417% ± 0.045%`, ν = 1.93 ± 0.56, χ²/dof = 1.01.
-The two agree within combined error bars, as required at `r_e = 0`.
+**Re-measured thresholds (committed data, honest `d ≥ 7` pipeline):**
+| `r_e` | herald `p_th` | blind `p_th` | notes |
+|---|---|---|---|
+| 0.0 | 1.376% ± 0.105% (χ²/dof 1.02) | 1.440% ± 0.124% (1.15) | agree within error bars, as required with no heralds |
+| 0.5 | 2.321% ± 0.298% (0.62) | 1.491% ± 0.105% (0.47) | herald clearly above blind |
+| 0.98 | **does not converge** (ν rails to bound; p_th ~ 6–8%) | 1.636% ± 0.083% (0.20; few-point over-fit flag) | herald crossing ~6% but large codes saturate immediately above it |
+
+The r_e=0.98 herald threshold is a **non-result** under the collapse fit and is
+reported as such — not forced. With the budget held constant the blind
+threshold barely moves across `r_e` (1.44% → 1.49% → 1.64%), so the erasure
+gain is almost entirely herald-conditioning; the old README's large "erasure
+conversion alone" benefit was partly the shrinking-budget artifact.
 
 **Reproducibility.** The stale (pre-fix) sweeps were moved to
-`data/stale_old_model/` (never deleted). The erasure sweeps are being
-re-collected under the fixed model; any erasure threshold that survives the
-honest `d ≥ 7` pipeline is reported from a committed snapshot, and any that does
-not converge is reported as a non-result. The reproducible, model-normalisation-
-independent result is the herald-vs-blind ablation, computed directly from
-circuits (deterministic seed, no CSV).
+`data/stale_old_model/` (never deleted). The r_e=0.5 and r_e=0.98 sweeps were
+re-collected under the fixed model and committed (`data/*.csv`, un-ignored). The
+strongest result — model-normalisation-independent and needing no threshold fit
+— is the herald-vs-blind ablation, computed directly from circuits with a fixed
+seed (`scripts/ablation_table.py`).
