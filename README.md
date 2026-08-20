@@ -17,11 +17,12 @@ from erasure comes almost entirely from **reading the herald bits**, not from th
 
 - The **blind** decoder (which discards the herald bits and folds erasures into extra depolarizing
   noise) barely moves the threshold from baseline to `r_e = 0.5`: **1.44% → 1.49%** (95% CIs
-  `[1.35, 1.57]` → `[1.42, 2.15]`).
+  `[1.36, 1.58]` → `[1.42, 2.15]`).
 - The **herald-conditioned** decoder lifts it substantially over the same range: **1.38% → 2.32%**
-  (`[1.33, 1.47]` → `[2.19, 2.64]`), and the herald-vs-blind advantage compounds with code distance and
-  erasure fraction (the [ablation](#the-herald-aware-vs-blind-ablation)) — reaching a large factor at
-  `d = 11, r_e = 0.98`.
+  (`[1.33, 1.47]` → `[2.18, 2.76]`) — a **significant** separation (the difference
+  `Δ = blind − herald = −0.83%`, 95% CI `[−1.24, −0.66]`, excludes zero; comparing the marginal CIs above
+  is *not* the right test). The advantage compounds with code distance and erasure fraction (the
+  [ablation](#the-herald-aware-vs-blind-ablation)) — reaching a large factor at `d = 11, r_e = 0.98`.
 
 At **`r_e = 0.98`** the collapse fit resolves **neither** decoder's threshold: the herald crossing sits
 near ~6% but the largest codes (`d = 9, 11`) saturate to the ½ coin-flip limit within one grid step above
@@ -61,23 +62,37 @@ single scaling variable `x = (p − p_th)·d^{1/ν}`.
 
 ### Measured thresholds (`d ≥ 7` collapse fit)
 
-`p_th` is the point estimate; the interval is a **95% bootstrap percentile CI** (default `n_boot = 200`,
+`p_th` is the point estimate; the interval is a **95% bootstrap percentile CI** (default `n_boot = 1000`,
 `seed = 0`; the full-pipeline bootstrap below, so the intervals are asymmetric and honest).
 
 | `r_e` | `herald_mwpm` `p_th` [95% CI] | `blind_mwpm` `p_th` [95% CI] | χ²/dof (h / b) | notes |
 |---|---|---|---|---|
-| 0.0 | **1.38%** `[1.33, 1.47]` (ν = 1.45) | **1.44%** `[1.35, 1.57]` (ν = 2.12) | 1.02 / 1.15 | control: no heralds, so the decoders agree within CIs (as required) |
-| 0.5 | **2.32%** `[2.19, 2.64]` (ν = 1.90) | **1.49%** `[1.42, 2.15]` (ν = 1.58) | 0.62 / 0.47 | herald point well above blind; blind CI is skewed up |
+| 0.0 | **1.38%** `[1.33, 1.47]` (ν = 1.45) | **1.44%** `[1.36, 1.58]` (ν = 2.12) | 1.02 / 1.15 | control: no heralds, so the decoders agree within CIs (as required) |
+| 0.5 | **2.32%** `[2.18, 2.76]` (ν = 1.90) | **1.49%** `[1.42, 2.15]` (ν = 1.58) | 0.62 / 0.47 | herald above blind; the separation is **significant** — see Δ below |
 | 0.98 | **not resolved** (fit non-converged) | **not resolved** (`[1.5, ~8]`, bistable) | 0.55 / 0.20 | at near-full conversion the collapse fit resolves neither threshold |
+
+**Is the `r_e = 0.5` separation significant? Yes — but the marginal CIs above are not how you test it.**
+Whether two marginal 95% CIs overlap is **not** a valid significance test (`var(Δ)` is not the sum of the
+marginal variances). The correct statistic is a bootstrap of the difference
+`Δ = p_th(blind) − p_th(herald)` itself (`bootstrap_threshold_difference`; run `scripts/paired_separation.py`):
+
+| `r_e` | Δ = blind − herald | 95% CI | excludes 0? |
+|---|---|---|---|
+| 0.0 (control) | +0.06% | `[−0.04, +0.20]` | **no** (consistent with zero, as it must be with no heralds) |
+| 0.5 | **−0.83%** | `[−1.24, −0.66]` | **yes** — herald threshold is significantly above blind |
+
+The Δ CI at `r_e = 0.5` excludes zero comfortably and is stable across seeds (endpoints move < 0.04%), so
+the separation is significant at 95%, not marginal. One caveat, reported in full in
+[`docs/AUDIT.md`](docs/AUDIT.md): the sweeps are sampled **independently** per decoder (differing shot
+counts), so this is an *unpaired* difference bootstrap — the correlation that shared shots would provide
+is absent (measured ≈ 0.04), which only makes the CI *conservative*. The
+[ablation](#the-herald-aware-vs-blind-ablation) remains the primary evidence, since it needs no fit at all.
 
 At `r_e = 0.98` neither `d ≥ 7` fit yields a usable threshold: the herald fit returns `converged=False`
 (ν pinned at its bound — `d = 9, 11` saturate to ½ within one grid step above the ~6% crossing), and the
 blind fit, though it returns a point value ~1.6%, has a 95% CI spanning ~`[1.5, 8]%` that shifts with the
 bootstrap seed — its crossing estimate is bistable, so the number is not trustworthy. The high-`r_e`
-evidence is the [ablation](#the-herald-aware-vs-blind-ablation), which needs no fit. At `r_e = 0.5` the
-herald and blind *point* estimates are clearly separated (2.32% vs 1.49%) and the ablation confirms the
-gap, though the blind CI's upper edge (2.15%) reaches the herald CI's lower edge (2.19%), so the
-threshold separation alone is marginal at 95%.
+evidence is the [ablation](#the-herald-aware-vs-blind-ablation), which needs no fit.
 
 All quoted intervals are 95% bootstrap percentile CIs (see [ansatz](#finite-size-scaling-ansatz-10)).
 The `r_e = 0.98` blind fit has only 9 in-window points (χ²/dof = 0.20, a small-sample over-fit flag) and
@@ -488,6 +503,7 @@ Reproduce the audit checks and the herald-vs-blind suppression table:
 uv run python scripts/audit_checks.py       # docs/AUDIT.md table (pre-fix expectations vs HEAD)
 uv run python scripts/ablation_table.py      # sub-threshold suppression, direct from circuits
 uv run python scripts/heralded_fraction.py   # circuit-wide heralded fraction vs r_e
+uv run python scripts/paired_separation.py   # threshold-difference (Delta) significance test
 ```
 
 Re-collect the real Monte-Carlo sweeps (resumable; re-run to accumulate). To collect under the fixed

@@ -141,3 +141,65 @@ re-collected under the fixed model and committed (`data/*.csv`, un-ignored). The
 strongest result — model-normalisation-independent and needing no threshold fit
 — is the herald-vs-blind ablation, computed directly from circuits with a fixed
 seed (`scripts/ablation_table.py`).
+
+## Paired-decoder separation (Phase 4)
+
+The README concluded the `r_e = 0.5` herald-vs-blind threshold separation was
+"marginal at 95%" because the two *marginal* bootstrap CIs nearly touch. That is
+not a valid significance test — overlapping (or nearly-touching) CIs do not
+imply a non-significant difference, because `var(Δ)` is not the sum of the
+marginal variances. The correct statistic is a bootstrap of
+`Δ = p_th(blind) − p_th(herald)` itself (`bootstrap_threshold_difference`;
+reproduce with `scripts/paired_separation.py`).
+
+**1. Are the sweeps paired? No.** `sinter.collect` samples each decoder
+independently: at a given `(p, d)` the herald and blind rows have *different*
+shot counts (each decoder ran until it hit `max_errors = 1000`, and herald makes
+fewer errors so runs more shots). Differing-shot-count `(p, d)` pairs: **12/90**
+(r_e=0), **57/90** (r_e=0.5), **97/145** (r_e=0.98) — if the shots were shared
+the counts would be identical. Moreover the CSV schema records only marginal
+`(shots, errors)` per decoder, not the per-shot joint (herald-wrong × blind-wrong)
+a paired bootstrap needs; so even shared shots could not be paired from this
+data. **Real data therefore uses the unpaired difference bootstrap**, whose CI is
+conservative (it exploits no correlation). `bootstrap_threshold_difference`
+supports a paired mode (2×2 shared-shot joint counts) used by the synthetic
+tests; the reported herald/blind bootstrap correlation on real data is ~0.02–0.04,
+confirming pairing would have bought essentially nothing here.
+
+**2. Marginal p_th 95% CIs, `n_boot` 200 (before) → 1000 (after), d ≥ 7:**
+
+| `r_e` | decoder | p_th | CI @200 | CI @1000 |
+|---|---|---|---|---|
+| 0.0 | herald | 1.376% | [1.33, 1.47] | [1.33, 1.47] |
+| 0.0 | blind | 1.440% | [1.35, 1.57] | [1.36, 1.58] |
+| 0.5 | herald | 2.321% | [2.19, 2.64] | [2.18, 2.76] |
+| 0.5 | blind | 1.491% | [1.42, 2.15] | [1.42, 2.15] |
+| 0.98 | herald | not resolved | — | — |
+| 0.98 | blind | 1.636% | [1.52, 6.99] | [1.52, 6.35] |
+
+Raising `n_boot` mostly stabilised the noisy tails (the r_e=0.5 herald upper
+endpoint 2.64% → 2.76%); it did not change any convergence verdict.
+
+**3 + 4. Δ = p_th(blind) − p_th(herald), 95% CI, `n_boot = 1000`, seed 0:**
+
+| `r_e` | Δ | 95% CI | excludes 0? | corr | n_paired_failed |
+|---|---|---|---|---|---|
+| 0.0 (control) | +0.064% | [−0.041, +0.203] | **no** | +0.022 | 51/1000 |
+| 0.5 | −0.830% | [−1.240, −0.661] | **yes** | +0.038 | 102/1000 |
+| 0.98 | non-result (herald fit does not converge) | — | — | — | — |
+
+The r_e=0 **control passes**: Δ is consistent with zero, as it must be (herald
+and blind are the same decoder with no heralds). The `n_paired_failed` counts
+mean each Δ CI is conditioned on both decoders converging on the replicate.
+
+**5. Seed stability** (r_e=0.5 Δ CI, 5 seeds): lower-endpoint spread 0.036%,
+upper-endpoint spread 0.018%; **all five seeds exclude zero**. No unresolved
+instability.
+
+**Summary.** Under the correct statistic the `r_e = 0.5` separation **is
+significant**: Δ = −0.83% with a 95% CI of [−1.24, −0.66] that excludes zero and
+is stable across seeds. This is the first Phase to *restore* a claim rather than
+weaken one — but the restoration comes entirely from using the difference
+statistic, not from pairing (the sweeps are unpaired; correlation ≈ 0.04) and
+not from raising `n_boot` (the Δ CI excluded zero at 200 too). The
+deterministic ablation remains the primary evidence, as it needs no fit at all.
