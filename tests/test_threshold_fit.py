@@ -9,7 +9,10 @@ import pytest
 from erasure_qec.analysis.statistics import SweepPoint, load_sweep, shot_p_l_from_per_round
 from erasure_qec.analysis.threshold_fit import (
     bootstrap_threshold_difference,
+    directional_sensitivity_ci,
     estimate_crossing,
+    failed_vs_success_pth,
+    failure_guard_breakdown,
     fit_threshold,
 )
 
@@ -468,3 +471,48 @@ def test_real_r50_delta_excludes_zero_significant_separation() -> None:
     assert r.converged, r.message
     assert r.excludes_zero, (r.delta, r.delta_ci)
     assert r.delta < 0.0 and r.delta_ci[1] < 0.0, (r.delta, r.delta_ci)
+
+
+@pytest.mark.slow
+def test_r50_discards_not_mar_but_significance_survives_imputation() -> None:
+    """Phase-4 Task 1: the r_e=0.5 Delta CI is conditioned on both decoders
+    converging, and ~10% of replicates are discarded. Those discards are NOT
+    missing-at-random -- they cluster at high blind p_th (almost all are
+    bound-pinning of the bistable blind crossing) -- so the caveat is real.
+    But the significance SURVIVES imputing the discards from the least-negative
+    decile of Delta. Pins both the caveat and its resolution."""
+    pts = load_sweep(FIXTURES / "real_erasure_r50.csv")
+    herald = [p for p in pts if p.decoder == "herald_mwpm"]
+    blind = [p for p in pts if p.decoder == "blind_mwpm"]
+    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=1000, seed=0)
+    assert r.n_paired_failed > 0 and r.failures
+
+    # Almost all discards are bound-pinning (informative), not sparse windows,
+    # so there is no mechanical cause to fix (Task 1c/1d).
+    breakdown = failure_guard_breakdown(r)
+    bound = sum(v for k, v in breakdown.items() if k.endswith("bound_pin"))
+    assert bound >= 0.9 * sum(breakdown.values()), breakdown
+
+    # NOT missing-at-random: failed-blind p_th sits above kept-blind p_th (1b).
+    failed_blind, success_blind = failed_vs_success_pth(r, "blind")
+    assert float(np.median(failed_blind)) > float(np.median(success_blind))
+
+    # ... yet the significance survives the plausible-pessimistic imputation (1e).
+    _, excludes_zero = directional_sensitivity_ci(r, seed=0, top_fraction=0.10)
+    assert excludes_zero
+
+
+@pytest.mark.slow
+def test_baseline_control_discards_are_missing_at_random() -> None:
+    """r_e=0 control: discards should be missing-at-random (blind p_th similar
+    for failed and kept replicates), and Delta stays consistent with zero even
+    under the directional imputation. If this fails the discard mechanism is
+    decoder-asymmetric where it must not be."""
+    pts = load_sweep(FIXTURES / "real_baseline_pauli.csv")
+    herald = [p for p in pts if p.decoder == "herald_mwpm"]
+    blind = [p for p in pts if p.decoder == "blind_mwpm"]
+    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=1000, seed=0)
+    failed_blind, success_blind = failed_vs_success_pth(r, "blind")
+    assert abs(float(np.median(failed_blind)) - float(np.median(success_blind))) < 0.002
+    _, excludes_zero = directional_sensitivity_ci(r, seed=0, top_fraction=0.10)
+    assert not excludes_zero  # control: still consistent with zero
