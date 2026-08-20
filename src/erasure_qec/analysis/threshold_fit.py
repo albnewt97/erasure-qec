@@ -35,10 +35,18 @@ Replicates whose window is too thin or whose fit fails are counted
 percentile CI (the ``p_th`` distribution is skewed), not merely a std. Measuring
 the same estimator the point fit uses is what keeps the interval honest: the
 earlier bootstrap refit an *unweighted* model from the point estimate on a
-*frozen* window and dropped failures, all of which biased the CI narrow.
+*frozen* window and dropped failures, all of which biased the CI narrow. The
+default ``n_boot`` is 1000: at 200 the percentile endpoints (5th/195th order
+statistics) were noticeably noisy (e.g. the r_e=0.5 herald CI's upper endpoint
+moved 2.64% -> 2.76% going 200 -> 1000, then held at 2000); see docs/AUDIT.md.
+
+To compare two decoders' thresholds, :func:`bootstrap_threshold_difference`
+bootstraps ``Delta = p_th(blind) - p_th(herald)`` directly -- the valid
+significance test, since overlapping marginal CIs do not imply a
+non-significant difference.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 
 import numpy as np
@@ -228,7 +236,7 @@ def fit_threshold(
     window_factor: float = 1.5,
     p_center: float | None = None,
     nu_guess: float = 1.5,
-    n_boot: int = 200,
+    n_boot: int = 1000,
     seed: int = 0,
     d_min: int | None = None,
 ) -> FitResult:
@@ -463,3 +471,197 @@ def _bootstrap_pipeline(
         out.append((core.popt[0], core.popt[1]))
     arr = np.array(out, dtype=float) if out else np.empty((0, 2))
     return arr, n_failed
+
+
+# --- Paired/unpaired bootstrap of the threshold DIFFERENCE (Phase 4) ---------
+
+# Per-(p, d) joint outcome counts for two decoders run on the SAME shots, as
+# (both-correct, herald-wrong-only, blind-wrong-only, both-wrong). This is the
+# shot-level information a *paired* difference bootstrap needs -- and which the
+# committed sweep CSVs do NOT record (they store only marginal (shots, errors)
+# per decoder). See docs/AUDIT.md "Paired-decoder separation".
+_JointCounts = Mapping[tuple[float, int], tuple[int, int, int, int]]
+
+
+@dataclass(frozen=True)
+class ThresholdDifference:
+    """Bootstrap of ``delta = p_th(blind) - p_th(herald)`` (Phase 4).
+
+    A significance test on the *difference*, which -- unlike eyeballing whether
+    two marginal CIs overlap -- is a valid test: overlapping 95% CIs do not
+    imply a non-significant difference, because ``var(delta)`` is not the sum of
+    the marginal variances unless the two estimates are independent (and can be
+    far smaller if they are positively correlated, e.g. decoded on shared shots).
+    """
+
+    converged: bool
+    delta: float  # blind p_th - herald p_th, from the unresampled point fits
+    delta_ci: tuple[float, float]  # 95% bootstrap percentile interval
+    delta_err: float  # bootstrap std of delta
+    excludes_zero: bool  # whether delta_ci excludes 0 (the significance verdict)
+    herald_p_th: float
+    blind_p_th: float
+    correlation: float  # corr of the herald/blind bootstrap p_th draws
+    paired: bool  # whether shared-shot paired resampling was used
+    n_boot: int
+    n_paired_failed: int  # replicates where one or both decoders did not converge
+    message: str = ""
+
+
+def _resample_independent(
+    points: Sequence[SweepPoint], rng: np.random.Generator
+) -> list[SweepPoint]:
+    """Parametric resample of each point's errors ~ Binomial(shots, P_L_shot)."""
+    shots = np.array([pt.shots for pt in points])
+    p_shot = np.array([pt.p_l_shot for pt in points])
+    drawn = rng.binomial(shots, p_shot)
+    return [replace(pt, errors=int(e)) for pt, e in zip(points, drawn, strict=True)]
+
+
+def _resample_paired(
+    joint: _JointCounts, decoders: tuple[str, str], rng: np.random.Generator
+) -> tuple[list[SweepPoint], list[SweepPoint]]:
+    """One shared resample per (p, d) applied to BOTH decoders (preserves the
+    herald/blind correlation). Multinomial-resamples the 2x2 joint outcome
+    counts, then derives each decoder's marginal error count from the same draw.
+    """
+    herald_dec, blind_dec = decoders
+    herald_pts: list[SweepPoint] = []
+    blind_pts: list[SweepPoint] = []
+    for (p, d), (n00, n10, n01, n11) in joint.items():
+        n = n00 + n10 + n01 + n11
+        probs = np.array([n00, n10, n01, n11], dtype=float) / n
+        m00, m10, m01, m11 = rng.multinomial(n, probs)
+        herald_err = int(m10 + m11)
+        blind_err = int(m01 + m11)
+        herald_pts.append(SweepPoint(herald_dec, d, d, p, 0.0, n, herald_err))
+        blind_pts.append(SweepPoint(blind_dec, d, d, p, 0.0, n, blind_err))
+    return herald_pts, blind_pts
+
+
+def _fit_pth(
+    points: Sequence[SweepPoint],
+    *,
+    d_min: int | None,
+    window_factor: float,
+    nu_guess: float,
+) -> float | None:
+    """Full-pipeline point fit (no nested bootstrap); ``p_th`` or ``None`` if the
+    fit does not converge -- the SAME criterion (window, sufficiency, bound-pin)
+    as :func:`fit_threshold`."""
+    result = fit_threshold(
+        points, d_min=d_min, window_factor=window_factor,
+        nu_guess=nu_guess, n_boot=0,
+    )
+    return result.p_th if result.converged else None
+
+
+def bootstrap_threshold_difference(
+    herald_points: Sequence[SweepPoint],
+    blind_points: Sequence[SweepPoint],
+    *,
+    joint_counts: _JointCounts | None = None,
+    d_min: int | None = None,
+    window_factor: float = 1.5,
+    nu_guess: float = 1.5,
+    seed: int = 0,
+    n_boot: int = 1000,
+    decoders: tuple[str, str] = ("herald_mwpm", "blind_mwpm"),
+) -> ThresholdDifference:
+    """Bootstrap ``delta = p_th(blind) - p_th(herald)`` and test it against 0.
+
+    Each replicate runs the FULL pipeline for BOTH decoders -- resample ->
+    :func:`estimate_crossing` -> :func:`_select_window` -> weighted fit (via
+    :func:`fit_threshold` with ``n_boot=0``) -- and a replicate counts only if
+    *both* decoders converge; the rest are counted in ``n_paired_failed``, never
+    dropped silently.
+
+    **Pairing.** If ``joint_counts`` is given (per-(p, d) 2x2 shared-shot outcome
+    counts) the resample is *paired*: one shared draw per (p, d) drives both
+    decoders, preserving their correlation so it cancels in the difference. If
+    ``joint_counts`` is ``None`` the resample is *unpaired* (each decoder
+    resampled independently) and the resulting CI is **conservative** -- it does
+    not exploit any correlation. The committed sweeps are sampled independently
+    per decoder (differing shot counts) and record only marginal errors, so real
+    data uses the unpaired path; see docs/AUDIT.md. The returned ``correlation``
+    quantifies how much pairing bought: near 0 means it bought nothing.
+    """
+    paired = joint_counts is not None
+
+    def _fail(msg: str) -> ThresholdDifference:
+        nan = float("nan")
+        return ThresholdDifference(
+            converged=False, delta=nan, delta_ci=(nan, nan), delta_err=nan,
+            excludes_zero=False, herald_p_th=nan, blind_p_th=nan,
+            correlation=nan, paired=paired, n_boot=n_boot, n_paired_failed=0,
+            message=msg,
+        )
+
+    herald_pth = _fit_pth(
+        herald_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess
+    )
+    blind_pth = _fit_pth(
+        blind_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess
+    )
+    if herald_pth is None or blind_pth is None:
+        which = []
+        if herald_pth is None:
+            which.append("herald")
+        if blind_pth is None:
+            which.append("blind")
+        return _fail(f"point fit did not converge for: {', '.join(which)}")
+
+    rng = np.random.default_rng(seed)
+    h_draws: list[float] = []
+    b_draws: list[float] = []
+    n_failed = 0
+    for _ in range(n_boot):
+        if joint_counts is None:
+            h_res = _resample_independent(herald_points, rng)
+            b_res = _resample_independent(blind_points, rng)
+        else:
+            h_res, b_res = _resample_paired(joint_counts, decoders, rng)
+        h = _fit_pth(h_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess)
+        b = _fit_pth(b_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess)
+        if h is None or b is None:
+            n_failed += 1
+            continue
+        h_draws.append(h)
+        b_draws.append(b)
+
+    if len(h_draws) < 2:
+        return _fail(
+            f"too few converged replicates ({len(h_draws)} of {n_boot}); "
+            f"delta CI undefined"
+        )
+
+    h_arr = np.array(h_draws)
+    b_arr = np.array(b_draws)
+    deltas = b_arr - h_arr
+    lo_pct, hi_pct = _CI_PERCENTILES
+    delta_ci = (
+        float(np.percentile(deltas, lo_pct)),
+        float(np.percentile(deltas, hi_pct)),
+    )
+    # Correlation of the two decoders' bootstrap p_th draws (nan if either draw
+    # set is degenerate). This is the quantitative justification for pairing.
+    if float(h_arr.std()) > 0.0 and float(b_arr.std()) > 0.0:
+        correlation = float(np.corrcoef(h_arr, b_arr)[0, 1])
+    else:
+        correlation = float("nan")
+    excludes_zero = delta_ci[0] > 0.0 or delta_ci[1] < 0.0
+
+    return ThresholdDifference(
+        converged=True,
+        delta=blind_pth - herald_pth,
+        delta_ci=delta_ci,
+        delta_err=float(deltas.std()),
+        excludes_zero=excludes_zero,
+        herald_p_th=herald_pth,
+        blind_p_th=blind_pth,
+        correlation=correlation,
+        paired=paired,
+        n_boot=n_boot,
+        n_paired_failed=n_failed,
+        message="ok",
+    )
