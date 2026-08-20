@@ -24,8 +24,6 @@ from erasure_qec.config import NoiseParams
 from erasure_qec.decoding.sinter_adapter import CUSTOM_DECODERS, contract_dem
 from erasure_qec.noise.injector import ErasureInjector
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-
 
 @pytest.mark.slow
 def test_throughput_fast_vs_heralded_slow_path() -> None:
@@ -53,9 +51,9 @@ def test_throughput_fast_vs_heralded_slow_path() -> None:
 
 
 @pytest.mark.slow
-def test_end_to_end_smoke_p_l_decreases_with_distance() -> None:
+def test_end_to_end_smoke_p_l_decreases_with_distance(tmp_path: Path) -> None:
     """M7 gate: 10^4-shot end-to-end run at d in {3,5} for herald_mwpm AND
-    blind_mwpm, CSV written to data/, and p_L(d=5) < p_L(d=3) below threshold
+    blind_mwpm, CSV written to a tmp dir, and p_L(d=5) < p_L(d=3) below threshold
     (p=1e-2, r_e=0.5; verified live: herald p_L ~ 0.049 vs ~ 0.026)."""
     n = 10_000
     tasks = []
@@ -69,9 +67,7 @@ def test_end_to_end_smoke_p_l_decreases_with_distance() -> None:
             )
         )
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    csv_path = DATA_DIR / "smoke_e2e.csv"
-    csv_path.unlink(missing_ok=True)  # stale results would confuse resume
+    csv_path = tmp_path / "smoke_e2e.csv"  # never touch the real data/ dir
     stats = sinter.collect(
         num_workers=2,
         tasks=tasks,
