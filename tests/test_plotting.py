@@ -10,6 +10,9 @@ from erasure_qec.analysis.plotting import (
 from erasure_qec.analysis.synthetic import AnsatzParams, write_synthetic_csv
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
+# The committed synthetic fixtures are named synthetic_* (never mistaken for
+# measurements); render_all keys on explicit config names, so pass them here.
+SYNTHETIC = ("synthetic_baseline_pauli", "synthetic_erasure_r50", "synthetic_erasure_r98")
 EXPECTED_FIGURES = {
     "threshold_panels.png",
     "lambda_vs_p.png",
@@ -23,15 +26,21 @@ def _digest(path: Path) -> str:
 
 
 def test_render_all_produces_every_figure(tmp_path: Path) -> None:
-    written = render_all(FIXTURES, tmp_path)
+    written = render_all(FIXTURES, tmp_path, config_names=SYNTHETIC)
     assert {p.name for p in written} == EXPECTED_FIGURES
     assert all(p.exists() and p.stat().st_size > 0 for p in written)
 
 
 def test_figures_regenerate_byte_stable(tmp_path: Path) -> None:
     """The M8 gate: identical CSVs -> byte-identical PNGs across runs."""
-    first = {p.name: _digest(p) for p in render_all(FIXTURES, tmp_path / "a")}
-    second = {p.name: _digest(p) for p in render_all(FIXTURES, tmp_path / "b")}
+    first = {
+        p.name: _digest(p)
+        for p in render_all(FIXTURES, tmp_path / "a", config_names=SYNTHETIC)
+    }
+    second = {
+        p.name: _digest(p)
+        for p in render_all(FIXTURES, tmp_path / "b", config_names=SYNTHETIC)
+    }
     assert first == second
 
 
@@ -80,5 +89,5 @@ def test_synthetic_fixtures_are_byte_stable(tmp_path: Path) -> None:
     b = write_synthetic_csv(tmp_path / "b.csv", ansatz, **kw)  # type: ignore[arg-type]
     assert a.read_text() == b.read_text()
     # And matches the committed fixture for r50.
-    committed = (FIXTURES / "erasure_r50.csv").read_text()
+    committed = (FIXTURES / "synthetic_erasure_r50.csv").read_text()
     assert a.read_text() == committed

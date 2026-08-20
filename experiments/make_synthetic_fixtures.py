@@ -1,17 +1,23 @@
 """Regenerate committed synthetic sweep fixtures (PLAN.md §10 support).
 
-Writes deterministic, ansatz-exact sinter CSVs to ``tests/fixtures/`` for the
-three r_e regimes. These stand in for the real Monte-Carlo sweeps (not yet
-collected) so the README/analysis figures render from committed data. The
-injected ``p_th`` slides with r_e (~1% Pauli baseline -> ~4-5% erasure-limited),
-mirroring the physics the real sweeps should show. Run:
+Writes deterministic, ansatz-exact sinter CSVs to ``tests/fixtures/synthetic_*``
+for the three r_e regimes, plus one adversarial fixture. These drive the
+byte-stable plotting/analysis tests; they are NOT measurements (see the
+provenance warning in ``analysis/synthetic.py``: they are generated from the
+same collapse variable ``fit_threshold`` inverts). The real Monte-Carlo sweeps
+are committed under ``data/`` and pinned under ``tests/fixtures/real_*.csv``.
+Run:
 
     uv run python experiments/make_synthetic_fixtures.py
 """
 
 from pathlib import Path
 
-from erasure_qec.analysis.synthetic import AnsatzParams, write_synthetic_csv
+from erasure_qec.analysis.synthetic import (
+    AnsatzParams,
+    write_adversarial_csv,
+    write_synthetic_csv,
+)
 
 FIXTURES = Path(__file__).resolve().parent.parent / "tests" / "fixtures"
 
@@ -22,9 +28,9 @@ SHOTS = 200_000
 
 # (name, r_e, injected p_th, blind-vs-herald penalty) — p_th slides with r_e.
 SWEEPS = [
-    ("baseline_pauli", 0.0, 0.010, 1.15),
-    ("erasure_r50", 0.5, 0.024, 1.35),
-    ("erasure_r98", 0.98, 0.045, 1.60),
+    ("synthetic_baseline_pauli", 0.0, 0.010, 1.15),
+    ("synthetic_erasure_r50", 0.5, 0.024, 1.35),
+    ("synthetic_erasure_r98", 0.98, 0.045, 1.60),
 ]
 
 
@@ -43,6 +49,17 @@ def main() -> None:
             blind_penalty=penalty,
         )
         print(f"wrote {path}")
+
+    # Adversarial: inverted ordering + saturated tail; the fitter must reject it.
+    adv = write_adversarial_csv(
+        FIXTURES / "synthetic_adversarial.csv",
+        decoders=("herald_mwpm", "blind_mwpm"),
+        distances=DISTANCES,
+        p_values=P_VALUES,
+        shots=SHOTS,
+        r_e=0.5,
+    )
+    print(f"wrote {adv}")
 
 
 if __name__ == "__main__":

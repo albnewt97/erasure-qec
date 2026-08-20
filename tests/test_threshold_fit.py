@@ -65,17 +65,41 @@ def test_fit_degrades_gracefully_on_insufficient_data() -> None:
     assert "insufficient" in result.message
 
 
-@pytest.mark.parametrize("name", ["baseline_pauli", "erasure_r50", "erasure_r98"])
+@pytest.mark.parametrize(
+    "name", ["synthetic_baseline_pauli", "synthetic_erasure_r50", "synthetic_erasure_r98"]
+)
 def test_fits_synthetic_fixtures(name: str) -> None:
     """The committed exponential-collapse fixtures fit near their injected p_th
-    (0.010 / 0.024 / 0.045), confirming the fit works on figure data too."""
+    (0.010 / 0.024 / 0.045). NB this confirms only that the fitter inverts its
+    own generative model on figure data -- the fixtures are synthetic, not
+    measurements (see analysis/synthetic.py provenance warning)."""
     from erasure_qec.analysis.statistics import load_sweep
 
-    injected = {"baseline_pauli": 0.010, "erasure_r50": 0.024, "erasure_r98": 0.045}[name]
+    injected = {
+        "synthetic_baseline_pauli": 0.010,
+        "synthetic_erasure_r50": 0.024,
+        "synthetic_erasure_r98": 0.045,
+    }[name]
     points = [p for p in load_sweep(FIXTURES / f"{name}.csv") if p.decoder == "herald_mwpm"]
     result = fit_threshold(points, window_factor=1.6, n_boot=60, seed=0)
     assert result.converged, result.message
     assert result.p_th == pytest.approx(injected, rel=0.15)
+
+
+def test_fitter_rejects_adversarial_saturated_fixture() -> None:
+    """The adversarial fixture (inverted d-ordering + saturated ~1/2 tail, no
+    real crossing) must be REJECTED, not fit: fit_threshold returns
+    converged=False for both decoders and both the d>=7 and all-d windows,
+    rather than returning a spurious p_th."""
+    from erasure_qec.analysis.statistics import load_sweep
+
+    points = load_sweep(FIXTURES / "synthetic_adversarial.csv")
+    assert points  # fixture loads
+    for decoder in ("herald_mwpm", "blind_mwpm"):
+        sub = [p for p in points if p.decoder == decoder]
+        for d_min in (7, None):
+            result = fit_threshold(sub, d_min=d_min)
+            assert not result.converged, (decoder, d_min, result.p_th, result.message)
 
 
 # --- Real Monte-Carlo baseline sweep: crossing/threshold regression. ---
