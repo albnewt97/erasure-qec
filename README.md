@@ -43,8 +43,12 @@ The `r_e = 0.98` herald panel carries no line — the fit does not converge (ann
 > **Data status.** These figures are generated from the **real Monte-Carlo sweeps committed in `data/`**
 > (`baseline_pauli.csv`, `erasure_r50.csv`, `erasure_r98.csv`), collected under the fixed noise model.
 > Every threshold quoted here is reproducible from that committed data by the code in this repo. The
-> stale pre-fix sweeps are preserved (un-tracked) under `data/stale_old_model/`. Separate committed
-> **synthetic fixtures** (`tests/fixtures/*.csv`) drive the deterministic analysis/plotting tests.
+> stale pre-fix sweeps are preserved (un-tracked) under `data/stale_old_model/`. Pinned real snapshots
+> for deterministic regression live at `tests/fixtures/real_*.csv`. Separate committed
+> **synthetic fixtures** (`tests/fixtures/synthetic_*.csv`) drive the byte-stable plotting/analysis tests
+> — these are **not measurements**: they are generated from the same collapse variable the fitter
+> inverts, so a fit recovering their injected `p_th` only confirms the fitter inverts its own model (one
+> is deliberately adversarial, `synthetic_adversarial.csv`, and the fitter must *reject* it).
 
 ---
 
