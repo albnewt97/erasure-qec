@@ -4,9 +4,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 6 * * *"  # nightly 06:00 UTC: the full suite incl. slow tests
+  workflow_dispatch:      # manual trigger for the full suite
 
 jobs:
+  # Fast lane: lint, types, and the non-slow tests on every push/PR.
   test:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -33,3 +38,36 @@ jobs:
 
       - name: Test with pytest (fast suite)
         run: uv run pytest -m "not slow" --cov=erasure_qec --cov-report=term-missing
+
+  # Full suite incl. @slow: Monte-Carlo smoke, decoder throughput, and the
+  # d=7 undetectable-error / distance-invariant search. Nightly + manual only,
+  # so PR CI stays fast but the slow gates still run regularly.
+  full-suite:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --group dev --python ${{ matrix.python-version }}
+
+      - name: Lint with ruff
+        run: uv run ruff check .
+
+      - name: Type-check with mypy
+        run: uv run mypy src
+
+      - name: Test with pytest (full suite, incl. slow)
+        run: uv run pytest --cov=erasure_qec --cov-report=term-missing
