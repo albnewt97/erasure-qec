@@ -484,6 +484,26 @@ _JointCounts = Mapping[tuple[float, int], tuple[int, int, int, int]]
 
 
 @dataclass(frozen=True)
+class ReplicateFailure:
+    """Why one bootstrap replicate was discarded (for the missing-at-random and
+    guard-breakdown diagnostics in docs/AUDIT.md).
+
+    ``herald_p_th`` / ``blind_p_th`` are the raw fitted ``p_th`` of each decoder
+    on the resample: ``nan`` where the fit was rejected before producing a value
+    (insufficient window, curve_fit raise), or the *pinned* value where the fit
+    ran but pinned at a bound. ``*_converged`` say which decoder(s) failed; the
+    ``*_message`` fields carry :class:`FitResult` messages for guard breakdown.
+    """
+
+    herald_p_th: float
+    blind_p_th: float
+    herald_converged: bool
+    blind_converged: bool
+    herald_message: str
+    blind_message: str
+
+
+@dataclass(frozen=True)
 class ThresholdDifference:
     """Bootstrap of ``delta = p_th(blind) - p_th(herald)`` (Phase 4).
 
@@ -505,6 +525,12 @@ class ThresholdDifference:
     paired: bool  # whether shared-shot paired resampling was used
     n_boot: int
     n_paired_failed: int  # replicates where one or both decoders did not converge
+    # Successful replicate draws, and a record per discarded replicate. These
+    # let a caller test whether the discards are missing-at-random wrt delta
+    # (the Delta CI is conditioned on both decoders converging).
+    herald_pth_draws: tuple[float, ...] = ()
+    blind_pth_draws: tuple[float, ...] = ()
+    failures: tuple[ReplicateFailure, ...] = ()
     message: str = ""
 
 
@@ -614,20 +640,34 @@ def bootstrap_threshold_difference(
     rng = np.random.default_rng(seed)
     h_draws: list[float] = []
     b_draws: list[float] = []
-    n_failed = 0
+    failures: list[ReplicateFailure] = []
     for _ in range(n_boot):
         if joint_counts is None:
             h_res = _resample_independent(herald_points, rng)
             b_res = _resample_independent(blind_points, rng)
         else:
             h_res, b_res = _resample_paired(joint_counts, decoders, rng)
-        h = _fit_pth(h_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess)
-        b = _fit_pth(b_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess)
-        if h is None or b is None:
-            n_failed += 1
-            continue
-        h_draws.append(h)
-        b_draws.append(b)
+        hf = fit_threshold(
+            h_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess, n_boot=0
+        )
+        bf = fit_threshold(
+            b_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess, n_boot=0
+        )
+        if hf.converged and bf.converged:
+            h_draws.append(hf.p_th)
+            b_draws.append(bf.p_th)
+        else:
+            failures.append(
+                ReplicateFailure(
+                    herald_p_th=hf.p_th,
+                    blind_p_th=bf.p_th,
+                    herald_converged=hf.converged,
+                    blind_converged=bf.converged,
+                    herald_message=hf.message,
+                    blind_message=bf.message,
+                )
+            )
+    n_failed = len(failures)
 
     if len(h_draws) < 2:
         return _fail(
@@ -663,5 +703,83 @@ def bootstrap_threshold_difference(
         paired=paired,
         n_boot=n_boot,
         n_paired_failed=n_failed,
+        herald_pth_draws=tuple(h_draws),
+        blind_pth_draws=tuple(b_draws),
+        failures=tuple(failures),
         message="ok",
     )
+
+
+def _guard_of(message: str) -> str:
+    """Bucket a FitResult message into the guard that rejected the fit."""
+    if "pinned at optimiser bound" in message:
+        return "bound_pin"
+    if "insufficient" in message:
+        return "insufficient_window"
+    if "curve_fit failed" in message:
+        return "curve_fit_error"
+    return "other"
+
+
+def failure_guard_breakdown(diff: ThresholdDifference) -> dict[str, int]:
+    """Count discarded replicates by ``"<decoder>:<guard>"`` (Phase-4 diagnostic).
+
+    A replicate can contribute to two entries if both decoders failed. Guards:
+    ``bound_pin`` (informative -- the crossing sits at/above the fit window),
+    ``insufficient_window`` (a sparse resampled window), ``curve_fit_error``.
+    """
+    out: dict[str, int] = {}
+    for fail in diff.failures:
+        if not fail.herald_converged:
+            key = f"herald:{_guard_of(fail.herald_message)}"
+            out[key] = out.get(key, 0) + 1
+        if not fail.blind_converged:
+            key = f"blind:{_guard_of(fail.blind_message)}"
+            out[key] = out.get(key, 0) + 1
+    return out
+
+
+def failed_vs_success_pth(
+    diff: ThresholdDifference, decoder: str
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """A decoder's ``p_th`` among discarded (finite value) vs kept replicates.
+
+    Feeds the missing-at-random check: if the failed values are systematically
+    higher (blind pinning at the top of the grid), the discards are the
+    near-zero-``delta`` replicates and the conditioning is NOT benign.
+    """
+    if decoder == "herald":
+        success = np.array(diff.herald_pth_draws, dtype=float)
+        failed = np.array([f.herald_p_th for f in diff.failures], dtype=float)
+    else:
+        success = np.array(diff.blind_pth_draws, dtype=float)
+        failed = np.array([f.blind_p_th for f in diff.failures], dtype=float)
+    return failed[np.isfinite(failed)], success
+
+
+def directional_sensitivity_ci(
+    diff: ThresholdDifference, *, seed: int = 0, top_fraction: float = 0.10
+) -> tuple[tuple[float, float], bool]:
+    """Recompute the ``delta`` CI after imputing the discarded replicates from
+    the top (least-negative) ``top_fraction`` of the observed ``delta`` draws.
+
+    A *plausible-pessimistic* sensitivity, deliberately NOT worst-case imputation
+    at ``delta = 0`` (which, once the failure rate exceeds 2.5%, forces the
+    97.5th percentile into the imputed block and can never exclude zero -- an
+    artefact of the procedure that proves nothing). Returns the imputed 95% CI
+    and whether it still excludes zero.
+    """
+    herald = np.array(diff.herald_pth_draws, dtype=float)
+    blind = np.array(diff.blind_pth_draws, dtype=float)
+    deltas = blind - herald
+    threshold = np.percentile(deltas, 100.0 * (1.0 - top_fraction))
+    top = deltas[deltas >= threshold]
+    rng = np.random.default_rng(seed)
+    imputed = rng.choice(top, size=diff.n_paired_failed, replace=True)
+    combined = np.concatenate([deltas, imputed])
+    lo_pct, hi_pct = _CI_PERCENTILES
+    ci = (
+        float(np.percentile(combined, lo_pct)),
+        float(np.percentile(combined, hi_pct)),
+    )
+    return ci, (ci[0] > 0.0 or ci[1] < 0.0)
