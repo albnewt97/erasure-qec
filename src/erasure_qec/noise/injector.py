@@ -48,8 +48,14 @@ class NoiseInjector(Protocol):
         """
         ...
 
-    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
-        """Append idle noise (e.g. ``DEPOLARIZE1``) for qubits idle during a TICK."""
+    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
+        """Append idle noise (e.g. ``DEPOLARIZE1``) for qubits idle during a TICK.
+
+        Returns the qubit indices that received a ``HERALDED_ERASE`` (idle
+        erasure, only when ``convert_idle`` is set), in herald-record order --
+        empty otherwise. The builder emits a sentinel detector per returned
+        qubit, exactly as for ``on_two_qubit_gate``.
+        """
         ...
 
 
@@ -67,12 +73,17 @@ class NullInjector:
     ) -> list[int]:
         return []
 
-    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
-        return None
+    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
+        return []
 
 
-class BiasedErasureInjector:
-    """Full biased-erasure noise model (PLAN.md §5).
+class ErasureInjector:
+    """Full erasure noise model (PLAN.md §5).
+
+    NB: ``HERALDED_ERASE`` replaces the qubit with the maximally-mixed ``I/2`` --
+    an *unbiased* erasure (all four Paulis equally likely, conditioned on the
+    herald). This does not model the Z-biased leakage of Sahay et al.; the
+    threshold advantage here comes from herald-conditioned decoding, not bias.
 
     Per two-qubit gate: ``DEPOLARIZE2(p * (1 - r_e))`` residual Pauli noise,
     plus ``HERALDED_ERASE`` independently on each qubit at the rate set by
@@ -108,22 +119,29 @@ class BiasedErasureInjector:
         circuit.append("HERALDED_ERASE", flattened, self._rates.herald)
         return flattened
 
-    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
-        if qubits and self._rates.idle_depolarize > 0.0:
-            circuit.append("DEPOLARIZE1", list(qubits), self._rates.idle_depolarize)
+    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
+        if not qubits:
+            return []
+        idle = list(qubits)
+        if self._rates.idle_depolarize > 0.0:
+            circuit.append("DEPOLARIZE1", idle, self._rates.idle_depolarize)
+        if self._rates.idle_herald <= 0.0:
+            return []
+        circuit.append("HERALDED_ERASE", idle, self._rates.idle_herald)
+        return idle
 
 
 class PauliOnlyInjector:
     """Residual-Pauli-only noise: the ``r_e = 0`` special case of §5.
 
-    Equivalent to ``BiasedErasureInjector`` with the erasure fraction forced
+    Equivalent to ``ErasureInjector`` with the erasure fraction forced
     to zero: ``DEPOLARIZE2(p)`` per two-qubit gate, no ``HERALDED_ERASE`` and
     no herald detectors at all. Useful as the non-erasure baseline (e.g. the
     ``baseline_pauli`` experiment config) and for the §4 distance invariants.
     """
 
     def __init__(self, params: NoiseParams) -> None:
-        self._delegate = BiasedErasureInjector(
+        self._delegate = ErasureInjector(
             NoiseParams(
                 p=params.p,
                 r_e=0.0,
@@ -144,5 +162,5 @@ class PauliOnlyInjector:
     ) -> list[int]:
         return self._delegate.on_two_qubit_gate(circuit, pairs)
 
-    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
-        self._delegate.on_idle(circuit, qubits)
+    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
+        return self._delegate.on_idle(circuit, qubits)

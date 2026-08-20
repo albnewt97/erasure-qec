@@ -37,8 +37,8 @@ from erasure_qec.decoding.herald_matching import (
     BlindMatchingDecoder,
     HeraldMatchingDecoder,
 )
-from erasure_qec.noise.injector import BiasedErasureInjector
-from erasure_qec.noise.model import channel_rates
+from erasure_qec.noise.injector import ErasureInjector
+from erasure_qec.noise.model import nonidentity_pauli_probability
 
 BASELINE = "tests/fixtures/real_baseline_pauli.csv"
 R50 = "tests/fixtures/real_erasure_r50.csv"
@@ -88,15 +88,11 @@ def _fit_diagnostics(csv: str, decoder: str, d_min: int | None) -> dict[str, flo
 
 def _nonidentity_pauli_prob(r_e: float, p: float = 0.02) -> float:
     """Exact per-2q-gate probability of a non-identity Pauli, as a factor of p."""
-    r = channel_rates(NoiseParams(p=p, r_e=r_e))
-    dep = r.depolarize2  # DEPOLARIZE2 non-identity probability
-    h = r.herald  # per-qubit HERALDED_ERASE probability; erasure -> non-I w.p. 3/4
-    prob = 1.0 - (1.0 - dep) * (1.0 - h * 0.75) ** 2
-    return prob / p
+    return nonidentity_pauli_probability(NoiseParams(p=p, r_e=r_e)) / p
 
 
 def _dem_heralded_mass(d: int, p: float, r_e: float) -> float:
-    dem = _contract_dem(build(d, d, BiasedErasureInjector(NoiseParams(p=p, r_e=r_e))))
+    dem = _contract_dem(build(d, d, ErasureInjector(NoiseParams(p=p, r_e=r_e))))
     heralds = _herald_detectors(dem)
     total = 0.0
     heralded = 0.0
@@ -112,7 +108,7 @@ def _dem_heralded_mass(d: int, p: float, r_e: float) -> float:
 
 
 def _syndrome_density(d: int, p: float, r_e: float, shots: int = 20000) -> float:
-    circ = build(d, d, BiasedErasureInjector(NoiseParams(p=p, r_e=r_e)))
+    circ = build(d, d, ErasureInjector(NoiseParams(p=p, r_e=r_e)))
     dem = _contract_dem(circ)
     heralds = _herald_detectors(dem)
     synd = [i for i in range(circ.num_detectors) if i not in heralds]
@@ -121,7 +117,7 @@ def _syndrome_density(d: int, p: float, r_e: float, shots: int = 20000) -> float
 
 
 def _herald_free_fraction(d: int, p: float, r_e: float, shots: int = 40000) -> float:
-    circ = build(d, d, BiasedErasureInjector(NoiseParams(p=p, r_e=r_e)))
+    circ = build(d, d, ErasureInjector(NoiseParams(p=p, r_e=r_e)))
     dem = _contract_dem(circ)
     heralds = sorted(_herald_detectors(dem))
     dets = circ.compile_detector_sampler(seed=0).sample(shots)
@@ -130,7 +126,7 @@ def _herald_free_fraction(d: int, p: float, r_e: float, shots: int = 40000) -> f
 
 
 def _ablation_ratio(d: int, p: float, r_e: float, shots: int = 40000) -> tuple[float, int, int]:
-    circ = build(d, d, BiasedErasureInjector(NoiseParams(p=p, r_e=r_e)))
+    circ = build(d, d, ErasureInjector(NoiseParams(p=p, r_e=r_e)))
     dets, obs = circ.compile_detector_sampler(seed=0).sample(
         shots, separate_observables=True
     )

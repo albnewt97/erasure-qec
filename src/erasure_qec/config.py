@@ -25,6 +25,14 @@ class NoiseParams:
     sweep; pass them explicitly to decouple measurement/reset/idle noise from
     the two-qubit gate error budget. Use the :attr:`meas`/:attr:`reset`/
     :attr:`idle` properties to read the resolved (never-``None``) rates.
+
+    ``convert_idle`` (default ``False``, preserving the gate-only erasure model
+    as a named baseline) also erasure-converts the *idle* budget: a fraction
+    ``r_e`` of each idle qubit's ``DEPOLARIZE1`` becomes a heralded erasure. This
+    is the physically-motivated case for metastable ¹⁷¹Yb, where decay during
+    idling is exactly what fluorescence monitoring heralds, and it raises the
+    circuit-wide heralded fraction toward ``r_e`` (measurement/reset stay
+    unheralded either way -- see analysis.dem_stats.heralded_fraction).
     """
 
     p: float
@@ -32,6 +40,7 @@ class NoiseParams:
     p_meas: float | None = None
     p_reset: float | None = None
     p_idle: float | None = None
+    convert_idle: bool = False
 
     def __post_init__(self) -> None:
         _check_probability(self.p, "p")

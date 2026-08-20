@@ -16,17 +16,23 @@ converts errors rather than removing them — see [Noise channels](#noise-channe
 from erasure comes almost entirely from **reading the herald bits**, not from the conversion itself:
 
 - The **blind** decoder (which discards the herald bits and folds erasures into extra depolarizing
-  noise) barely moves the threshold as `r_e` grows: **1.44% → 1.49% → 1.64%** at `r_e = 0 / 0.5 / 0.98`.
-- The **herald-conditioned** decoder lifts it substantially: **1.38% → 2.32%** at `r_e = 0.5`, and the
-  herald-vs-blind advantage compounds with code distance and erasure fraction (the
-  [ablation](#the-herald-aware-vs-blind-ablation)) — reaching a large factor at `d = 11, r_e = 0.98`.
+  noise) barely moves the threshold from baseline to `r_e = 0.5`: **1.44% → 1.49%** (95% CIs
+  `[1.35, 1.57]` → `[1.42, 2.15]`).
+- The **herald-conditioned** decoder lifts it substantially over the same range: **1.38% → 2.32%**
+  (`[1.33, 1.47]` → `[2.19, 2.64]`), and the herald-vs-blind advantage compounds with code distance and
+  erasure fraction (the [ablation](#the-herald-aware-vs-blind-ablation)) — reaching a large factor at
+  `d = 11, r_e = 0.98`.
 
-At **`r_e = 0.98`** the herald crossing sits near **~6%**, but the largest codes (`d = 9, 11`) saturate
-to the ½ coin-flip limit within one grid step above it, so the `d ≥ 7` collapse fit **does not converge**
-(ν rails to its bound). We report that as a **non-result**, not a number, and lead the near-full-conversion
-story with the deterministic ablation instead. This corrects an earlier version of this README, whose
-"6.27% ± 0.54%" headline was an artifact of a bug that reported a bound-pinned fit as converged, run on a
-noise model whose per-gate budget shrank with `r_e` (see [`docs/AUDIT.md`](docs/AUDIT.md)).
+At **`r_e = 0.98`** the collapse fit resolves **neither** decoder's threshold: the herald crossing sits
+near ~6% but the largest codes (`d = 9, 11`) saturate to the ½ coin-flip limit within one grid step above
+it, so the `d ≥ 7` fit does not converge (ν rails to its bound); and the blind fit, though it returns a
+point value ~1.6%, has a 95% bootstrap CI spanning `[1.5, ~8]%` (the crossing is bistable under
+resampling). Both are reported as **non-results**, and the near-full-conversion story leads with the
+deterministic ablation instead. All CIs here are 95% *bootstrap percentile* intervals from a bootstrap
+that re-runs the whole pipeline per replicate (see [ansatz](#finite-size-scaling-ansatz-10)); they are
+wider and more honest than the `± σ` an earlier version reported. That earlier "6.27% ± 0.54%" headline
+was an artifact of a bug that reported a bound-pinned fit as converged, on a noise model whose per-gate
+budget shrank with `r_e` (see [`docs/AUDIT.md`](docs/AUDIT.md)).
 
 ![Threshold panels](figures/threshold_panels.png)
 
@@ -51,19 +57,31 @@ single scaling variable `x = (p − p_th)·d^{1/ν}`.
 
 ### Measured thresholds (`d ≥ 7` collapse fit)
 
-| `r_e` | `herald_mwpm` `p_th` | `blind_mwpm` `p_th` | χ²/dof (h / b) | notes |
-|---|---|---|---|---|
-| 0.0 | **1.38% ± 0.11%** (ν = 1.45) | **1.44% ± 0.12%** (ν = 2.12) | 1.02 / 1.15 | control: no heralds, so the decoders agree within error bars (as required) |
-| 0.5 | **2.32% ± 0.30%** (ν = 1.90) | **1.49% ± 0.11%** (ν = 1.58) | 0.62 / 0.47 | herald clearly above blind |
-| 0.98 | **does not converge** | **1.64% ± 0.08%** (ν = 1.72) | — / 0.20 † | herald crossing ~6%, but `d = 9,11` saturate immediately above it → ν unconstrained |
+`p_th` is the point estimate; the interval is a **95% bootstrap percentile CI** (default `n_boot = 200`,
+`seed = 0`; the full-pipeline bootstrap below, so the intervals are asymmetric and honest).
 
-All quoted `p_th ± σ` come from a seeded parametric bootstrap over the sinter counts. † The `r_e = 0.98`
-blind fit has only 9 in-window points (dof = 4); its χ²/dof = 0.20 is a small-sample over-fit flag, so
-read it as ~1.6% with a wide systematic, not a precise value. The `r_e = 0.98` **herald** threshold is a
-genuine non-result under this pipeline: `fit_threshold(..., d_min=7)` returns `converged=False` with
-`nu at upper bound`. The all-`d` fit "reaches" ~6–8.5% depending on the window, but mixes the
-finite-size-corrected small distances and rests on the ragged, `max_errors`-limited data just above the
-crossing, so we do not quote it as a threshold.
+| `r_e` | `herald_mwpm` `p_th` [95% CI] | `blind_mwpm` `p_th` [95% CI] | χ²/dof (h / b) | notes |
+|---|---|---|---|---|
+| 0.0 | **1.38%** `[1.33, 1.47]` (ν = 1.45) | **1.44%** `[1.35, 1.57]` (ν = 2.12) | 1.02 / 1.15 | control: no heralds, so the decoders agree within CIs (as required) |
+| 0.5 | **2.32%** `[2.19, 2.64]` (ν = 1.90) | **1.49%** `[1.42, 2.15]` (ν = 1.58) | 0.62 / 0.47 | herald point well above blind; blind CI is skewed up |
+| 0.98 | **not resolved** (fit non-converged) | **not resolved** (`[1.5, ~8]`, bistable) | 0.55 / 0.20 | at near-full conversion the collapse fit resolves neither threshold |
+
+At `r_e = 0.98` neither `d ≥ 7` fit yields a usable threshold: the herald fit returns `converged=False`
+(ν pinned at its bound — `d = 9, 11` saturate to ½ within one grid step above the ~6% crossing), and the
+blind fit, though it returns a point value ~1.6%, has a 95% CI spanning ~`[1.5, 8]%` that shifts with the
+bootstrap seed — its crossing estimate is bistable, so the number is not trustworthy. The high-`r_e`
+evidence is the [ablation](#the-herald-aware-vs-blind-ablation), which needs no fit. At `r_e = 0.5` the
+herald and blind *point* estimates are clearly separated (2.32% vs 1.49%) and the ablation confirms the
+gap, though the blind CI's upper edge (2.15%) reaches the herald CI's lower edge (2.19%), so the
+threshold separation alone is marginal at 95%.
+
+All quoted intervals are 95% bootstrap percentile CIs (see [ansatz](#finite-size-scaling-ansatz-10)).
+The `r_e = 0.98` blind fit has only 9 in-window points (χ²/dof = 0.20, a small-sample over-fit flag) and
+a CI that both spans ~`[1.5, 8]%` and moves with the seed, so its ~1.6% point value is not a resolved
+threshold. The `r_e = 0.98` herald fit is a non-result by construction: `fit_threshold(..., d_min=7)`
+returns `converged=False` with `nu at upper bound`. The all-`d` fit "reaches" ~6–8.5% depending on the
+window, but mixes the finite-size-corrected small distances and rests on ragged, `max_errors`-limited
+data just above the crossing, so we do not quote it either.
 
 ### Comparison to the literature
 
@@ -71,11 +89,16 @@ Wu et al. [[3]](#references) — the paper that introduced this erasure-conversi
 report circuit-level surface-code thresholds rising from **0.937%** (no conversion) to **4.15%** at 98%
 erasure conversion. Our measurements are **consistent in structure** — a several-fold gain from erasure
 conversion, concentrated in herald-aware decoding — and comparable in magnitude at low `r_e` (our
-baseline 1.38% vs their 0.937%, same order). We deliberately **do not** claim a matching 98% number: our
-`d ≥ 7` herald fit does not converge at `r_e = 0.98`, so we have no clean threshold to compare there.
-Where we can compare, the absolute values differ for honest reasons:
+baseline 1.38% vs their 0.937%, same order). We deliberately **do not** claim a matching 98% number, for
+two independent reasons: our `d ≥ 7` herald fit does not converge at `r_e = 0.98` (so we have no clean
+threshold to compare), **and** the axes are not the same — our `r_e` is the fraction of the *two-qubit
+gate* budget converted, whereas Wu et al.'s `R_e` is the fraction of *all* errors converted. At
+`r_e = 0.98` only **~55%** of our circuit-wide DEM error mass is heralded (see
+[Noise channels](#noise-channels-5)), so "our 98%" and "their 98%" are different quantities. Also, ours
+is a **Z-memory** threshold under a single observable, not a full X+Z circuit-level threshold. Where we
+can compare, the absolute values differ for honest reasons:
 
-- **Noise model.** Our per-gate channel — `DEPOLARIZE2(p(1−r_e))` plus an independent
+- **Noise model.** Our per-gate channel — `DEPOLARIZE2(p(1−r_e))` plus an independent unbiased
   `HERALDED_ERASE((2/3)·p·r_e)` on *each* qubit, sized to hold the per-gate non-identity budget at `p`
   for every `r_e` — need not match Wu et al.'s channel exactly; how the erasure and residual-Pauli
   weight are apportioned shifts the threshold.
@@ -91,16 +114,26 @@ With the per-gate budget held constant, the ablation splits cleanly and the spli
 what an "erasure conversion is intrinsically cheaper" intuition suggests:
 
 - **Erasure conversion alone** — the `blind_mwpm` decoder, which discards the herald bits — moves the
-  threshold hardly at all: **1.44% → 1.49% → 1.64%** across `r_e = 0 / 0.5 / 0.98`. Once the total
-  per-gate error budget is fixed, replacing residual Pauli with (blind) erasure noise is close to a wash.
+  threshold hardly at all where we can resolve it: **1.44% → 1.49%** from `r_e = 0` to `0.5` (and its
+  `r_e = 0.98` fit does not resolve). Once the total per-gate error budget is fixed, replacing residual
+  Pauli with (blind) erasure noise is close to a wash.
 - **Herald-conditioned decoding** — reading each shot's herald bits and zeroing the conditioned edges —
-  is where the benefit lives: **1.38% → 2.32%** at `r_e = 0.5` alone, and a growing sub-threshold
+  is where the benefit lives: **1.38% → 2.32%** from `r_e = 0` to `0.5`, and a growing sub-threshold
   suppression at higher `r_e` and distance (below). Knowing *where* the erasure occurred is the whole
   advantage.
 
-(An earlier version of this README decomposed a `4.5×` gain into `1.6×` blind and `2.7×` herald. That
-decomposition came from the pre-fix pipeline on the budget-shrinking noise model and does not survive
-either correction — the blind factor in particular was largely the shrinking-budget artifact.)
+**Re-deriving the old "erasure conversion alone gives 1.6×" claim.** That number decomposed a `4.5×`
+gain into `1.6×` blind and `2.7×` herald, from the pre-fix pipeline on the budget-shrinking noise model.
+It does not survive. Two effects were entangled in it: (i) **budget shrink** — the old `p·r_e/2` rate let
+the per-gate non-identity budget fall to `p(1 − r_e/4)`, so the "threshold" partly rose because there was
+simply less noise (removed by the constant-budget fix; see
+[Noise channels](#noise-channels-5)); and (ii) the **structural change** from a *correlated two-qubit*
+`DEPOLARIZE2` to *independent single-qubit* `I/2` erasures. With the budget now held constant, the blind
+decoder moves only `1.44% → 1.49%` (≈`1.03×`) at `r_e = 0.5`, so whatever remains of effect (ii) is small
+— and we do **not** claim to separate it cleanly from the residual O(p²) budget term, so we make no
+causal claim about *why* (both channels are Pauli; "depolarizing noise is cheaper to correct" would be
+hand-waving). The honest statement is just: with a fixed budget, blind erasure conversion barely helps;
+the gain is the decoder.
 
 ---
 
@@ -108,9 +141,11 @@ either correction — the blind factor in particular was largely the shrinking-b
 
 ### Noise channels (§5)
 
-The biased-erasure model follows Wu et al. [[3]](#references); "biased" refers to the leakage favoring
-one computational state, in the sense of Sahay et al. [[8]](#references). Per two-qubit gate on qubits
-`(a, b)`, with physical rate `p` and erasure fraction `r_e`:
+The erasure model follows Wu et al. [[3]](#references). The `HERALDED_ERASE` channel is **unbiased** — it
+replaces the qubit with the maximally-mixed `I/2` (all four Paulis equal, conditioned on the herald); the
+threshold advantage here is from herald-conditioned *decoding*, not from any Pauli bias (contrast the
+Z-biased erasure of [Modelling assumptions](#modelling-assumptions), which we do not model). Per
+two-qubit gate on qubits `(a, b)`, with physical rate `p` and erasure fraction `r_e`:
 
 | Channel | Rate | Where |
 |---|---|---|
@@ -125,10 +160,30 @@ one computational state, in the sense of Sahay et al. [[8]](#references). Per tw
 non-trivial Pauli has probability ½. An erasure is a *non-identity* error only ¾ of the time (the `I`
 outcome still heralds but causes no syndrome), so the two qubits contribute `2·q·¾` of non-identity
 mass; setting that equal to the erasure share `p·r_e` gives the rate `q = (2/3)·p·r_e`. This holds the
-per-gate non-identity error probability at `p` for **every** `r_e`, so `r_e` genuinely *converts* the
-2q-gate error budget rather than shrinking it. (Measurement/reset/idle errors are not erasure-converted,
-so the *circuit-wide* heralded fraction is below `r_e` — at `d = 5, p = 0.02, r_e = 0.98` about 55% of
-the DEM error mass is heralded, not 98%.)
+per-gate non-identity error probability at `p` for **every** `r_e` (exactly `p` at `r_e = 0`, falling
+only by the O(p²) overlap to `p − p²/4` at `r_e = 1`; see
+`test_error_budget_invariance`), so `r_e` genuinely *converts* the 2q-gate error budget rather than
+shrinking it. We chose this budget-conserving convention (option (a) of the audit's §2.2) precisely so
+that **`p` is itself the iso-noise axis**: the [threshold panels](#threshold-scaling) are already plotted
+against a budget-conserving `x`-axis. A "true" non-identity-probability axis would move each point by at
+most `p²/4` (≤ 0.5% of `p` at `p = 0.02`) — invisible on the panels and below the fit CIs — so no
+separate rescaled panel is needed; the threshold in `p` and in exact-budget agree to the digits quoted.
+
+> **`r_e` is the 2q-gate fraction, not the circuit-wide heralded fraction.** Measurement and reset errors
+> are never erasure-converted, and idle errors only when `convert_idle` is set, so the fraction of *total
+> DEM error mass* that is actually heralded is **well below `r_e`** — and this is the number to compare
+> with Wu et al.'s `R_e` (fraction of *all* errors converted). Measured by
+> `analysis.dem_stats.heralded_fraction` (`scripts/heralded_fraction.py`) at `d = 5, p = 0.02`:
+>
+> | `r_e` | heralded fraction (gate-only, `convert_idle=False`) | heralded fraction (`convert_idle=True`) |
+> |---|---|---|
+> | 0.5 | 0.30 | 0.42 |
+> | 0.98 | **0.55** | 0.72 |
+>
+> The committed sweeps use `convert_idle=False`, so the `r_e = 0.98` runs herald **55%** of the error
+> mass, not 98%. `convert_idle=True` erasure-converts the idle budget too (the physical ¹⁷¹Yb case) and
+> raises it to 72%, still below `r_e` because meas/reset stay unheralded. The literature comparison must
+> be read with this in mind: our `r_e` and Wu et al.'s `R_e` are **not** the same axis.
 
 ### Detector algebra (§3.4)
 
@@ -170,7 +225,17 @@ for `(p_th, ν, A, B, C)` by weighted least squares, weighting each point by its
 error** (the 95% Wilson half-width ÷ `z₀.₉₇₅`) in per-round space. Points at or above per-round
 `p_L = 0.4` (saturating toward the ½ limit, outside the local ansatz) are excluded, and the fit reports
 its **χ²/dof**; a fit whose `p_th` or `ν` pins at an optimiser bound is reported `converged=False` rather
-than as a spurious number. `p_th ± σ` comes from a seeded parametric bootstrap over the sinter counts.
+than as a spurious number.
+
+Uncertainty is a **95% bootstrap percentile CI**, from a parametric bootstrap that re-runs the *entire*
+pipeline per replicate: resample `errors ~ Binomial(shots, P_L_shot)` over **all** points for the decoder
+(not just the selected window), then re-run the crossing estimate, the window selection, and the same
+weighted fit as the point estimate. Replicates whose window is too thin or whose fit fails are counted
+(`n_boot_failed`), not dropped, and because the `p_th` distribution is skewed the interval is a
+percentile CI, not `± σ`. Measuring the same estimator the point fit uses — weighted, full-pipeline — is
+what keeps the interval honest; an earlier bootstrap refit an *unweighted* model from the point estimate
+on a *frozen* window and dropped failures, all of which reported the CI too narrow (e.g. the `r_e = 0.98`
+blind fit looked like `± 0.08%` but its honest CI spans several percent).
 
 ---
 
@@ -236,16 +301,44 @@ divides a near-zero by a near-zero) is dropped, since its bootstrap CIs otherwis
 
 ---
 
+## Modelling assumptions
+
+This is an idealized erasure model. Each assumption below is **systematically
+optimistic** — a real device is worse in each respect — so the thresholds and suppression ratios here
+are upper bounds on what this scheme delivers in hardware, not predictions of it.
+
+- **Erasure is injected *after* the CX, independently per qubit.** There is no mid-gate erasure that
+  propagates through the remainder of the gate, and no correlated two-qubit erasure — the two qubits of a
+  gate erase independently. Real leakage happens *during* the gate and can corrupt both qubits together.
+- **The erased qubit keeps participating perfectly in all later rounds.** `HERALDED_ERASE` replaces the
+  qubit with `I/2` for that instant only; it is a fully-functional qubit again on the next tick. A real
+  ¹⁷¹Yb erasure is an atom *leaked out of the qubit subspace* — it stays broken until physically
+  re-prepared, so a single erasure should degrade many subsequent rounds, which we do not model.
+- **Heralds are perfect.** Instantaneous, 100% reliable, zero false positives, zero latency. Real
+  fluorescence heralding has finite fidelity, false positives/negatives, and a latency the decoder would
+  have to tolerate.
+- **The erasure is unbiased.** `HERALDED_ERASE` is `I/2` (all four Paulis equal). The Z-biased leakage of
+  Sahay et al. [[8]](#references) would give a *further* threshold advantage that we deliberately do not
+  model (see [Noise channels](#noise-channels-5)); our advantage is from herald-conditioned decoding
+  alone.
+- **Z-memory only, single logical observable.** Every "threshold" here is the **Z-basis memory**
+  threshold under a single observable — not a full X+Z circuit-level threshold, and not a logical-gate or
+  computation threshold. Read every number in this repo with the "Z-memory" qualifier attached.
+
+---
+
 ## Caveats and limitations
 
 A few things worth being straight about.
 
-**The `r_e = 0.98` herald threshold is not measured here.** At near-full conversion the herald crossing
-sits near ~6%, where distances 9 and 11 saturate to the ½ coin-flip limit within one `p`-grid step, so
-the `d ≥ 7` collapse window holds too few above-crossing large-`d` points to constrain `ν`; the fit rails
-`ν` to its bound and is reported `converged=False`. Resolving it would need a denser, higher-statistics
-`p`-grid straddling the crossing and possibly larger distances — future work. The ablation (above) is the
-robust high-`r_e` result.
+**Neither `r_e = 0.98` threshold is measured here.** At near-full conversion the herald crossing sits
+near ~6%, where distances 9 and 11 saturate to the ½ coin-flip limit within one `p`-grid step, so the
+`d ≥ 7` collapse window holds too few above-crossing large-`d` points to constrain `ν`; the herald fit
+rails `ν` to its bound and is reported `converged=False`. The blind fit returns a point value ~1.6% but
+its full-pipeline bootstrap CI spans ~`[1.5, 8]%` and shifts with the seed (a bistable crossing
+estimate), so that number is not trustworthy either. Resolving either would need a denser,
+higher-statistics `p`-grid straddling the crossing and possibly larger distances — future work. The
+ablation (above), which needs no fit, is the robust high-`r_e` result.
 
 **The effective crossing drifts with distance.** Curves for small `d` carry the largest finite-size
 corrections, so an all-distance collapse fit places the effective crossing above the asymptotic value —
@@ -347,6 +440,7 @@ src/erasure_qec/
     ├── statistics.py      # per-round conversion, Wilson/bootstrap CIs, Λ  [§10]
     ├── threshold_fit.py    # finite-size scaling collapse fit  [§10]
     ├── synthetic.py        # ansatz-exact fixtures for the deterministic tests
+    ├── dem_stats.py        # circuit-wide heralded fraction of the DEM budget  [§2.1]
     └── plotting.py         # all figures -> figures/  (deterministic)
 
 experiments/
@@ -357,7 +451,8 @@ experiments/
 
 scripts/
 ├── audit_checks.py              # re-runnable reproduction of the external audit (docs/AUDIT.md)
-└── ablation_table.py            # herald-vs-blind suppression table, direct from circuits
+├── ablation_table.py            # herald-vs-blind suppression table, direct from circuits
+└── heralded_fraction.py         # circuit-wide heralded fraction of DEM error mass  [§2.1]
 ```
 
 Build order was strictly milestone-by-milestone (M0–M9): the noiseless circuit and its determinism
@@ -388,6 +483,7 @@ Reproduce the audit checks and the herald-vs-blind suppression table:
 ```bash
 uv run python scripts/audit_checks.py       # docs/AUDIT.md table (pre-fix expectations vs HEAD)
 uv run python scripts/ablation_table.py      # sub-threshold suppression, direct from circuits
+uv run python scripts/heralded_fraction.py   # circuit-wide heralded fraction vs r_e
 ```
 
 Re-collect the real Monte-Carlo sweeps (resumable; re-run to accumulate). To collect under the fixed

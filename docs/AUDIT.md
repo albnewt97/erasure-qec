@@ -110,18 +110,30 @@ the README must say so.
   cannot raise on an out-of-bounds guess (it now proceeds and reports
   bound-pinning instead).
 
-**Re-measured thresholds (committed data, honest `d ≥ 7` pipeline):**
-| `r_e` | herald `p_th` | blind `p_th` | notes |
-|---|---|---|---|
-| 0.0 | 1.376% ± 0.105% (χ²/dof 1.02) | 1.440% ± 0.124% (1.15) | agree within error bars, as required with no heralds |
-| 0.5 | 2.321% ± 0.298% (0.62) | 1.491% ± 0.105% (0.47) | herald clearly above blind |
-| 0.98 | **does not converge** (ν rails to bound; p_th ~ 6–8%) | 1.636% ± 0.083% (0.20; few-point over-fit flag) | herald crossing ~6% but large codes saturate immediately above it |
+**Bootstrap CI (fixed, commit `8777283`).** The parametric bootstrap measured a
+*narrower* estimator than the point fit: it refit an unweighted model from the
+point-estimate `popt` on a frozen window and dropped failed replicates. It now
+re-runs the whole pipeline per replicate (resample all points → estimate_crossing
+→ window → weighted fit), counts failures (`n_boot_failed`), and reports a
+**percentile CI** (the p_th distribution is skewed). This exposed real
+overconfidence — e.g. the r_e=0.98 blind fit's reported `± 0.083%` became a 95%
+CI spanning ~`[1.5, 8]%` that shifts with the seed. Calibration is checked by
+`test_bootstrap_ci_covers_known_p_th_at_nominal_rate` (90% coverage of a known
+p_th over 40 seeded realizations).
 
-The r_e=0.98 herald threshold is a **non-result** under the collapse fit and is
-reported as such — not forced. With the budget held constant the blind
-threshold barely moves across `r_e` (1.44% → 1.49% → 1.64%), so the erasure
-gain is almost entirely herald-conditioning; the old README's large "erasure
-conversion alone" benefit was partly the shrinking-budget artifact.
+**Re-measured thresholds (committed data, honest `d ≥ 7` pipeline; 95% bootstrap
+percentile CI, `seed = 0`):**
+| `r_e` | herald `p_th` [95% CI] | blind `p_th` [95% CI] | notes |
+|---|---|---|---|
+| 0.0 | 1.376% `[1.33, 1.47]` (χ²/dof 1.02) | 1.440% `[1.35, 1.57]` (1.15) | agree within CIs, as required with no heralds |
+| 0.5 | 2.321% `[2.19, 2.64]` (0.62) | 1.491% `[1.42, 2.15]` (0.47) | herald point above blind; blind CI skewed up |
+| 0.98 | **not resolved** (ν rails to bound) | **not resolved** (`[1.5, ~8]`, bistable) | at near-full conversion the fit resolves neither |
+
+Both r_e=0.98 thresholds are **non-results** and reported as such — not forced.
+Where the fit resolves, with the budget held constant the blind threshold barely
+moves (1.44% → 1.49% from r_e=0 to 0.5), so the erasure gain is almost entirely
+herald-conditioning; the old README's large "erasure conversion alone" benefit
+was partly the shrinking-budget artifact.
 
 **Reproducibility.** The stale (pre-fix) sweeps were moved to
 `data/stale_old_model/` (never deleted). The r_e=0.5 and r_e=0.98 sweeps were

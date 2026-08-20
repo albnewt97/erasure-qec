@@ -17,7 +17,7 @@ from erasure_qec.decoding.herald_matching import (
     HeraldMatchingDecoder,
 )
 from erasure_qec.decoding.sinter_adapter import CUSTOM_DECODERS, contract_dem
-from erasure_qec.noise.injector import BiasedErasureInjector
+from erasure_qec.noise.injector import ErasureInjector
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "experiments" / "configs"
 CONFIG_NAMES = ["baseline_pauli", "erasure_r50", "erasure_r98"]
@@ -27,7 +27,7 @@ EXPECTED_R_E = {"baseline_pauli": 0.0, "erasure_r50": 0.5, "erasure_r98": 0.98}
 def test_adapters_match_direct_decoders_on_identical_shots() -> None:
     """Bit-packed round trip: herald_mwpm == HeraldMatchingDecoder and
     blind_mwpm == BlindMatchingDecoder, both fed the SAME sampled shots."""
-    circuit = build(3, 3, BiasedErasureInjector(NoiseParams(p=0.02, r_e=0.5)))
+    circuit = build(3, 3, ErasureInjector(NoiseParams(p=0.02, r_e=0.5)))
     dem = contract_dem(circuit)
 
     n = 512

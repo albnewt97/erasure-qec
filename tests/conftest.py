@@ -32,8 +32,8 @@ class UniformCircuitNoise:
             circuit.append("DEPOLARIZE2", [a, b], self.p)
         return []
 
-    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
-        return None
+    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
+        return []
 
 
 @pytest.fixture

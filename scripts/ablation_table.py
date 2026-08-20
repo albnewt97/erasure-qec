@@ -29,7 +29,7 @@ from erasure_qec.decoding.herald_matching import (
     BlindMatchingDecoder,
     HeraldMatchingDecoder,
 )
-from erasure_qec.noise.injector import BiasedErasureInjector
+from erasure_qec.noise.injector import ErasureInjector
 
 # Fixed sub-threshold operating point and the grid the table sweeps.
 FIXED_P = 0.01
@@ -45,7 +45,7 @@ def _errors(pred: np.ndarray, obs: np.ndarray) -> int:
 
 def ablation_cell(d: int, p: float, r_e: float, shots: int) -> dict[str, float]:
     """Decode ``shots`` identical shots with both decoders; return the ratio."""
-    circ = build(d, d, BiasedErasureInjector(NoiseParams(p=p, r_e=r_e)))
+    circ = build(d, d, ErasureInjector(NoiseParams(p=p, r_e=r_e)))
     dets, obs = circ.compile_detector_sampler(seed=0).sample(
         shots, separate_observables=True
     )
