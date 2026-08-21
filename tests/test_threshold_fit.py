@@ -99,18 +99,60 @@ def test_fits_synthetic_fixtures(name: str) -> None:
 
 def test_fitter_rejects_adversarial_saturated_fixture() -> None:
     """The adversarial fixture (inverted d-ordering + saturated ~1/2 tail, no
-    real crossing) must be REJECTED, not fit: fit_threshold returns
-    converged=False for both decoders and both the d>=7 and all-d windows,
-    rather than returning a spurious p_th."""
+    real crossing) must be REJECTED, not fit. Pin WHICH guard rejects it (the
+    structured ``reason``), not just ``converged=False``: at d>=7 the window is
+    too thin (insufficient_data); on all-d the fit bound-pins. If a refactor let
+    a *different*, weaker guard (e.g. unresolved_ci -- a converged-but-wide fit)
+    catch it, that would be a real regression this assertion now catches."""
     from erasure_qec.analysis.statistics import load_sweep
 
     points = load_sweep(FIXTURES / "synthetic_adversarial.csv")
     assert points  # fixture loads
+    expected_reason = {7: "insufficient_data", None: "bound_pin"}
     for decoder in ("herald_mwpm", "blind_mwpm"):
         sub = [p for p in points if p.decoder == decoder]
         for d_min in (7, None):
             result = fit_threshold(sub, d_min=d_min)
             assert not result.converged, (decoder, d_min, result.p_th, result.message)
+            assert not result.resolved, (decoder, d_min)
+            assert result.reason == expected_reason[d_min], (
+                decoder, d_min, result.reason, result.message,
+            )
+
+
+# --- Real r_e=0.98 sweep: the two "not resolved" verdicts, pinned by guard. ---
+
+
+def _real_r98(decoder: str) -> list[SweepPoint]:
+    return [p for p in load_sweep(FIXTURES / "real_erasure_r98.csv") if p.decoder == decoder]
+
+
+def test_real_r98_herald_not_resolved_via_nu_pinning() -> None:
+    """r_e=0.98 herald d>=7: the optimiser rails nu to its upper bound, so the
+    fit does NOT converge and does not resolve a threshold. nu-pinning is a
+    point-fit property (n_boot-independent). Pin the *guard* (bound_pin, on nu),
+    not just converged=False -- removing nu-pin detection must fail here even if
+    some other guard happened to also reject the fit."""
+    result = fit_threshold(_real_r98("herald_mwpm"), d_min=7, n_boot=0)
+    assert not result.converged
+    assert not result.resolved
+    assert result.reason == "bound_pin", (result.reason, result.message)
+    assert "nu" in result.message, result.message  # specifically nu, not p_th
+
+
+@pytest.mark.slow
+def test_real_r98_blind_not_resolved_via_wide_ci() -> None:
+    """r_e=0.98 blind d>=7: the optimiser CONVERGES (returns a usable fit) but the
+    bootstrap CI is far wider than the point estimate, so the fit does not resolve
+    a threshold -- resolved=False via the CI-width guard. Pin the *guard*
+    (unresolved_ci) so a refactor that made the CI narrow, or dropped the guard,
+    fails here."""
+    result = fit_threshold(_real_r98("blind_mwpm"), d_min=7, n_boot=1000, seed=0)
+    assert result.converged  # the optimiser DID return a usable fit ...
+    assert not result.resolved  # ... but it does not resolve a threshold
+    assert result.reason == "unresolved_ci", (result.reason, result.message)
+    # CI is well above the 1.0 guard (~3x p_th), not marginally over it.
+    assert result.rel_ci_width > 1.5, result.rel_ci_width
 
 
 # --- Real Monte-Carlo baseline sweep: crossing/threshold regression. ---
