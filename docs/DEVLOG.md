@@ -130,9 +130,11 @@ From the re-collected fixed-model sweeps in `data/`, `figures/threshold_panels.p
 
 | r_e | herald | blind | χ²/dof |
 |---|---|---|---|
-| 0 | 1.38% `[1.33, 1.47]` | 1.44% `[1.35, 1.57]` | ~1.0 |
-| 0.5 | 2.32% `[2.19, 2.64]` | 1.49% `[1.42, 2.15]` | 0.6 / 0.5 |
+| 0 | 1.38% `[1.33, 1.47]` | 1.44% `[1.36, 1.58]` | ~1.0 |
+| 0.5 | 2.32% `[2.18, 2.76]` | 1.49% `[1.42, 2.15]` | 0.6 / 0.5 |
 | 0.98 | **not resolved** | **not resolved** `[1.5, ~8]` | — / 0.20 |
+
+(CIs at `n_boot = 1000`; a later branch raised the default from 200 — see "Testing the separation".)
 
 The r_e=0 row is a control: with no heralds the two decoders agree within their CIs, and they do. The
 honest story is the *opposite* of what I first wrote. Where the fit resolves, with the budget held
@@ -143,3 +145,44 @@ so I quote neither, rather than the 6.27% I once did. The robust high-r_e eviden
 (`scripts/ablation_table.py`, identical shots, no fit): the herald advantage grows to ~1000× at d=11 — a
 low-statistics lower bound, but unambiguous in direction. That ablation is the thing worth building; the
 threshold table is honest about where it can and cannot resolve a number.
+
+## Testing the separation, not eyeballing the bars
+
+Every fix up to here weakened a claim. This one corrected a statistic and, for once, *restored* one — the
+`r_e = 0.5` herald-vs-blind separation. The README had called it "marginal at 95%" because the two
+marginal CIs nearly touch. That reasoning is just wrong: overlapping CIs don't imply a non-significant
+difference, because the variance of a difference isn't the sum of the marginal variances. The right test
+is a bootstrap of `Δ = p_th(blind) − p_th(herald)` directly.
+
+I expected the big win to come from *pairing* — the two decoders run on identical shots, so their
+estimates should be positively correlated and the shared noise should cancel in Δ. It doesn't, because
+the sweeps aren't paired: `sinter` samples each decoder independently (their shot counts differ at a
+given `(p,d)`, since `max_errors` stops each at a different point), and the CSV records only marginal
+error counts anyway. So I fell back to the *unpaired* difference bootstrap and said so — the reported
+herald/blind correlation is ≈ 0.04, i.e. pairing would have bought nothing here. I still built and tested
+the paired path (it genuinely narrows the CI on synthetic shared-shot data, and a shuffled pairing widens
+it again), because that's the correct machinery when shot-level data is available — the real data just
+can't feed it.
+
+The verdict stands regardless: Δ = −0.83%, 95% CI [−1.24, −0.66], excludes zero, stable across five
+seeds. The r_e=0 control gives Δ consistent with zero, as it must. So the separation is significant — but
+from using the difference statistic, not from pairing and not from raising `n_boot` (the CI excluded zero
+at 200 too; I raised the default to 1000 because the *marginal* percentile tails were noisy). The
+ablation, which needs no fit, is still the headline.
+
+One more thing I had to check before trusting it: the Δ CI throws away replicates where either decoder
+fails to converge, and ~10% do at r_e=0.5. Those discards are *not* missing-at-random — they're almost
+all blind bound-pinning high (its crossing is bistable), i.e. the replicates with Δ nearest zero, which
+flatters the interval. My first attempt to handle this was to impute the discards from the least-negative
+decile of Δ; the CI still cleared zero ([−1.23, −0.64]) and I reported it. A later review caught that the
+endpoint had barely moved, which is the fingerprint of a broken imputation. It wasn't broken in the way
+suspected (it did sample 63 distinct values, not one point) — but it was weak: the empirical top-decile
+is bottom-heavy, so 75% of the imputed values sat below the old endpoint and the CI hardly shifted. The
+"plausible-pessimistic" label was wrong, and any imputation is arbitrary anyway. The honest replacement
+is a tipping-point bound that uses no assumed distribution: the CI's upper endpoint reaches zero only if
+≥ 24 of the 102 discards would have given Δ ≥ 0 — and I don't have to guess how many would, because 101
+of the 102 discards recorded *both* decoders' p_th (one converged, one bound-pinned), and those imply
+Δ ≥ 0 for just 2. None are unbounded. So 2 against a tipping point of 24: the claim survives with margin,
+and now for a reason that doesn't depend on which tail I chose to draw from. The caveat still stands —
+significant conditional on convergence, discards not missing-at-random — and the unpaired bootstrap being
+conservative is the reassuring part. Full diagnostic in docs/AUDIT.md.

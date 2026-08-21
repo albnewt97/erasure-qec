@@ -35,10 +35,18 @@ Replicates whose window is too thin or whose fit fails are counted
 percentile CI (the ``p_th`` distribution is skewed), not merely a std. Measuring
 the same estimator the point fit uses is what keeps the interval honest: the
 earlier bootstrap refit an *unweighted* model from the point estimate on a
-*frozen* window and dropped failures, all of which biased the CI narrow.
+*frozen* window and dropped failures, all of which biased the CI narrow. The
+default ``n_boot`` is 1000: at 200 the percentile endpoints (5th/195th order
+statistics) were noticeably noisy (e.g. the r_e=0.5 herald CI's upper endpoint
+moved 2.64% -> 2.76% going 200 -> 1000, then held at 2000); see docs/AUDIT.md.
+
+To compare two decoders' thresholds, :func:`bootstrap_threshold_difference`
+bootstraps ``Delta = p_th(blind) - p_th(herald)`` directly -- the valid
+significance test, since overlapping marginal CIs do not imply a
+non-significant difference.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 
 import numpy as np
@@ -228,7 +236,7 @@ def fit_threshold(
     window_factor: float = 1.5,
     p_center: float | None = None,
     nu_guess: float = 1.5,
-    n_boot: int = 200,
+    n_boot: int = 1000,
     seed: int = 0,
     d_min: int | None = None,
 ) -> FitResult:
@@ -463,3 +471,375 @@ def _bootstrap_pipeline(
         out.append((core.popt[0], core.popt[1]))
     arr = np.array(out, dtype=float) if out else np.empty((0, 2))
     return arr, n_failed
+
+
+# --- Paired/unpaired bootstrap of the threshold DIFFERENCE (Phase 4) ---------
+
+# Per-(p, d) joint outcome counts for two decoders run on the SAME shots, as
+# (both-correct, herald-wrong-only, blind-wrong-only, both-wrong). This is the
+# shot-level information a *paired* difference bootstrap needs -- and which the
+# committed sweep CSVs do NOT record (they store only marginal (shots, errors)
+# per decoder). See docs/AUDIT.md "Paired-decoder separation".
+_JointCounts = Mapping[tuple[float, int], tuple[int, int, int, int]]
+
+
+@dataclass(frozen=True)
+class ReplicateFailure:
+    """Why one bootstrap replicate was discarded (for the missing-at-random and
+    guard-breakdown diagnostics in docs/AUDIT.md).
+
+    ``herald_p_th`` / ``blind_p_th`` are the raw fitted ``p_th`` of each decoder
+    on the resample: ``nan`` where the fit was rejected before producing a value
+    (insufficient window, curve_fit raise), or the *pinned* value where the fit
+    ran but pinned at a bound. ``*_converged`` say which decoder(s) failed; the
+    ``*_message`` fields carry :class:`FitResult` messages for guard breakdown.
+    """
+
+    herald_p_th: float
+    blind_p_th: float
+    herald_converged: bool
+    blind_converged: bool
+    herald_message: str
+    blind_message: str
+
+
+@dataclass(frozen=True)
+class ThresholdDifference:
+    """Bootstrap of ``delta = p_th(blind) - p_th(herald)`` (Phase 4).
+
+    A significance test on the *difference*, which -- unlike eyeballing whether
+    two marginal CIs overlap -- is a valid test: overlapping 95% CIs do not
+    imply a non-significant difference, because ``var(delta)`` is not the sum of
+    the marginal variances unless the two estimates are independent (and can be
+    far smaller if they are positively correlated, e.g. decoded on shared shots).
+    """
+
+    converged: bool
+    delta: float  # blind p_th - herald p_th, from the unresampled point fits
+    delta_ci: tuple[float, float]  # 95% bootstrap percentile interval
+    delta_err: float  # bootstrap std of delta
+    excludes_zero: bool  # whether delta_ci excludes 0 (the significance verdict)
+    herald_p_th: float
+    blind_p_th: float
+    correlation: float  # corr of the herald/blind bootstrap p_th draws
+    paired: bool  # whether shared-shot paired resampling was used
+    n_boot: int
+    n_paired_failed: int  # replicates where one or both decoders did not converge
+    # Successful replicate draws, and a record per discarded replicate. These
+    # let a caller test whether the discards are missing-at-random wrt delta
+    # (the Delta CI is conditioned on both decoders converging).
+    herald_pth_draws: tuple[float, ...] = ()
+    blind_pth_draws: tuple[float, ...] = ()
+    failures: tuple[ReplicateFailure, ...] = ()
+    message: str = ""
+
+
+def _resample_independent(
+    points: Sequence[SweepPoint], rng: np.random.Generator
+) -> list[SweepPoint]:
+    """Parametric resample of each point's errors ~ Binomial(shots, P_L_shot)."""
+    shots = np.array([pt.shots for pt in points])
+    p_shot = np.array([pt.p_l_shot for pt in points])
+    drawn = rng.binomial(shots, p_shot)
+    return [replace(pt, errors=int(e)) for pt, e in zip(points, drawn, strict=True)]
+
+
+def _resample_paired(
+    joint: _JointCounts, decoders: tuple[str, str], rng: np.random.Generator
+) -> tuple[list[SweepPoint], list[SweepPoint]]:
+    """One shared resample per (p, d) applied to BOTH decoders (preserves the
+    herald/blind correlation). Multinomial-resamples the 2x2 joint outcome
+    counts, then derives each decoder's marginal error count from the same draw.
+    """
+    herald_dec, blind_dec = decoders
+    herald_pts: list[SweepPoint] = []
+    blind_pts: list[SweepPoint] = []
+    for (p, d), (n00, n10, n01, n11) in joint.items():
+        n = n00 + n10 + n01 + n11
+        probs = np.array([n00, n10, n01, n11], dtype=float) / n
+        m00, m10, m01, m11 = rng.multinomial(n, probs)
+        herald_err = int(m10 + m11)
+        blind_err = int(m01 + m11)
+        herald_pts.append(SweepPoint(herald_dec, d, d, p, 0.0, n, herald_err))
+        blind_pts.append(SweepPoint(blind_dec, d, d, p, 0.0, n, blind_err))
+    return herald_pts, blind_pts
+
+
+def _fit_pth(
+    points: Sequence[SweepPoint],
+    *,
+    d_min: int | None,
+    window_factor: float,
+    nu_guess: float,
+) -> float | None:
+    """Full-pipeline point fit (no nested bootstrap); ``p_th`` or ``None`` if the
+    fit does not converge -- the SAME criterion (window, sufficiency, bound-pin)
+    as :func:`fit_threshold`."""
+    result = fit_threshold(
+        points, d_min=d_min, window_factor=window_factor,
+        nu_guess=nu_guess, n_boot=0,
+    )
+    return result.p_th if result.converged else None
+
+
+def bootstrap_threshold_difference(
+    herald_points: Sequence[SweepPoint],
+    blind_points: Sequence[SweepPoint],
+    *,
+    joint_counts: _JointCounts | None = None,
+    d_min: int | None = None,
+    window_factor: float = 1.5,
+    nu_guess: float = 1.5,
+    seed: int = 0,
+    n_boot: int = 1000,
+    decoders: tuple[str, str] = ("herald_mwpm", "blind_mwpm"),
+) -> ThresholdDifference:
+    """Bootstrap ``delta = p_th(blind) - p_th(herald)`` and test it against 0.
+
+    Each replicate runs the FULL pipeline for BOTH decoders -- resample ->
+    :func:`estimate_crossing` -> :func:`_select_window` -> weighted fit (via
+    :func:`fit_threshold` with ``n_boot=0``) -- and a replicate counts only if
+    *both* decoders converge; the rest are counted in ``n_paired_failed``, never
+    dropped silently.
+
+    **Pairing.** If ``joint_counts`` is given (per-(p, d) 2x2 shared-shot outcome
+    counts) the resample is *paired*: one shared draw per (p, d) drives both
+    decoders, preserving their correlation so it cancels in the difference. If
+    ``joint_counts`` is ``None`` the resample is *unpaired* (each decoder
+    resampled independently) and the resulting CI is **conservative** -- it does
+    not exploit any correlation. The committed sweeps are sampled independently
+    per decoder (differing shot counts) and record only marginal errors, so real
+    data uses the unpaired path; see docs/AUDIT.md. The returned ``correlation``
+    quantifies how much pairing bought: near 0 means it bought nothing.
+    """
+    paired = joint_counts is not None
+
+    def _fail(msg: str) -> ThresholdDifference:
+        nan = float("nan")
+        return ThresholdDifference(
+            converged=False, delta=nan, delta_ci=(nan, nan), delta_err=nan,
+            excludes_zero=False, herald_p_th=nan, blind_p_th=nan,
+            correlation=nan, paired=paired, n_boot=n_boot, n_paired_failed=0,
+            message=msg,
+        )
+
+    herald_pth = _fit_pth(
+        herald_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess
+    )
+    blind_pth = _fit_pth(
+        blind_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess
+    )
+    if herald_pth is None or blind_pth is None:
+        which = []
+        if herald_pth is None:
+            which.append("herald")
+        if blind_pth is None:
+            which.append("blind")
+        return _fail(f"point fit did not converge for: {', '.join(which)}")
+
+    rng = np.random.default_rng(seed)
+    h_draws: list[float] = []
+    b_draws: list[float] = []
+    failures: list[ReplicateFailure] = []
+    for _ in range(n_boot):
+        if joint_counts is None:
+            h_res = _resample_independent(herald_points, rng)
+            b_res = _resample_independent(blind_points, rng)
+        else:
+            h_res, b_res = _resample_paired(joint_counts, decoders, rng)
+        hf = fit_threshold(
+            h_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess, n_boot=0
+        )
+        bf = fit_threshold(
+            b_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess, n_boot=0
+        )
+        if hf.converged and bf.converged:
+            h_draws.append(hf.p_th)
+            b_draws.append(bf.p_th)
+        else:
+            failures.append(
+                ReplicateFailure(
+                    herald_p_th=hf.p_th,
+                    blind_p_th=bf.p_th,
+                    herald_converged=hf.converged,
+                    blind_converged=bf.converged,
+                    herald_message=hf.message,
+                    blind_message=bf.message,
+                )
+            )
+    n_failed = len(failures)
+
+    if len(h_draws) < 2:
+        return _fail(
+            f"too few converged replicates ({len(h_draws)} of {n_boot}); "
+            f"delta CI undefined"
+        )
+
+    h_arr = np.array(h_draws)
+    b_arr = np.array(b_draws)
+    deltas = b_arr - h_arr
+    lo_pct, hi_pct = _CI_PERCENTILES
+    delta_ci = (
+        float(np.percentile(deltas, lo_pct)),
+        float(np.percentile(deltas, hi_pct)),
+    )
+    # Correlation of the two decoders' bootstrap p_th draws (nan if either draw
+    # set is degenerate). This is the quantitative justification for pairing.
+    if float(h_arr.std()) > 0.0 and float(b_arr.std()) > 0.0:
+        correlation = float(np.corrcoef(h_arr, b_arr)[0, 1])
+    else:
+        correlation = float("nan")
+    excludes_zero = delta_ci[0] > 0.0 or delta_ci[1] < 0.0
+
+    return ThresholdDifference(
+        converged=True,
+        delta=blind_pth - herald_pth,
+        delta_ci=delta_ci,
+        delta_err=float(deltas.std()),
+        excludes_zero=excludes_zero,
+        herald_p_th=herald_pth,
+        blind_p_th=blind_pth,
+        correlation=correlation,
+        paired=paired,
+        n_boot=n_boot,
+        n_paired_failed=n_failed,
+        herald_pth_draws=tuple(h_draws),
+        blind_pth_draws=tuple(b_draws),
+        failures=tuple(failures),
+        message="ok",
+    )
+
+
+def _guard_of(message: str) -> str:
+    """Bucket a FitResult message into the guard that rejected the fit."""
+    if "pinned at optimiser bound" in message:
+        return "bound_pin"
+    if "insufficient" in message:
+        return "insufficient_window"
+    if "curve_fit failed" in message:
+        return "curve_fit_error"
+    return "other"
+
+
+def failure_guard_breakdown(diff: ThresholdDifference) -> dict[str, int]:
+    """Count discarded replicates by ``"<decoder>:<guard>"`` (Phase-4 diagnostic).
+
+    A replicate can contribute to two entries if both decoders failed. Guards:
+    ``bound_pin`` (informative -- the crossing sits at/above the fit window),
+    ``insufficient_window`` (a sparse resampled window), ``curve_fit_error``.
+    """
+    out: dict[str, int] = {}
+    for fail in diff.failures:
+        if not fail.herald_converged:
+            key = f"herald:{_guard_of(fail.herald_message)}"
+            out[key] = out.get(key, 0) + 1
+        if not fail.blind_converged:
+            key = f"blind:{_guard_of(fail.blind_message)}"
+            out[key] = out.get(key, 0) + 1
+    return out
+
+
+def failed_vs_success_pth(
+    diff: ThresholdDifference, decoder: str
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """A decoder's ``p_th`` among discarded (finite value) vs kept replicates.
+
+    Feeds the missing-at-random check: if the failed values are systematically
+    higher (blind pinning at the top of the grid), the discards are the
+    near-zero-``delta`` replicates and the conditioning is NOT benign.
+    """
+    if decoder == "herald":
+        success = np.array(diff.herald_pth_draws, dtype=float)
+        failed = np.array([f.herald_p_th for f in diff.failures], dtype=float)
+    else:
+        success = np.array(diff.blind_pth_draws, dtype=float)
+        failed = np.array([f.blind_p_th for f in diff.failures], dtype=float)
+    return failed[np.isfinite(failed)], success
+
+
+def directional_sensitivity_ci(
+    diff: ThresholdDifference, *, seed: int = 0, top_fraction: float = 0.10
+) -> tuple[tuple[float, float], bool]:
+    """Recompute the ``delta`` CI after imputing the discards by resampling (with
+    replacement) the *observed* ``delta`` draws in the top (least-negative)
+    ``top_fraction``. Returns the imputed 95% CI and whether it excludes zero.
+
+    WEAK, and superseded by :func:`tipping_point_discards` /
+    :func:`partial_information_implied_delta`. It draws from the *empirical*
+    decile values, which are density-weighted toward the decile's LOWER edge
+    (most of the decile lies between its 90th and 97.5th percentile), so the
+    imputed mass sits near that edge and the CI barely moves -- it is only
+    mildly pessimistic, not the worst plausible case its earlier docstring
+    implied. It is also arbitrary (the answer depends on the chosen decile), which
+    is why the tipping-point bound replaces it. Kept for reproducibility of the
+    earlier AUDIT number; do not rely on it as the sensitivity of record.
+    """
+    herald = np.array(diff.herald_pth_draws, dtype=float)
+    blind = np.array(diff.blind_pth_draws, dtype=float)
+    deltas = blind - herald
+    threshold = np.percentile(deltas, 100.0 * (1.0 - top_fraction))
+    top = deltas[deltas >= threshold]
+    rng = np.random.default_rng(seed)
+    imputed = rng.choice(top, size=diff.n_paired_failed, replace=True)
+    combined = np.concatenate([deltas, imputed])
+    lo_pct, hi_pct = _CI_PERCENTILES
+    ci = (
+        float(np.percentile(combined, lo_pct)),
+        float(np.percentile(combined, hi_pct)),
+    )
+    return ci, (ci[0] > 0.0 or ci[1] < 0.0)
+
+
+def tipping_point_discards(diff: ThresholdDifference, *, ci_upper: float = 0.975) -> int:
+    """How many of the discarded replicates would have to give ``delta >= 0`` for
+    the difference CI's upper endpoint to reach zero (Phase-4 Task 2a).
+
+    Assumption-free given the observed successful draws. numpy's default
+    ('linear') percentile puts the ``ci_upper`` endpoint at interpolation index
+    ``ci_upper * (n_total - 1)``, so the endpoint is >= 0 once at least
+    ``ceil(n_total - ci_upper * (n_total - 1))`` of the draws are >= 0 (this is
+    the SAME percentile convention the CI itself uses -- verified against a
+    direct construction in the tests). So the claim survives unless at least the
+    returned number of the ``n_paired_failed`` discards would have produced
+    ``delta >= 0``. Returns 0 if the successful draws alone already put the
+    endpoint at/above zero.
+    """
+    deltas = np.array(diff.blind_pth_draws) - np.array(diff.herald_pth_draws)
+    n_total = len(deltas) + diff.n_paired_failed
+    min_ge_zero = int(np.ceil(n_total - ci_upper * (n_total - 1)))
+    have = int((deltas >= 0.0).sum())
+    return max(min_ge_zero - have, 0)
+
+
+def partial_information_implied_delta(
+    diff: ThresholdDifference,
+) -> tuple[npt.NDArray[np.float64], int]:
+    """Implied ``delta`` for each *bounded* discard from its recorded p_th(s)
+    (Phase-4 Task 2b) -- a partial-information bound, not an assumption.
+
+    For each discard, whichever decoder produced a finite p_th (a converged
+    value, or a bound-pin value, which is a LOWER bound on the true crossing) is
+    used directly; a decoder that produced no finite value is filled from the
+    successful median of that decoder. A discard is *unbounded* if NEITHER
+    decoder produced a finite p_th -- it carries no partial information and is
+    excluded from the returned array and counted separately.
+
+    Returns ``(implied_deltas, n_unbounded)``. Because a blind bound-pin p_th
+    understates blind's true crossing, ``sum(implied_deltas >= 0)`` is a LOWER
+    bound on how many discards truly reach ``delta >= 0``; compare it to
+    :func:`tipping_point_discards`.
+    """
+    herald_med = float(np.median(diff.herald_pth_draws))
+    blind_med = float(np.median(diff.blind_pth_draws))
+    implied: list[float] = []
+    n_unbounded = 0
+    for fail in diff.failures:
+        herald_finite = np.isfinite(fail.herald_p_th)
+        blind_finite = np.isfinite(fail.blind_p_th)
+        if not herald_finite and not blind_finite:
+            n_unbounded += 1
+            continue
+        herald_pth = fail.herald_p_th if herald_finite else herald_med
+        blind_pth = fail.blind_p_th if blind_finite else blind_med
+        implied.append(blind_pth - herald_pth)
+    return np.array(implied, dtype=float), n_unbounded

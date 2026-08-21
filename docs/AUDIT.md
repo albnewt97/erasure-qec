@@ -141,3 +141,155 @@ re-collected under the fixed model and committed (`data/*.csv`, un-ignored). The
 strongest result — model-normalisation-independent and needing no threshold fit
 — is the herald-vs-blind ablation, computed directly from circuits with a fixed
 seed (`scripts/ablation_table.py`).
+
+## Paired-decoder separation (Phase 4)
+
+The README concluded the `r_e = 0.5` herald-vs-blind threshold separation was
+"marginal at 95%" because the two *marginal* bootstrap CIs nearly touch. That is
+not a valid significance test — overlapping (or nearly-touching) CIs do not
+imply a non-significant difference, because `var(Δ)` is not the sum of the
+marginal variances. The correct statistic is a bootstrap of
+`Δ = p_th(blind) − p_th(herald)` itself (`bootstrap_threshold_difference`;
+reproduce with `scripts/paired_separation.py`).
+
+**1. Are the sweeps paired? No.** `sinter.collect` samples each decoder
+independently: at a given `(p, d)` the herald and blind rows have *different*
+shot counts (each decoder ran until it hit `max_errors = 1000`, and herald makes
+fewer errors so runs more shots). Differing-shot-count `(p, d)` pairs: **12/90**
+(r_e=0), **57/90** (r_e=0.5), **97/145** (r_e=0.98) — if the shots were shared
+the counts would be identical. Moreover the CSV schema records only marginal
+`(shots, errors)` per decoder, not the per-shot joint (herald-wrong × blind-wrong)
+a paired bootstrap needs; so even shared shots could not be paired from this
+data. **Real data therefore uses the unpaired difference bootstrap**, whose CI is
+conservative (it exploits no correlation). `bootstrap_threshold_difference`
+supports a paired mode (2×2 shared-shot joint counts) used by the synthetic
+tests; the reported herald/blind bootstrap correlation on real data is ~0.02–0.04,
+confirming pairing would have bought essentially nothing here.
+
+**2. Marginal p_th 95% CIs, `n_boot` 200 (before) → 1000 (after), d ≥ 7:**
+
+| `r_e` | decoder | p_th | CI @200 | CI @1000 |
+|---|---|---|---|---|
+| 0.0 | herald | 1.376% | [1.33, 1.47] | [1.33, 1.47] |
+| 0.0 | blind | 1.440% | [1.35, 1.57] | [1.36, 1.58] |
+| 0.5 | herald | 2.321% | [2.19, 2.64] | [2.18, 2.76] |
+| 0.5 | blind | 1.491% | [1.42, 2.15] | [1.42, 2.15] |
+| 0.98 | herald | not resolved | — | — |
+| 0.98 | blind | 1.636% | [1.52, 6.99] | [1.52, 6.35] |
+
+Raising `n_boot` mostly stabilised the noisy tails (the r_e=0.5 herald upper
+endpoint 2.64% → 2.76%); it did not change any convergence verdict.
+
+**3 + 4. Δ = p_th(blind) − p_th(herald), 95% CI, `n_boot = 1000`, seed 0:**
+
+| `r_e` | Δ | 95% CI | excludes 0? | corr | n_paired_failed |
+|---|---|---|---|---|---|
+| 0.0 (control) | +0.064% | [−0.041, +0.203] | **no** | +0.022 | 51/1000 |
+| 0.5 | −0.830% | [−1.240, −0.661] | **yes** | +0.038 | 102/1000 |
+| 0.98 | non-result (herald fit does not converge) | — | — | — | — |
+
+The r_e=0 **control passes**: Δ is consistent with zero, as it must be (herald
+and blind are the same decoder with no heralds). The `n_paired_failed` counts
+mean each Δ CI is conditioned on both decoders converging on the replicate.
+
+**5. Seed stability** (r_e=0.5 Δ CI, 5 seeds): lower-endpoint spread 0.036%,
+upper-endpoint spread 0.018%; **all five seeds exclude zero**. No unresolved
+instability.
+
+**Summary.** Under the correct statistic the `r_e = 0.5` separation **is
+significant**: Δ = −0.83% with a 95% CI of [−1.24, −0.66] that excludes zero and
+is stable across seeds. This is the first Phase to *restore* a claim rather than
+weaken one — but the restoration comes entirely from using the difference
+statistic, not from pairing (the sweeps are unpaired; correlation ≈ 0.04) and
+not from raising `n_boot` (the Δ CI excluded zero at 200 too). The
+deterministic ablation remains the primary evidence, as it needs no fit at all.
+
+### Are the discarded replicates benign? (Phase-4 follow-up)
+
+Each Δ CI above is conditioned on **both** decoders converging on the replicate,
+and the discards are not negligible (102/1000 at r_e=0.5, 51/1000 at r_e=0), so
+we checked whether they are missing-at-random with respect to Δ. Reproduce with
+`scripts/paired_separation.py` (section 6).
+
+**1. Failure breakdown by guard** (which decoder, which guard):
+
+| `r_e` | discards | breakdown |
+|---|---|---|
+| 0.0 | 51/1000 | herald bound-pin 26, herald insufficient-window 8, blind bound-pin 11, blind insufficient-window 6 |
+| 0.5 | 102/1000 | blind bound-pin 73, herald bound-pin 29, herald insufficient-window 1 |
+
+At r_e=0.5 **~99% of discards are bound-pinning** — the resampled crossing sits
+at/above the fit window, i.e. the fit *did* run and reported the crossing is out
+of range. That is informative, not a sparse-window artefact.
+
+**2. Missing-at-random diagnostic.** Compare the blind `p_th` of discarded vs
+kept replicates (the concern's direction is blind pinning high):
+
+| `r_e` | kept blind `p_th` (median / q90) | failed blind `p_th` (median / q10) | KS stat, p | verdict |
+|---|---|---|---|---|
+| 0.0 | 1.445% / 1.525% | 1.444% / 1.310% | 0.168, p = 0.16 | **missing-at-random** (no clustering) |
+| 0.5 | 1.496% / 1.561% | 1.800% / 1.468% | 0.586, p = 3.6×10⁻³⁰ | **NOT missing-at-random** — failed-blind `p_th` is higher |
+
+So at r_e=0.5 the discards **are** biased: they are disproportionately the
+replicates where blind lands high (bound-pinning near the top of the grid),
+which are the replicates with Δ nearest zero. Excluding them nudges the CI away
+from zero. This is a genuine caveat and is reported wherever the claim appears.
+
+**3. Failure rate before/after a mechanical fix.** We looked for a mechanical
+cause per Task 1d. There is none to fix: the dominant guard is bound-pinning of
+a genuinely *bistable* blind crossing (its marginal CI already spans [1.42, 2.15]
+and its p_th shifts by grid steps under resampling), not a degenerate window
+(one insufficient-window discard) or bounds mis-placed off the data. Widening the
+p_th bounds beyond the data range would only let p_th extrapolate past the
+observed grid — worse, not better. We therefore changed nothing (changing the
+estimator to reduce discards would be chasing a better Δ, which we do not do).
+Failure rate is **10.2% before and after** at r_e=0.5.
+
+**4. Sensitivity to the discards.** The first version of this section leant on an
+*imputation* (`directional_sensitivity_ci`); a later self-audit found it too weak
+to trust, and it is replaced below by a tipping-point bound. Both are recorded
+for reproducibility (`scripts/paired_separation.py`).
+
+*Audit of the imputation (Task 1).* Imputing the 102 discards by resampling the
+observed Δ draws in the top (least-negative) decile gave [−1.23, −0.64], which
+**barely moved** from the observed [−1.24, −0.66]. That looked suspicious. The
+imputed values are **not** a single point (63 distinct), so the resampling works,
+but their quantiles are min/25/50/75/max = −0.73/−0.71/−0.69/−0.66/+0.38%: **75%
+sit below −0.66%**, only 27 of 102 above it. The empirical top-decile is
+density-weighted toward its *lower* edge (−0.66% is the 97.5th percentile, near
+the TOP of the decile), so sampling it is only mildly pessimistic — not the
+"plausible-pessimistic" case the earlier docstring claimed. The reported CI was
+arithmetically correct; its *characterisation* was overstated. Because the
+imputation's answer depends entirely on the chosen decile, it is replaced.
+
+*Tipping-point bound (Task 2a).* Only **2** of the 898 successful draws have
+Δ ≥ 0. The 97.5th percentile of 1000 draws (numpy 'linear' convention) reaches
+zero once **26** are ≥ 0, so **the claim survives unless ≥ 24 of the 102 discards
+would have given Δ ≥ 0** (verified against a direct construction in the tests).
+
+*Partial-information implied Δ (Task 2b).* We do not have to guess: **101 of 102**
+discards recorded *both* decoders' `p_th` (one converged, one bound-pinned), and
+1 recorded blind only — **0 are unbounded** (Task 2c). Forming Δ = blind − herald
+from the recorded values (filling the 1 missing herald from the successful
+median) gives an implied-Δ distribution of min/25/50/75/max =
+−1.73/−0.80/−0.64/−0.49/+2.42%, with **only 2 of 102 at Δ ≥ 0**. For a discard to
+reach Δ ≥ 0 its blind `p_th` must reach herald's centre **2.37%**; the recorded
+failed-blind median is **1.80%** and only **2** values reach 2.37%. Because a
+blind bound-pin `p_th` is a *lower* bound on the true crossing, 2 is itself a
+lower bound on the count — but reaching 24 would require blind's true crossing to
+exceed herald's in 24 resamples where the recorded value sits ~0.57% below it,
+which blind's marginal distribution (median 1.50%, 97.5th percentile 2.15%) does
+not support.
+
+**Verdict.** The conditioning is **not** benign at r_e=0.5 — the discards are not
+missing-at-random and cluster at high blind `p_th` (that finding, item 2, stands
+regardless). **The `r_e = 0.5` claim survives, unchanged in value, with the
+caveat attached:** significant *conditional on convergence* (Δ = −0.83%, CI
+[−1.24, −0.66]); 10.2% of replicates discarded and **not** missing-at-random; but
+the tipping point is **24** discards at Δ ≥ 0 while the recorded partial
+information implies **2**, and none are unbounded, so the margin is large. The
+r_e=0 control has tipping point 0 (its Δ already includes zero, as a control
+must) and missing-at-random discards. The unpaired difference bootstrap is
+**conservative** (pairing could only have narrowed the interval), so clearing
+zero under it is if anything a stronger result — and the deterministic ablation,
+which needs no fit and no convergence filtering, remains the primary evidence.

@@ -1,12 +1,23 @@
 """Threshold-fit recovery and window rule (PLAN.md §10)."""
 
+import math
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from erasure_qec.analysis.statistics import SweepPoint, shot_p_l_from_per_round
-from erasure_qec.analysis.threshold_fit import estimate_crossing, fit_threshold
+from erasure_qec.analysis.statistics import SweepPoint, load_sweep, shot_p_l_from_per_round
+from erasure_qec.analysis.threshold_fit import (
+    ReplicateFailure,
+    ThresholdDifference,
+    bootstrap_threshold_difference,
+    estimate_crossing,
+    failed_vs_success_pth,
+    failure_guard_breakdown,
+    fit_threshold,
+    partial_information_implied_delta,
+    tipping_point_discards,
+)
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -293,3 +304,293 @@ def test_estimate_crossing_r50_not_pulled_by_saturated_tail() -> None:
     blind = estimate_crossing(_real_erasure_r50("blind_mwpm"))
     assert 0.022 <= herald <= 0.030, herald
     assert 0.016 <= blind <= 0.024, blind
+
+
+# --- Paired/unpaired bootstrap of the threshold difference (Phase 4). ---
+
+_PD_NU = 1.5
+_PD_DIST = (3, 5, 7, 9, 11)
+_PD_P = (0.008, 0.010, 0.012, 0.014, 0.016, 0.018, 0.020, 0.024, 0.028)
+
+
+def _pd_rate(p: float, p_th: float, d: int) -> float:
+    x = (p - p_th) * d ** (1.0 / _PD_NU)
+    return min(max(0.08 * math.exp(30.0 * x), 1e-6), 0.49)
+
+
+def _paired_synthetic(
+    p_th_h: float, p_th_b: float, shots: int
+) -> tuple[dict[tuple[float, int], tuple[int, int, int, int]], list[SweepPoint], list[SweepPoint]]:
+    """Nested-failure joint (herald-wrong is a subset of blind-wrong, so the two
+    are strongly positively correlated on shared shots) with a known
+    ``Delta = p_th_b - p_th_h``. Returns (joint, herald_points, blind_points)."""
+    joint: dict[tuple[float, int], tuple[int, int, int, int]] = {}
+    herald: list[SweepPoint] = []
+    blind: list[SweepPoint] = []
+    for d in _PD_DIST:
+        for p in _PD_P:
+            ph = shot_p_l_from_per_round(_pd_rate(p, p_th_h, d), d)
+            pb = max(shot_p_l_from_per_round(_pd_rate(p, p_th_b, d), d), ph)
+            n11 = round(shots * ph)  # both wrong
+            n01 = round(shots * (pb - ph))  # blind-only wrong
+            n00 = shots - n11 - n01
+            joint[(p, d)] = (n00, 0, n01, n11)  # (both ok, herald-only, blind-only, both wrong)
+            herald.append(SweepPoint("herald_mwpm", d, d, p, 0.0, shots, n11))
+            blind.append(SweepPoint("blind_mwpm", d, d, p, 0.0, shots, n01 + n11))
+    return joint, herald, blind
+
+
+def _decorrelate(
+    joint: dict[tuple[float, int], tuple[int, int, int, int]],
+) -> dict[tuple[float, int], tuple[int, int, int, int]]:
+    """Same per-(p,d) MARGINALS but herald/blind made independent (product joint)
+    -- a 'shuffled pairing' that destroys the correlation while preserving each
+    decoder's error rate."""
+    out: dict[tuple[float, int], tuple[int, int, int, int]] = {}
+    for (p, d), (n00, n10, n01, n11) in joint.items():
+        n = n00 + n10 + n01 + n11
+        ph = (n10 + n11) / n
+        pb = (n01 + n11) / n
+        c = [
+            round(n * (1 - ph) * (1 - pb)),
+            round(n * ph * (1 - pb)),
+            round(n * (1 - ph) * pb),
+            round(n * ph * pb),
+        ]
+        c[0] += n - sum(c)  # absorb rounding so counts sum to n
+        out[(p, d)] = (c[0], c[1], c[2], c[3])
+    return out
+
+
+def _marginals(
+    joint: dict[tuple[float, int], tuple[int, int, int, int]],
+) -> tuple[list[SweepPoint], list[SweepPoint]]:
+    herald: list[SweepPoint] = []
+    blind: list[SweepPoint] = []
+    for (p, d), (n00, n10, n01, n11) in joint.items():
+        n = n00 + n10 + n01 + n11
+        herald.append(SweepPoint("herald_mwpm", d, d, p, 0.0, n, n10 + n11))
+        blind.append(SweepPoint("blind_mwpm", d, d, p, 0.0, n, n01 + n11))
+    return herald, blind
+
+
+def _ci_width(fit: object) -> float:
+    lo, hi = fit.p_th_ci  # type: ignore[attr-defined]
+    return hi - lo
+
+
+@pytest.mark.slow
+def test_paired_bootstrap_ci_covers_known_delta() -> None:
+    """Over many seeded noisy realizations of a known Delta, the paired 95% CI
+    covers the truth at ~nominal rate, and stays informative (median width
+    bounded, so a trivially-wide CI cannot pass on coverage alone)."""
+    p_th_h, p_th_b = 0.020, 0.017
+    true_delta = p_th_b - p_th_h  # -0.003
+    expected, _, _ = _paired_synthetic(p_th_h, p_th_b, shots=40_000)
+    rng = np.random.default_rng(7)
+    covered = 0
+    n_ok = 0
+    widths: list[float] = []
+    for i in range(30):
+        realized = {
+            k: tuple(int(x) for x in rng.multinomial(sum(c), np.array(c, float) / sum(c)))
+            for k, c in expected.items()
+        }
+        herald, blind = _marginals(realized)  # type: ignore[arg-type]
+        r = bootstrap_threshold_difference(
+            herald, blind, joint_counts=realized, n_boot=150, seed=i  # type: ignore[arg-type]
+        )
+        if not r.converged:
+            continue
+        n_ok += 1
+        lo, hi = r.delta_ci
+        if lo <= true_delta <= hi:
+            covered += 1
+        widths.append(hi - lo)
+    assert n_ok >= 27, n_ok
+    coverage = covered / n_ok
+    assert 0.80 <= coverage <= 1.0, (coverage, covered, n_ok)
+    assert float(np.median(widths)) < 0.002, float(np.median(widths))
+
+
+def test_paired_ci_narrower_than_naive_marginal_difference() -> None:
+    """The property that justifies the branch: the difference bootstrap CI is
+    narrower than the interval you'd get by naively differencing the two
+    marginal CIs (whose width is the SUM of the marginal widths)."""
+    joint, herald, blind = _paired_synthetic(0.020, 0.017, shots=40_000)
+    diff = bootstrap_threshold_difference(
+        herald, blind, joint_counts=joint, n_boot=400, seed=2
+    )
+    herald_fit = fit_threshold(herald, n_boot=400, seed=2)
+    blind_fit = fit_threshold(blind, n_boot=400, seed=2)
+    naive_width = _ci_width(herald_fit) + _ci_width(blind_fit)
+    paired_width = diff.delta_ci[1] - diff.delta_ci[0]
+    assert diff.converged
+    assert paired_width < naive_width, (paired_width, naive_width)
+
+
+def test_shuffled_pairing_widens_ci() -> None:
+    """Pairing must actually be applied: decorrelating the shared-shot joint
+    (same marginals, correlation removed) widens the Delta CI. If the code
+    silently ignored the correlation, both CIs would match."""
+    joint, herald, blind = _paired_synthetic(0.020, 0.017, shots=40_000)
+    shuffled = _decorrelate(joint)
+    paired = bootstrap_threshold_difference(
+        herald, blind, joint_counts=joint, n_boot=400, seed=3
+    )
+    unpaired = bootstrap_threshold_difference(
+        herald, blind, joint_counts=shuffled, n_boot=400, seed=3
+    )
+    w_paired = paired.delta_ci[1] - paired.delta_ci[0]
+    w_shuffled = unpaired.delta_ci[1] - unpaired.delta_ci[0]
+    assert paired.correlation > unpaired.correlation  # correlation was used
+    assert w_shuffled > w_paired, (w_shuffled, w_paired)
+
+
+@pytest.mark.slow
+def test_real_baseline_delta_is_control_consistent_with_zero() -> None:
+    """r_e = 0 control: herald and blind are the SAME decoder (no heralds), so
+    Delta must be consistent with zero. If this fails the pairing/pipeline is
+    broken and nothing else on the branch is trustworthy."""
+    pts = load_sweep(FIXTURES / "real_baseline_pauli.csv")
+    herald = [p for p in pts if p.decoder == "herald_mwpm"]
+    blind = [p for p in pts if p.decoder == "blind_mwpm"]
+    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=400, seed=0)
+    assert r.converged, r.message
+    assert not r.excludes_zero, (r.delta, r.delta_ci)
+    assert r.delta_ci[0] <= 0.0 <= r.delta_ci[1], r.delta_ci
+
+
+@pytest.mark.slow
+def test_real_r50_delta_excludes_zero_significant_separation() -> None:
+    """r_e = 0.5: the herald-vs-blind threshold separation IS significant under
+    the correct statistic (the difference bootstrap CI excludes zero), even
+    though the marginal CIs nearly touch. Blind threshold is below herald, so
+    Delta = blind - herald < 0."""
+    pts = load_sweep(FIXTURES / "real_erasure_r50.csv")
+    herald = [p for p in pts if p.decoder == "herald_mwpm"]
+    blind = [p for p in pts if p.decoder == "blind_mwpm"]
+    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=400, seed=0)
+    assert r.converged, r.message
+    assert r.excludes_zero, (r.delta, r.delta_ci)
+    assert r.delta < 0.0 and r.delta_ci[1] < 0.0, (r.delta, r.delta_ci)
+
+
+def _make_diff(
+    deltas: list[float], n_fail: int, failures: tuple[ReplicateFailure, ...] = ()
+) -> ThresholdDifference:
+    """A ThresholdDifference with given successful delta draws (herald fixed at
+    0.02, blind = 0.02 + delta) and ``n_fail`` discards -- for unit-testing the
+    tipping-point / partial-information helpers without a bootstrap."""
+    herald = np.full(len(deltas), 0.02)
+    blind = herald + np.array(deltas, dtype=float)
+    return ThresholdDifference(
+        converged=True, delta=float(np.mean(deltas)), delta_ci=(0.0, 0.0),
+        delta_err=0.0, excludes_zero=True, herald_p_th=0.02, blind_p_th=0.015,
+        correlation=0.0, paired=False, n_boot=len(deltas) + n_fail,
+        n_paired_failed=n_fail, herald_pth_draws=tuple(herald),
+        blind_pth_draws=tuple(blind), failures=failures,
+    )
+
+
+def test_tipping_point_matches_percentile_construction() -> None:
+    """tipping_point_discards must equal the count found by directly imputing k
+    positive discards and checking where np.percentile(..., 97.5) crosses zero
+    -- i.e. it uses the SAME percentile convention as the CI it defends."""
+    rng = np.random.default_rng(3)
+    deltas = list(-rng.random(200) * 0.01 - 0.001)  # 200 negative draws
+    deltas[0] = deltas[1] = 0.002  # two positive
+    for n_fail in (10, 40, 100):
+        diff = _make_diff(deltas, n_fail)
+        tip = tipping_point_discards(diff)
+        arr = np.array(diff.blind_pth_draws) - np.array(diff.herald_pth_draws)
+        empirical = next(
+            k for k in range(n_fail + 1)
+            if float(np.percentile(
+                np.concatenate([arr, np.full(k, 1e-6), np.full(n_fail - k, -1.0)]), 97.5
+            )) >= 0.0
+        )
+        assert tip == empirical, (tip, empirical, n_fail)
+
+
+def test_partial_information_implied_delta_uses_recorded_pth_and_counts_unbounded() -> None:
+    """A discard with both p_th finite uses them directly; a discard with one
+    finite fills the other from that decoder's successful median; a discard with
+    neither finite is unbounded and excluded."""
+    fails = (
+        ReplicateFailure(  # blind bound-pinned high, herald converged -> +0.005
+            herald_p_th=0.020, blind_p_th=0.025, herald_converged=True,
+            blind_converged=False, herald_message="ok",
+            blind_message="not converged: p_th at window maximum pinned at optimiser bound",
+        ),
+        ReplicateFailure(  # only blind finite -> 0.030 - herald_median(0.020) = +0.010
+            herald_p_th=float("nan"), blind_p_th=0.030, herald_converged=False,
+            blind_converged=True, herald_message="insufficient data in window",
+            blind_message="ok",
+        ),
+        ReplicateFailure(  # neither finite -> unbounded
+            herald_p_th=float("nan"), blind_p_th=float("nan"), herald_converged=False,
+            blind_converged=False, herald_message="insufficient data in window",
+            blind_message="curve_fit failed on the point estimate",
+        ),
+    )
+    diff = _make_diff([-0.005] * 20, n_fail=3, failures=fails)
+    implied, unbounded = partial_information_implied_delta(diff)
+    assert unbounded == 1
+    assert len(implied) == 2
+    assert implied[0] == pytest.approx(0.005)
+    assert implied[1] == pytest.approx(0.010)
+
+
+@pytest.mark.slow
+def test_r50_discards_not_mar_but_significance_survives_tipping_point() -> None:
+    """Phase-4 Task 1/2: the r_e=0.5 Delta CI is conditioned on both decoders
+    converging (~10% discarded). Those discards are NOT missing-at-random -- they
+    cluster at high blind p_th (almost all bound-pinning of the bistable blind
+    crossing) -- so the caveat is real. But the significance survives the
+    tipping-point bound: far more discards would need Delta>=0 than the recorded
+    partial information allows. Pins the caveat and its (non-arbitrary)
+    resolution."""
+    pts = load_sweep(FIXTURES / "real_erasure_r50.csv")
+    herald = [p for p in pts if p.decoder == "herald_mwpm"]
+    blind = [p for p in pts if p.decoder == "blind_mwpm"]
+    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=1000, seed=0)
+    assert r.n_paired_failed > 0 and r.failures
+
+    # Almost all discards are bound-pinning (informative), not sparse windows,
+    # so there is no mechanical cause to fix (Task 1c/1d).
+    breakdown = failure_guard_breakdown(r)
+    bound = sum(v for k, v in breakdown.items() if k.endswith("bound_pin"))
+    assert bound >= 0.9 * sum(breakdown.values()), breakdown
+
+    # NOT missing-at-random: failed-blind p_th sits above kept-blind p_th (1b).
+    failed_blind, success_blind = failed_vs_success_pth(r, "blind")
+    assert float(np.median(failed_blind)) > float(np.median(success_blind))
+
+    # Tipping-point bound (Task 2): the number of discards that would need
+    # Delta>=0 to break significance is far above the number the recorded p_th
+    # actually imply, and no discard is unbounded.
+    tip = tipping_point_discards(r)
+    implied, unbounded = partial_information_implied_delta(r)
+    n_ge_zero = int((implied >= 0.0).sum())
+    assert unbounded == 0
+    assert tip >= 15, tip
+    assert n_ge_zero < tip, (n_ge_zero, tip)
+    assert n_ge_zero <= 5, n_ge_zero  # only a couple of discards imply Delta>=0
+
+
+@pytest.mark.slow
+def test_baseline_control_discards_are_missing_at_random() -> None:
+    """r_e=0 control: discards should be missing-at-random (blind p_th similar
+    for failed and kept replicates), and the difference must stay consistent with
+    zero (excludes_zero False). If this fails the discard mechanism is
+    decoder-asymmetric where it must not be."""
+    pts = load_sweep(FIXTURES / "real_baseline_pauli.csv")
+    herald = [p for p in pts if p.decoder == "herald_mwpm"]
+    blind = [p for p in pts if p.decoder == "blind_mwpm"]
+    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=1000, seed=0)
+    failed_blind, success_blind = failed_vs_success_pth(r, "blind")
+    assert abs(float(np.median(failed_blind)) - float(np.median(success_blind))) < 0.002
+    assert not r.excludes_zero  # control: Delta consistent with zero
+    # And there is no significance to defend: the endpoint already reaches zero.
+    assert tipping_point_discards(r) == 0
