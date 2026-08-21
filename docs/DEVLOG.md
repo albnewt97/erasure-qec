@@ -169,3 +169,13 @@ seeds. The r_e=0 control gives Δ consistent with zero, as it must. So the separ
 from using the difference statistic, not from pairing and not from raising `n_boot` (the CI excluded zero
 at 200 too; I raised the default to 1000 because the *marginal* percentile tails were noisy). The
 ablation, which needs no fit, is still the headline.
+
+One more thing I had to check before trusting it: the Δ CI throws away replicates where either decoder
+fails to converge, and ~10% do at r_e=0.5. Those discards are *not* missing-at-random — they're almost
+all blind bound-pinning high (its crossing is bistable), i.e. the replicates with Δ nearest zero, which
+flatters the interval. I nearly reported significance and moved on; the honest move was to impute the
+discards from the least-negative decile of Δ and re-check — the CI still clears zero ([−1.23, −0.64]),
+failing only under a degenerate all-at-the-maximum imputation that proves nothing. So the claim survives
+*with the caveat attached*: significant conditional on convergence, discards not missing-at-random, robust
+to a plausible-pessimistic imputation. The unpaired bootstrap being conservative is the reassuring part —
+pairing could only have tightened it. Full diagnostic in docs/AUDIT.md.

@@ -203,3 +203,72 @@ weaken one — but the restoration comes entirely from using the difference
 statistic, not from pairing (the sweeps are unpaired; correlation ≈ 0.04) and
 not from raising `n_boot` (the Δ CI excluded zero at 200 too). The
 deterministic ablation remains the primary evidence, as it needs no fit at all.
+
+### Are the discarded replicates benign? (Phase-4 follow-up)
+
+Each Δ CI above is conditioned on **both** decoders converging on the replicate,
+and the discards are not negligible (102/1000 at r_e=0.5, 51/1000 at r_e=0), so
+we checked whether they are missing-at-random with respect to Δ. Reproduce with
+`scripts/paired_separation.py` (section 6).
+
+**1. Failure breakdown by guard** (which decoder, which guard):
+
+| `r_e` | discards | breakdown |
+|---|---|---|
+| 0.0 | 51/1000 | herald bound-pin 26, herald insufficient-window 8, blind bound-pin 11, blind insufficient-window 6 |
+| 0.5 | 102/1000 | blind bound-pin 73, herald bound-pin 29, herald insufficient-window 1 |
+
+At r_e=0.5 **~99% of discards are bound-pinning** — the resampled crossing sits
+at/above the fit window, i.e. the fit *did* run and reported the crossing is out
+of range. That is informative, not a sparse-window artefact.
+
+**2. Missing-at-random diagnostic.** Compare the blind `p_th` of discarded vs
+kept replicates (the concern's direction is blind pinning high):
+
+| `r_e` | kept blind `p_th` (median / q90) | failed blind `p_th` (median / q10) | KS stat, p | verdict |
+|---|---|---|---|---|
+| 0.0 | 1.445% / 1.525% | 1.444% / 1.310% | 0.168, p = 0.16 | **missing-at-random** (no clustering) |
+| 0.5 | 1.496% / 1.561% | 1.800% / 1.468% | 0.586, p = 3.6×10⁻³⁰ | **NOT missing-at-random** — failed-blind `p_th` is higher |
+
+So at r_e=0.5 the discards **are** biased: they are disproportionately the
+replicates where blind lands high (bound-pinning near the top of the grid),
+which are the replicates with Δ nearest zero. Excluding them nudges the CI away
+from zero. This is a genuine caveat and is reported wherever the claim appears.
+
+**3. Failure rate before/after a mechanical fix.** We looked for a mechanical
+cause per Task 1d. There is none to fix: the dominant guard is bound-pinning of
+a genuinely *bistable* blind crossing (its marginal CI already spans [1.42, 2.15]
+and its p_th shifts by grid steps under resampling), not a degenerate window
+(one insufficient-window discard) or bounds mis-placed off the data. Widening the
+p_th bounds beyond the data range would only let p_th extrapolate past the
+observed grid — worse, not better. We therefore changed nothing (changing the
+estimator to reduce discards would be chasing a better Δ, which we do not do).
+Failure rate is **10.2% before and after** at r_e=0.5.
+
+**4. Directional sensitivity** (Task 1e; imputation stated). Impute the 102
+discards by resampling from the **top (least-negative) decile of the observed Δ
+draws** (Δ ≥ −0.73%, which reaches up to +0.38%) — a plausible-pessimistic case,
+not worst-case imputation at Δ = 0 (which, above a 2.5% failure rate, forces the
+97.5th percentile into the imputed block and can never exclude zero, proving
+nothing):
+
+| imputation | r_e=0.5 imputed 95% CI | excludes 0? |
+|---|---|---|
+| none (observed) | [−1.24, −0.66] | yes |
+| top decile of Δ (plausible pessimistic) | [−1.23, −0.64] | **yes** |
+| all discards at the single max observed Δ (+0.38%) | [−1.23, +0.38] | no (degenerate worst case) |
+
+**Verdict.** The conditioning is **not** benign at r_e=0.5 — the discards are not
+missing-at-random and cluster at high blind `p_th`. **The `r_e = 0.5` claim
+nonetheless survives, unchanged in value but with an added caveat:** the
+separation is significant *conditional on convergence* (Δ = −0.83%, CI
+[−1.24, −0.66]), 10.2% of replicates are discarded and are **not** missing-at-
+random, and the significance is **robust to imputing the discards from the
+least-negative decile of Δ** ([−1.23, −0.64] still excludes zero). It fails only
+under the degenerate worst case (all discards at the most-positive observed Δ),
+which is not evidence of non-significance. The r_e=0 control is clean: its
+discards are missing-at-random and its imputed CI still includes zero. The
+unpaired difference bootstrap is **conservative** (pairing could only have
+narrowed the interval, not widened it), so clearing zero under it is if anything
+a stronger result — and the deterministic ablation, which needs no fit and no
+convergence filtering, remains the primary evidence.

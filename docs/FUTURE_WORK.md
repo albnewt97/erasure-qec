@@ -44,3 +44,28 @@ have not built on any of these yet; each citation was verified against its arXiv
 8. Wu, Y. & Zhong, L. **Fusion Blossom: Fast MWPM Decoders for QEC.**
    [arXiv:2305.08307](https://arxiv.org/abs/2305.08307). An alternative MWPM backend I would use to put
    a throughput number on my slow path relative to a decoder built for speed.
+
+## Methodology
+
+**Paired herald-vs-blind threshold sweeps.** The threshold-difference test
+(`bootstrap_threshold_difference`, docs/AUDIT.md) currently uses an *unpaired*
+bootstrap because `sinter` samples each decoder independently and the CSV stores
+only marginal `(shots, errors)`. Making it genuinely paired is small and
+concrete — it needs neither re-thinking nor a large re-collection, just a
+four-integer-per-`(p, d)` schema instead of two. The pattern already exists in
+`scripts/ablation_table.py`, which samples once and decodes the same `dets`
+array with both decoders; the sweep collector would do the same and record, per
+`(p, d)`, the 2×2 joint outcome counts:
+
+- `n00` — both decoders correct,
+- `n11` — both wrong,
+- `n10` — herald wrong, blind correct,
+- `n01` — herald correct, blind wrong.
+
+That is exactly the input a paired bootstrap (multinomial-resample the four
+cells, derive each decoder's marginal errors) and a McNemar test (`n10` vs
+`n01`) need. `bootstrap_threshold_difference` already accepts this via its
+`joint_counts` argument (exercised by the synthetic paired tests); only the
+collection path in `experiments/` needs the schema change. Since the unpaired CI
+is conservative, this can only tighten the interval — it would not change the
+`r_e = 0.5` verdict, only sharpen it.

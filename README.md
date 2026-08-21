@@ -82,11 +82,26 @@ marginal variances). The correct statistic is a bootstrap of the difference
 | 0.5 | **−0.83%** | `[−1.24, −0.66]` | **yes** — herald threshold is significantly above blind |
 
 The Δ CI at `r_e = 0.5` excludes zero comfortably and is stable across seeds (endpoints move < 0.04%), so
-the separation is significant at 95%, not marginal. One caveat, reported in full in
-[`docs/AUDIT.md`](docs/AUDIT.md): the sweeps are sampled **independently** per decoder (differing shot
-counts), so this is an *unpaired* difference bootstrap — the correlation that shared shots would provide
-is absent (measured ≈ 0.04), which only makes the CI *conservative*. The
-[ablation](#the-herald-aware-vs-blind-ablation) remains the primary evidence, since it needs no fit at all.
+the separation is significant at 95%, not marginal. Two things to be straight about, both in full in
+[`docs/AUDIT.md`](docs/AUDIT.md):
+
+- **This is an *unpaired* difference bootstrap, and that makes the CI conservative.** The sweeps are
+  sampled independently per decoder (differing shot counts; `sinter` samples each decoder separately —
+  see [the ablation](#the-herald-aware-vs-blind-ablation)), so the positive correlation that shared shots
+  would give (which cancels in Δ) is absent (measured ≈ 0.04). An unpaired difference bootstrap can only
+  be *wider* than a paired one, so clearing zero under it is if anything a **stronger** result — the
+  verdict did not lean on an assumption that turned out to be unavailable.
+- **The Δ CI is conditioned on both decoders converging, and at `r_e = 0.5` the ~10% discards are *not*
+  missing-at-random.** They cluster at high blind `p_th` (99% are bound-pinning of a bistable blind
+  crossing), i.e. the replicates with Δ nearest zero, which nudges the CI away from zero. The
+  significance nonetheless **survives** imputing those discards from the least-negative decile of Δ
+  (CI `[−1.23, −0.64]`, still excludes zero); it fails only under a degenerate all-at-the-maximum
+  imputation. So the honest claim is: *significant conditional on convergence, discards not
+  missing-at-random, robust to a plausible-pessimistic imputation.* The `r_e = 0` control is clean (its
+  discards are missing-at-random).
+
+The [ablation](#the-herald-aware-vs-blind-ablation) remains the primary evidence, since it needs no fit —
+and no convergence filtering — at all.
 
 At `r_e = 0.98` neither `d ≥ 7` fit yields a usable threshold: the herald fit returns `converged=False`
 (ν pinned at its bound — `d = 9, 11` saturate to ½ within one grid step above the ~6% crossing), and the
@@ -267,6 +282,16 @@ Same shots, two decoders: `herald_mwpm` (solid) reads the herald bits and zeroes
 noise. This comparison is **decoder-vs-decoder on identical shots**, so it is independent of how the
 noise budget is normalised across `r_e` and needs no threshold fit — the most robust result here.
 Herald-awareness wins at every distance below threshold.
+
+> **This ablation is *paired by construction*; the sinter threshold sweeps are not.** `scripts/ablation_table.py`
+> samples once and decodes the *same* `dets` array with both decoders
+> (`h = herald.decode_batch(dets)`, `b = blind.decode_batch(dets)`), so at each point the two decoders see
+> byte-for-byte identical shots. The threshold **sweeps**, by contrast, are collected with `sinter`, which
+> samples each decoder **separately** (their per-`(p,d)` shot counts differ). That is the whole reason the
+> [threshold-difference test](#threshold-scaling) above uses an *unpaired* difference bootstrap, while the
+> ablation needs no bootstrap at all: the ablation's pairing is real and exact, the sweeps' is absent.
+> Both statements — "identical shots" for the ablation and "sampled independently" for the sweeps — are
+> true; they describe two different collection paths.
 
 **The forced-erasure story (from the M6 correctness test).** Erase the two off-row data qubits of the
 `x = 1` vertical column (`(1,3)` and `(1,5)`) with probability-1 probe erasures. When both suffer an
