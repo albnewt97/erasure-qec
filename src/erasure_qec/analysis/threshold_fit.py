@@ -760,14 +760,19 @@ def failed_vs_success_pth(
 def directional_sensitivity_ci(
     diff: ThresholdDifference, *, seed: int = 0, top_fraction: float = 0.10
 ) -> tuple[tuple[float, float], bool]:
-    """Recompute the ``delta`` CI after imputing the discarded replicates from
-    the top (least-negative) ``top_fraction`` of the observed ``delta`` draws.
+    """Recompute the ``delta`` CI after imputing the discards by resampling (with
+    replacement) the *observed* ``delta`` draws in the top (least-negative)
+    ``top_fraction``. Returns the imputed 95% CI and whether it excludes zero.
 
-    A *plausible-pessimistic* sensitivity, deliberately NOT worst-case imputation
-    at ``delta = 0`` (which, once the failure rate exceeds 2.5%, forces the
-    97.5th percentile into the imputed block and can never exclude zero -- an
-    artefact of the procedure that proves nothing). Returns the imputed 95% CI
-    and whether it still excludes zero.
+    WEAK, and superseded by :func:`tipping_point_discards` /
+    :func:`partial_information_implied_delta`. It draws from the *empirical*
+    decile values, which are density-weighted toward the decile's LOWER edge
+    (most of the decile lies between its 90th and 97.5th percentile), so the
+    imputed mass sits near that edge and the CI barely moves -- it is only
+    mildly pessimistic, not the worst plausible case its earlier docstring
+    implied. It is also arbitrary (the answer depends on the chosen decile), which
+    is why the tipping-point bound replaces it. Kept for reproducibility of the
+    earlier AUDIT number; do not rely on it as the sensitivity of record.
     """
     herald = np.array(diff.herald_pth_draws, dtype=float)
     blind = np.array(diff.blind_pth_draws, dtype=float)
@@ -783,3 +788,58 @@ def directional_sensitivity_ci(
         float(np.percentile(combined, hi_pct)),
     )
     return ci, (ci[0] > 0.0 or ci[1] < 0.0)
+
+
+def tipping_point_discards(diff: ThresholdDifference, *, ci_upper: float = 0.975) -> int:
+    """How many of the discarded replicates would have to give ``delta >= 0`` for
+    the difference CI's upper endpoint to reach zero (Phase-4 Task 2a).
+
+    Assumption-free given the observed successful draws. numpy's default
+    ('linear') percentile puts the ``ci_upper`` endpoint at interpolation index
+    ``ci_upper * (n_total - 1)``, so the endpoint is >= 0 once at least
+    ``ceil(n_total - ci_upper * (n_total - 1))`` of the draws are >= 0 (this is
+    the SAME percentile convention the CI itself uses -- verified against a
+    direct construction in the tests). So the claim survives unless at least the
+    returned number of the ``n_paired_failed`` discards would have produced
+    ``delta >= 0``. Returns 0 if the successful draws alone already put the
+    endpoint at/above zero.
+    """
+    deltas = np.array(diff.blind_pth_draws) - np.array(diff.herald_pth_draws)
+    n_total = len(deltas) + diff.n_paired_failed
+    min_ge_zero = int(np.ceil(n_total - ci_upper * (n_total - 1)))
+    have = int((deltas >= 0.0).sum())
+    return max(min_ge_zero - have, 0)
+
+
+def partial_information_implied_delta(
+    diff: ThresholdDifference,
+) -> tuple[npt.NDArray[np.float64], int]:
+    """Implied ``delta`` for each *bounded* discard from its recorded p_th(s)
+    (Phase-4 Task 2b) -- a partial-information bound, not an assumption.
+
+    For each discard, whichever decoder produced a finite p_th (a converged
+    value, or a bound-pin value, which is a LOWER bound on the true crossing) is
+    used directly; a decoder that produced no finite value is filled from the
+    successful median of that decoder. A discard is *unbounded* if NEITHER
+    decoder produced a finite p_th -- it carries no partial information and is
+    excluded from the returned array and counted separately.
+
+    Returns ``(implied_deltas, n_unbounded)``. Because a blind bound-pin p_th
+    understates blind's true crossing, ``sum(implied_deltas >= 0)`` is a LOWER
+    bound on how many discards truly reach ``delta >= 0``; compare it to
+    :func:`tipping_point_discards`.
+    """
+    herald_med = float(np.median(diff.herald_pth_draws))
+    blind_med = float(np.median(diff.blind_pth_draws))
+    implied: list[float] = []
+    n_unbounded = 0
+    for fail in diff.failures:
+        herald_finite = np.isfinite(fail.herald_p_th)
+        blind_finite = np.isfinite(fail.blind_p_th)
+        if not herald_finite and not blind_finite:
+            n_unbounded += 1
+            continue
+        herald_pth = fail.herald_p_th if herald_finite else herald_med
+        blind_pth = fail.blind_p_th if blind_finite else blind_med
+        implied.append(blind_pth - herald_pth)
+    return np.array(implied, dtype=float), n_unbounded
