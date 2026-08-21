@@ -293,3 +293,54 @@ must) and missing-at-random discards. The unpaired difference bootstrap is
 **conservative** (pairing could only have narrowed the interval), so clearing
 zero under it is if anything a stronger result — and the deterministic ablation,
 which needs no fit and no convergence filtering, remains the primary evidence.
+
+## Threshold-fitting methodology (reference)
+
+The full narrative behind the one-line summaries in the README.
+
+**Per-round conversion.** Sinter reports a shot-level `P_L_shot` over `T = d`
+rounds; the comparable per-round rate is `p_L = ½(1 − (1 − 2 P_L_shot)^{1/T})`,
+with fixed points `P_L_shot = ½ → p_L = ½` and `T = 1 → p_L = P_L_shot`. The
+collapse is fit in this per-round variable, which matters at high thresholds: at
+`d = 11` (`T = 11`) a legitimate near-crossing point still has `P_L_shot ≈ 0.45`,
+so the saturation cut acts on `p_L`, not `P_L_shot`.
+
+**Finite-size ansatz.** Near the crossing the collapsed data fit the quadratic
+finite-size-scaling ansatz of Wang, Harrington & Preskill: `p_L(p, d) = A + B x +
+C x²`, `x = (p − p_th) d^{1/ν}`, for `(p_th, ν, A, B, C)` by weighted least
+squares, weighting each point by its 1σ Wilson standard error (95% Wilson
+half-width ÷ z₀.₉₇₅) in per-round space. Points at or above per-round `p_L = 0.4`
+(saturating toward ½, outside the local ansatz) are excluded, and the fit reports
+its χ²/dof.
+
+**`estimate_crossing`.** The fit window centres on a data-driven crossing
+estimate. That estimate is not reliable on saturated data: above threshold the
+curves re-converge toward ½, producing a spurious second minimum of the
+cross-distance spread, and a ragged high-`p` tail can pull it past the real
+crossing. An ordering-inversion guard rejects candidates where `p_L` already
+increases with `d`, but it is only a starting point for the window; every quoted
+threshold comes from the `d ≥ 7` collapse fit, never the raw crossing estimate.
+
+**Bootstrap.** Uncertainty is a 95% bootstrap percentile CI from a parametric
+bootstrap that re-runs the *entire* pipeline per replicate: resample
+`errors ~ Binomial(shots, P_L_shot)` over all points, then re-run the crossing
+estimate, the window selection, and the same weighted fit. Failed replicates are
+counted (`n_boot_failed`), not dropped; the interval is a percentile CI (the
+`p_th` distribution is skewed), not `± σ`. `n_boot` defaults to 1000 (at 200 the
+percentile tails were noisy). History: an earlier bootstrap refit an *unweighted*
+model from the point estimate on a *frozen* window and dropped failures, all of
+which reported the CI too narrow.
+
+**Convergence vs resolution guards.** `fit_threshold` reports two booleans.
+`converged=False` when the optimiser did not return a usable fit — insufficient
+window points, a `curve_fit` raise, or a parameter *pinned* at a bound (the data
+did not constrain it; e.g. `r_e = 0.98` herald rails ν to its upper bound).
+`resolved=False` is the separate question "does the fit resolve a threshold": a
+converged fit still fails it if the relative bootstrap CI width
+`(ci_hi − ci_lo) / p_th ≥ 1.0` (the CI is at least as wide as the threshold
+itself). The constant is chosen from the committed fits, not by taste: every
+reported result has relative width ≤ 0.49 (`r_e = 0.5` blind), while the
+`r_e = 0.98` blind non-result is ≈ 3.0 — a ~6× gap, so 1.0 rejects only that fit.
+Every `FitResult` carries a structured `reason` code (`ok`, `insufficient_data`,
+`curve_fit_error`, `bound_pin`, `unresolved_ci`). Only a `resolved` fit is quoted
+as a `p_th`, in code (plotting draws no line for an unresolved fit) and in docs.
