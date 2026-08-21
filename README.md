@@ -93,12 +93,15 @@ the separation is significant at 95%, not marginal. Two things to be straight ab
   verdict did not lean on an assumption that turned out to be unavailable.
 - **The Δ CI is conditioned on both decoders converging, and at `r_e = 0.5` the ~10% discards are *not*
   missing-at-random.** They cluster at high blind `p_th` (99% are bound-pinning of a bistable blind
-  crossing), i.e. the replicates with Δ nearest zero, which nudges the CI away from zero. The
-  significance nonetheless **survives** imputing those discards from the least-negative decile of Δ
-  (CI `[−1.23, −0.64]`, still excludes zero); it fails only under a degenerate all-at-the-maximum
-  imputation. So the honest claim is: *significant conditional on convergence, discards not
-  missing-at-random, robust to a plausible-pessimistic imputation.* The `r_e = 0` control is clean (its
-  discards are missing-at-random).
+  crossing), i.e. the replicates with Δ nearest zero, which nudges the CI away from zero. Rather than
+  impute them (arbitrary — an [earlier imputation](docs/AUDIT.md) turned out too weak to trust), we bound
+  it: the CI's upper endpoint reaches zero only if **≥ 24 of the 102 discards** would have given Δ ≥ 0,
+  whereas the `p_th` those discards *did* record (101 of 102 fit both decoders — one converged, one
+  bound-pinned; none are unbounded) imply Δ ≥ 0 for **only 2** of them. A discard would need blind's
+  `p_th` to reach herald's centre 2.37%; the recorded failed-blind median is 1.80% and only 2 reach it.
+  So the honest claim is: *significant conditional on convergence, discards not missing-at-random, but the
+  tipping point (24) sits far above the recorded partial-information count (2).* The `r_e = 0` control is
+  clean (discards missing-at-random; its Δ already includes zero).
 
 The [ablation](#the-herald-aware-vs-blind-ablation) remains the primary evidence, since it needs no fit —
 and no convergence filtering — at all.

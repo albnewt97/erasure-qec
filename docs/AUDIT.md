@@ -245,30 +245,51 @@ observed grid — worse, not better. We therefore changed nothing (changing the
 estimator to reduce discards would be chasing a better Δ, which we do not do).
 Failure rate is **10.2% before and after** at r_e=0.5.
 
-**4. Directional sensitivity** (Task 1e; imputation stated). Impute the 102
-discards by resampling from the **top (least-negative) decile of the observed Δ
-draws** (Δ ≥ −0.73%, which reaches up to +0.38%) — a plausible-pessimistic case,
-not worst-case imputation at Δ = 0 (which, above a 2.5% failure rate, forces the
-97.5th percentile into the imputed block and can never exclude zero, proving
-nothing):
+**4. Sensitivity to the discards.** The first version of this section leant on an
+*imputation* (`directional_sensitivity_ci`); a later self-audit found it too weak
+to trust, and it is replaced below by a tipping-point bound. Both are recorded
+for reproducibility (`scripts/paired_separation.py`).
 
-| imputation | r_e=0.5 imputed 95% CI | excludes 0? |
-|---|---|---|
-| none (observed) | [−1.24, −0.66] | yes |
-| top decile of Δ (plausible pessimistic) | [−1.23, −0.64] | **yes** |
-| all discards at the single max observed Δ (+0.38%) | [−1.23, +0.38] | no (degenerate worst case) |
+*Audit of the imputation (Task 1).* Imputing the 102 discards by resampling the
+observed Δ draws in the top (least-negative) decile gave [−1.23, −0.64], which
+**barely moved** from the observed [−1.24, −0.66]. That looked suspicious. The
+imputed values are **not** a single point (63 distinct), so the resampling works,
+but their quantiles are min/25/50/75/max = −0.73/−0.71/−0.69/−0.66/+0.38%: **75%
+sit below −0.66%**, only 27 of 102 above it. The empirical top-decile is
+density-weighted toward its *lower* edge (−0.66% is the 97.5th percentile, near
+the TOP of the decile), so sampling it is only mildly pessimistic — not the
+"plausible-pessimistic" case the earlier docstring claimed. The reported CI was
+arithmetically correct; its *characterisation* was overstated. Because the
+imputation's answer depends entirely on the chosen decile, it is replaced.
+
+*Tipping-point bound (Task 2a).* Only **2** of the 898 successful draws have
+Δ ≥ 0. The 97.5th percentile of 1000 draws (numpy 'linear' convention) reaches
+zero once **26** are ≥ 0, so **the claim survives unless ≥ 24 of the 102 discards
+would have given Δ ≥ 0** (verified against a direct construction in the tests).
+
+*Partial-information implied Δ (Task 2b).* We do not have to guess: **101 of 102**
+discards recorded *both* decoders' `p_th` (one converged, one bound-pinned), and
+1 recorded blind only — **0 are unbounded** (Task 2c). Forming Δ = blind − herald
+from the recorded values (filling the 1 missing herald from the successful
+median) gives an implied-Δ distribution of min/25/50/75/max =
+−1.73/−0.80/−0.64/−0.49/+2.42%, with **only 2 of 102 at Δ ≥ 0**. For a discard to
+reach Δ ≥ 0 its blind `p_th` must reach herald's centre **2.37%**; the recorded
+failed-blind median is **1.80%** and only **2** values reach 2.37%. Because a
+blind bound-pin `p_th` is a *lower* bound on the true crossing, 2 is itself a
+lower bound on the count — but reaching 24 would require blind's true crossing to
+exceed herald's in 24 resamples where the recorded value sits ~0.57% below it,
+which blind's marginal distribution (median 1.50%, 97.5th percentile 2.15%) does
+not support.
 
 **Verdict.** The conditioning is **not** benign at r_e=0.5 — the discards are not
-missing-at-random and cluster at high blind `p_th`. **The `r_e = 0.5` claim
-nonetheless survives, unchanged in value but with an added caveat:** the
-separation is significant *conditional on convergence* (Δ = −0.83%, CI
-[−1.24, −0.66]), 10.2% of replicates are discarded and are **not** missing-at-
-random, and the significance is **robust to imputing the discards from the
-least-negative decile of Δ** ([−1.23, −0.64] still excludes zero). It fails only
-under the degenerate worst case (all discards at the most-positive observed Δ),
-which is not evidence of non-significance. The r_e=0 control is clean: its
-discards are missing-at-random and its imputed CI still includes zero. The
-unpaired difference bootstrap is **conservative** (pairing could only have
-narrowed the interval, not widened it), so clearing zero under it is if anything
-a stronger result — and the deterministic ablation, which needs no fit and no
-convergence filtering, remains the primary evidence.
+missing-at-random and cluster at high blind `p_th` (that finding, item 2, stands
+regardless). **The `r_e = 0.5` claim survives, unchanged in value, with the
+caveat attached:** significant *conditional on convergence* (Δ = −0.83%, CI
+[−1.24, −0.66]); 10.2% of replicates discarded and **not** missing-at-random; but
+the tipping point is **24** discards at Δ ≥ 0 while the recorded partial
+information implies **2**, and none are unbounded, so the margin is large. The
+r_e=0 control has tipping point 0 (its Δ already includes zero, as a control
+must) and missing-at-random discards. The unpaired difference bootstrap is
+**conservative** (pairing could only have narrowed the interval), so clearing
+zero under it is if anything a stronger result — and the deterministic ablation,
+which needs no fit and no convergence filtering, remains the primary evidence.

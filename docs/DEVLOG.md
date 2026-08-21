@@ -173,9 +173,16 @@ ablation, which needs no fit, is still the headline.
 One more thing I had to check before trusting it: the Δ CI throws away replicates where either decoder
 fails to converge, and ~10% do at r_e=0.5. Those discards are *not* missing-at-random — they're almost
 all blind bound-pinning high (its crossing is bistable), i.e. the replicates with Δ nearest zero, which
-flatters the interval. I nearly reported significance and moved on; the honest move was to impute the
-discards from the least-negative decile of Δ and re-check — the CI still clears zero ([−1.23, −0.64]),
-failing only under a degenerate all-at-the-maximum imputation that proves nothing. So the claim survives
-*with the caveat attached*: significant conditional on convergence, discards not missing-at-random, robust
-to a plausible-pessimistic imputation. The unpaired bootstrap being conservative is the reassuring part —
-pairing could only have tightened it. Full diagnostic in docs/AUDIT.md.
+flatters the interval. My first attempt to handle this was to impute the discards from the least-negative
+decile of Δ; the CI still cleared zero ([−1.23, −0.64]) and I reported it. A later review caught that the
+endpoint had barely moved, which is the fingerprint of a broken imputation. It wasn't broken in the way
+suspected (it did sample 63 distinct values, not one point) — but it was weak: the empirical top-decile
+is bottom-heavy, so 75% of the imputed values sat below the old endpoint and the CI hardly shifted. The
+"plausible-pessimistic" label was wrong, and any imputation is arbitrary anyway. The honest replacement
+is a tipping-point bound that uses no assumed distribution: the CI's upper endpoint reaches zero only if
+≥ 24 of the 102 discards would have given Δ ≥ 0 — and I don't have to guess how many would, because 101
+of the 102 discards recorded *both* decoders' p_th (one converged, one bound-pinned), and those imply
+Δ ≥ 0 for just 2. None are unbounded. So 2 against a tipping point of 24: the claim survives with margin,
+and now for a reason that doesn't depend on which tail I chose to draw from. The caveat still stands —
+significant conditional on convergence, discards not missing-at-random — and the unpaired bootstrap being
+conservative is the reassuring part. Full diagnostic in docs/AUDIT.md.
