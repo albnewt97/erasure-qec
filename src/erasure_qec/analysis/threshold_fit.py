@@ -86,12 +86,30 @@ _NU_BOUNDS = (0.5, 6.0)
 # Bootstrap CI percentiles (a 95% two-sided *percentile* interval).
 _CI_PERCENTILES = (2.5, 97.5)
 
+# Resolution guard: a fit that CONVERGES (optimiser returned a usable fit, no
+# bound-pinning) still does not *resolve* a threshold if its 95% bootstrap CI is
+# too wide relative to the point estimate -- rel width = (ci_hi - ci_lo) / p_th.
+# Chosen from the committed fits, not by taste: every fit the README quotes as a
+# result has rel width <= 0.49 (r_e=0.5 blind), while the r_e=0.98 blind
+# non-result sits at ~3.0 -- a ~6x gap, so the constant is not delicate and 1.0
+# rejects only that fit (verified in docs/AUDIT.md). 1.0 has a plain meaning:
+# the 95% CI is at least as wide as the threshold value itself.
+_MAX_REL_CI_WIDTH = 1.0
+
+# Structured reason codes on FitResult -- coarser than the free-text `message`,
+# and stable for tests (message-string matching is brittle).
+_REASON_OK = "ok"
+_REASON_INSUFFICIENT = "insufficient_data"
+_REASON_CURVE_FIT = "curve_fit_error"
+_REASON_BOUND_PIN = "bound_pin"
+_REASON_UNRESOLVED = "unresolved_ci"
+
 
 @dataclass(frozen=True)
 class FitResult:
     """Outcome of a finite-size scaling fit (§10)."""
 
-    converged: bool
+    converged: bool  # the optimiser returned a usable fit (no bound-pinning)
     p_th: float
     p_th_err: float
     nu: float
@@ -101,6 +119,13 @@ class FitResult:
     window_factor: float
     distances: tuple[int, ...]
     n_points: int
+    # converged AND the CI is tight enough to call it a threshold. `converged`
+    # answers "did the optimiser succeed"; `resolved` answers "does the fit
+    # resolve a threshold" -- a different question. Only a resolved fit may be
+    # quoted as a p_th. See _MAX_REL_CI_WIDTH.
+    resolved: bool = False
+    rel_ci_width: float = float("nan")  # (ci_hi - ci_lo) / p_th; the guard input
+    reason: str = ""  # structured code (see _REASON_*); stable across refactors
     d_min: int | None = None  # if set, only distances >= d_min were fit
     chi2_dof: float = float("nan")  # reduced chi-squared of the fit
     # 95% bootstrap *percentile* CIs (skewed distribution -> asymmetric, and a
@@ -259,7 +284,7 @@ def fit_threshold(
     used = _select_window(points, center, window_factor)
     distances = tuple(sorted({pt.d for pt in used}))
 
-    def _fail(msg: str, chi2_dof: float = float("nan")) -> FitResult:
+    def _fail(msg: str, reason: str) -> FitResult:
         return FitResult(
             converged=False,
             p_th=float("nan"),
@@ -271,8 +296,9 @@ def fit_threshold(
             window_factor=window_factor,
             distances=distances,
             n_points=len(used),
+            resolved=False,
+            reason=reason,
             d_min=d_min,
-            chi2_dof=chi2_dof,
             message=msg,
         )
 
@@ -282,12 +308,13 @@ def fit_threshold(
         return _fail(
             f"insufficient data in window: {len(used)} points, "
             f"{len(distances)} distances (need >= {_N_PARAMS + _MIN_DOF} points "
-            f"for {_MIN_DOF} dof, >= 2 distances)"
+            f"for {_MIN_DOF} dof, >= 2 distances)",
+            _REASON_INSUFFICIENT,
         )
 
     core = _weighted_fit_arrays(used, center, nu_guess)
     if core is None:
-        return _fail("curve_fit failed on the point estimate")
+        return _fail("curve_fit failed on the point estimate", _REASON_CURVE_FIT)
     popt = core.popt
 
     resid = (core.y - _model((core.p_arr, core.d_arr), *popt)) / core.sigma
@@ -333,12 +360,37 @@ def fit_threshold(
         p_th_err = nu_err = float("nan")
         p_th_ci = nu_ci = (float("nan"), float("nan"))
 
-    converged = not pinned
-    message = (
-        "ok"
-        if converged
-        else "not converged: " + "; ".join(pinned) + " pinned at optimiser bound"
+    lo_ci, hi_ci = p_th_ci
+    rel_ci_width = (
+        (hi_ci - lo_ci) / popt[0]
+        if np.isfinite(lo_ci) and np.isfinite(hi_ci) and popt[0] > 0.0
+        else float("nan")
     )
+
+    converged = not pinned
+    if pinned:
+        resolved = False
+        reason = _REASON_BOUND_PIN
+        message = "not converged: " + "; ".join(pinned) + " pinned at optimiser bound"
+    elif not np.isfinite(rel_ci_width):
+        # Converged, but no bootstrap CI to judge resolution (e.g. n_boot=0, the
+        # internal point-fit mode). Not resolved, but not a wide-CI failure.
+        resolved = False
+        reason = _REASON_OK
+        message = "ok (no bootstrap CI computed)"
+    elif rel_ci_width >= _MAX_REL_CI_WIDTH:
+        # Optimiser succeeded but the CI is >= the threshold value itself: the
+        # fit does not resolve a threshold and must not be quoted as one.
+        resolved = False
+        reason = _REASON_UNRESOLVED
+        message = (
+            f"converged but not resolved: relative CI width {rel_ci_width:.2f} "
+            f">= guard {_MAX_REL_CI_WIDTH}"
+        )
+    else:
+        resolved = True
+        reason = _REASON_OK
+        message = "ok"
     return FitResult(
         converged=converged,
         p_th=popt[0],
@@ -350,6 +402,9 @@ def fit_threshold(
         window_factor=window_factor,
         distances=distances,
         n_points=len(used),
+        resolved=resolved,
+        rel_ci_width=rel_ci_width,
+        reason=reason,
         d_min=d_min,
         chi2_dof=chi2_dof,
         p_th_ci=p_th_ci,

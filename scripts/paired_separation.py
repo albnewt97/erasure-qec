@@ -19,6 +19,7 @@ from scipy.stats import ks_2samp
 
 from erasure_qec.analysis.statistics import SweepPoint, load_sweep
 from erasure_qec.analysis.threshold_fit import (
+    FitResult,
     ThresholdDifference,
     bootstrap_threshold_difference,
     directional_sensitivity_ci,
@@ -63,17 +64,22 @@ def _pairing_evidence() -> None:
 def _marginal_ci_before_after() -> None:
     print("== 2. Marginal p_th 95% CI: n_boot 200 (before) vs 1000 (after) ==")
     print(f"  {'r_e':>4} {'decoder':8} {'p_th':>7} {'CI@200':>16} {'CI@1000':>16}")
+    def ci(f: FitResult) -> str:
+        lo, hi = f.p_th_ci
+        return f"[{lo*100:.2f},{hi*100:.2f}]" if f.converged else "-"
+
     for r_e, csv in SWEEPS:
         h, b = _split(csv)
         for dec, pts in (("herald", h), ("blind", b)):
             f200 = fit_threshold(pts, d_min=D_MIN, n_boot=200, seed=0)
             f1000 = fit_threshold(pts, d_min=D_MIN, n_boot=1000, seed=0)
-            if not f200.converged:
-                print(f"  {r_e:>4} {dec:8} not resolved")
+            # Gate the quoted p_th on `resolved`, not `converged`: r_e=0.98 blind
+            # converges but its CI is wider than p_th, so it is not a threshold.
+            if not f1000.resolved:
+                note = f"(rel_ci {f1000.rel_ci_width:.2f})" if f1000.converged else ""
+                print(f"  {r_e:>4} {dec:8} {'not resolved':>7} "
+                      f"{ci(f200):>16} {ci(f1000):>16}  {note}")
                 continue
-            def ci(f: object) -> str:
-                lo, hi = f.p_th_ci  # type: ignore[attr-defined]
-                return f"[{lo*100:.2f},{hi*100:.2f}]"
             print(f"  {r_e:>4} {dec:8} {f1000.p_th*100:6.3f}% "
                   f"{ci(f200):>16} {ci(f1000):>16}")
     print()
