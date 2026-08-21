@@ -19,11 +19,14 @@ from scipy.stats import ks_2samp
 
 from erasure_qec.analysis.statistics import SweepPoint, load_sweep
 from erasure_qec.analysis.threshold_fit import (
+    ThresholdDifference,
     bootstrap_threshold_difference,
     directional_sensitivity_ci,
     failed_vs_success_pth,
     failure_guard_breakdown,
     fit_threshold,
+    partial_information_implied_delta,
+    tipping_point_discards,
 )
 
 SWEEPS = [
@@ -129,11 +132,47 @@ def _discard_diagnostics() -> None:
             print(f"    KS(failed vs success blind p_th): stat={ks.statistic:.3f} "
                   f"p={ks.pvalue:.2e}  -> discards {'ARE' if ks.pvalue < 0.05 else 'are NOT'} "
                   f"MAR-inconsistent; failed blind p_th {'higher' if higher else 'not higher'}")
-        # Directional sensitivity: impute discards from the least-negative decile.
-        ci, excl = directional_sensitivity_ci(r, seed=0, top_fraction=0.10)
-        print(f"    [1e] impute discards from top decile of delta: "
-              f"CI=[{ci[0]*100:+.3f},{ci[1]*100:+.3f}]%  excludes_zero={excl}")
+        _sensitivity_audit(r)
     print()
+
+
+def _sensitivity_audit(r: ThresholdDifference) -> None:
+    """Audit the old imputation (Task 1) and report the tipping-point bound that
+    replaces it (Task 2)."""
+    deltas = np.array(r.blind_pth_draws) - np.array(r.herald_pth_draws)
+    upper = float(np.percentile(deltas, 97.5))
+    # Task 1: what the imputation actually draws, and whether the CI was right.
+    thr = float(np.percentile(deltas, 90.0))
+    top = deltas[deltas >= thr]
+    imputed = np.random.default_rng(0).choice(top, size=r.n_paired_failed, replace=True)
+    ci, excl = directional_sensitivity_ci(r, seed=0, top_fraction=0.10)
+    q = np.percentile(imputed, [0, 25, 50, 75, 100]) * 100
+    print(f"    [T1] imputed {r.n_paired_failed} vals: min/25/50/75/max="
+          f"{q[0]:+.3f}/{q[1]:+.3f}/{q[2]:+.3f}/{q[3]:+.3f}/{q[4]:+.3f}%  "
+          f"distinct={len(np.unique(imputed))}  >{upper*100:+.3f}%: "
+          f"{int((imputed > upper).sum())}/{r.n_paired_failed}")
+    print(f"    [T1] imputation CI=[{ci[0]*100:+.3f},{ci[1]*100:+.3f}]% excl0={excl} "
+          f"(reproduces the earlier number; WEAK/arbitrary -- see below)")
+    # Task 2: tipping-point + partial-information bound.
+    tip = tipping_point_discards(r)
+    implied, unbounded = partial_information_implied_delta(r)
+    n_ge0 = int((implied >= 0.0).sum())
+    herald_med = float(np.median(r.herald_pth_draws))
+    fb = np.array([f.blind_p_th for f in r.failures])
+    fb = fb[np.isfinite(fb)]
+    n_reach = int((fb >= herald_med).sum())
+    print(f"    [T2a] tipping point: claim survives unless >= {tip} of "
+          f"{r.n_paired_failed} discards give delta>=0")
+    print(f"    [T2b] implied delta from recorded p_th: >=0 in {n_ge0}/{len(implied)}; "
+          f"a discard needs blind p_th >= herald centre {herald_med*100:.3f}%")
+    print(f"          (failed-blind median {np.median(fb)*100:.3f}%, {n_reach} reach it)")
+    print(f"    [T2c] discards with no converged decoder (unbounded): {unbounded}")
+    if r.excludes_zero:
+        verdict = "SURVIVES" if n_ge0 < tip else "DOES NOT SURVIVE"
+        print(f"    => significance claim: tipping {tip} vs implied>=0 {n_ge0} -> {verdict}")
+    else:
+        print("    => control: delta already consistent with zero; no significance "
+              "to defend (tipping/implied are informational)")
 
 
 def main() -> None:

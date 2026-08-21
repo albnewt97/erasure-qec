@@ -8,12 +8,15 @@ import pytest
 
 from erasure_qec.analysis.statistics import SweepPoint, load_sweep, shot_p_l_from_per_round
 from erasure_qec.analysis.threshold_fit import (
+    ReplicateFailure,
+    ThresholdDifference,
     bootstrap_threshold_difference,
-    directional_sensitivity_ci,
     estimate_crossing,
     failed_vs_success_pth,
     failure_guard_breakdown,
     fit_threshold,
+    partial_information_implied_delta,
+    tipping_point_discards,
 )
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -473,14 +476,81 @@ def test_real_r50_delta_excludes_zero_significant_separation() -> None:
     assert r.delta < 0.0 and r.delta_ci[1] < 0.0, (r.delta, r.delta_ci)
 
 
+def _make_diff(
+    deltas: list[float], n_fail: int, failures: tuple[ReplicateFailure, ...] = ()
+) -> ThresholdDifference:
+    """A ThresholdDifference with given successful delta draws (herald fixed at
+    0.02, blind = 0.02 + delta) and ``n_fail`` discards -- for unit-testing the
+    tipping-point / partial-information helpers without a bootstrap."""
+    herald = np.full(len(deltas), 0.02)
+    blind = herald + np.array(deltas, dtype=float)
+    return ThresholdDifference(
+        converged=True, delta=float(np.mean(deltas)), delta_ci=(0.0, 0.0),
+        delta_err=0.0, excludes_zero=True, herald_p_th=0.02, blind_p_th=0.015,
+        correlation=0.0, paired=False, n_boot=len(deltas) + n_fail,
+        n_paired_failed=n_fail, herald_pth_draws=tuple(herald),
+        blind_pth_draws=tuple(blind), failures=failures,
+    )
+
+
+def test_tipping_point_matches_percentile_construction() -> None:
+    """tipping_point_discards must equal the count found by directly imputing k
+    positive discards and checking where np.percentile(..., 97.5) crosses zero
+    -- i.e. it uses the SAME percentile convention as the CI it defends."""
+    rng = np.random.default_rng(3)
+    deltas = list(-rng.random(200) * 0.01 - 0.001)  # 200 negative draws
+    deltas[0] = deltas[1] = 0.002  # two positive
+    for n_fail in (10, 40, 100):
+        diff = _make_diff(deltas, n_fail)
+        tip = tipping_point_discards(diff)
+        arr = np.array(diff.blind_pth_draws) - np.array(diff.herald_pth_draws)
+        empirical = next(
+            k for k in range(n_fail + 1)
+            if float(np.percentile(
+                np.concatenate([arr, np.full(k, 1e-6), np.full(n_fail - k, -1.0)]), 97.5
+            )) >= 0.0
+        )
+        assert tip == empirical, (tip, empirical, n_fail)
+
+
+def test_partial_information_implied_delta_uses_recorded_pth_and_counts_unbounded() -> None:
+    """A discard with both p_th finite uses them directly; a discard with one
+    finite fills the other from that decoder's successful median; a discard with
+    neither finite is unbounded and excluded."""
+    fails = (
+        ReplicateFailure(  # blind bound-pinned high, herald converged -> +0.005
+            herald_p_th=0.020, blind_p_th=0.025, herald_converged=True,
+            blind_converged=False, herald_message="ok",
+            blind_message="not converged: p_th at window maximum pinned at optimiser bound",
+        ),
+        ReplicateFailure(  # only blind finite -> 0.030 - herald_median(0.020) = +0.010
+            herald_p_th=float("nan"), blind_p_th=0.030, herald_converged=False,
+            blind_converged=True, herald_message="insufficient data in window",
+            blind_message="ok",
+        ),
+        ReplicateFailure(  # neither finite -> unbounded
+            herald_p_th=float("nan"), blind_p_th=float("nan"), herald_converged=False,
+            blind_converged=False, herald_message="insufficient data in window",
+            blind_message="curve_fit failed on the point estimate",
+        ),
+    )
+    diff = _make_diff([-0.005] * 20, n_fail=3, failures=fails)
+    implied, unbounded = partial_information_implied_delta(diff)
+    assert unbounded == 1
+    assert len(implied) == 2
+    assert implied[0] == pytest.approx(0.005)
+    assert implied[1] == pytest.approx(0.010)
+
+
 @pytest.mark.slow
-def test_r50_discards_not_mar_but_significance_survives_imputation() -> None:
-    """Phase-4 Task 1: the r_e=0.5 Delta CI is conditioned on both decoders
-    converging, and ~10% of replicates are discarded. Those discards are NOT
-    missing-at-random -- they cluster at high blind p_th (almost all are
-    bound-pinning of the bistable blind crossing) -- so the caveat is real.
-    But the significance SURVIVES imputing the discards from the least-negative
-    decile of Delta. Pins both the caveat and its resolution."""
+def test_r50_discards_not_mar_but_significance_survives_tipping_point() -> None:
+    """Phase-4 Task 1/2: the r_e=0.5 Delta CI is conditioned on both decoders
+    converging (~10% discarded). Those discards are NOT missing-at-random -- they
+    cluster at high blind p_th (almost all bound-pinning of the bistable blind
+    crossing) -- so the caveat is real. But the significance survives the
+    tipping-point bound: far more discards would need Delta>=0 than the recorded
+    partial information allows. Pins the caveat and its (non-arbitrary)
+    resolution."""
     pts = load_sweep(FIXTURES / "real_erasure_r50.csv")
     herald = [p for p in pts if p.decoder == "herald_mwpm"]
     blind = [p for p in pts if p.decoder == "blind_mwpm"]
@@ -497,16 +567,23 @@ def test_r50_discards_not_mar_but_significance_survives_imputation() -> None:
     failed_blind, success_blind = failed_vs_success_pth(r, "blind")
     assert float(np.median(failed_blind)) > float(np.median(success_blind))
 
-    # ... yet the significance survives the plausible-pessimistic imputation (1e).
-    _, excludes_zero = directional_sensitivity_ci(r, seed=0, top_fraction=0.10)
-    assert excludes_zero
+    # Tipping-point bound (Task 2): the number of discards that would need
+    # Delta>=0 to break significance is far above the number the recorded p_th
+    # actually imply, and no discard is unbounded.
+    tip = tipping_point_discards(r)
+    implied, unbounded = partial_information_implied_delta(r)
+    n_ge_zero = int((implied >= 0.0).sum())
+    assert unbounded == 0
+    assert tip >= 15, tip
+    assert n_ge_zero < tip, (n_ge_zero, tip)
+    assert n_ge_zero <= 5, n_ge_zero  # only a couple of discards imply Delta>=0
 
 
 @pytest.mark.slow
 def test_baseline_control_discards_are_missing_at_random() -> None:
     """r_e=0 control: discards should be missing-at-random (blind p_th similar
-    for failed and kept replicates), and Delta stays consistent with zero even
-    under the directional imputation. If this fails the discard mechanism is
+    for failed and kept replicates), and the difference must stay consistent with
+    zero (excludes_zero False). If this fails the discard mechanism is
     decoder-asymmetric where it must not be."""
     pts = load_sweep(FIXTURES / "real_baseline_pauli.csv")
     herald = [p for p in pts if p.decoder == "herald_mwpm"]
@@ -514,5 +591,6 @@ def test_baseline_control_discards_are_missing_at_random() -> None:
     r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=1000, seed=0)
     failed_blind, success_blind = failed_vs_success_pth(r, "blind")
     assert abs(float(np.median(failed_blind)) - float(np.median(success_blind))) < 0.002
-    _, excludes_zero = directional_sensitivity_ci(r, seed=0, top_fraction=0.10)
-    assert not excludes_zero  # control: still consistent with zero
+    assert not r.excludes_zero  # control: Delta consistent with zero
+    # And there is no significance to defend: the endpoint already reaches zero.
+    assert tipping_point_discards(r) == 0
