@@ -11,9 +11,9 @@ here in minutes.
     uv run python scripts/ablation_table.py                 # default 100k shots
     uv run python scripts/ablation_table.py --shots 200000
 
-Cells where the herald decoder produces very few errors are low-statistics
-lower bounds and are flagged; the ratio then divides a small count and its
-relative error is large.
+Cells below the >= 50 observed-error gate (the same gate the Lambda figure uses)
+are reported as a Wilson lower bound ``> N×`` rather than a point ratio -- the
+denominator is then a handful of errors and the point value is not trustworthy.
 """
 
 from __future__ import annotations
@@ -35,8 +35,10 @@ from erasure_qec.noise.injector import ErasureInjector
 FIXED_P = 0.01
 R_ES = (0.5, 0.98)
 DISTANCES = (3, 5, 7, 9, 11)
-# Below this many herald errors the ratio is a low-statistics lower bound.
-_LOW_STAT_ERRORS = 20
+# One statistical standard across the repo: the same >= 50 observed-error gate
+# the Lambda figure uses. Below it, the point ratio is not reported; only a
+# Wilson-derived lower bound is (the denominator is a handful of errors).
+_MIN_ERRORS = 50
 
 
 def _errors(pred: np.ndarray, obs: np.ndarray) -> int:
@@ -44,7 +46,9 @@ def _errors(pred: np.ndarray, obs: np.ndarray) -> int:
 
 
 def ablation_cell(d: int, p: float, r_e: float, shots: int) -> dict[str, float]:
-    """Decode ``shots`` identical shots with both decoders; return the ratio."""
+    """Decode ``shots`` identical shots with both decoders; return the ratio and
+    a Wilson lower bound on it (herald's 95% *upper* shot-rate limit in the
+    denominator, blind held at its well-measured point estimate)."""
     circ = build(d, d, ErasureInjector(NoiseParams(p=p, r_e=r_e)))
     dets, obs = circ.compile_detector_sampler(seed=0).sample(
         shots, separate_observables=True
@@ -54,16 +58,17 @@ def ablation_cell(d: int, p: float, r_e: float, shots: int) -> dict[str, float]:
     h_pl = per_round_p_l(h_err / shots, d)
     b_pl = per_round_p_l(b_err / shots, d)
     ratio = b_pl / h_pl if h_pl > 0 else float("inf")
-    return {"ratio": ratio, "h_err": h_err, "b_err": b_err, "h_pl": h_pl, "b_pl": b_pl}
+    h_pl_hi = per_round_p_l(wilson_interval(h_err, shots)[1], d)
+    ratio_lb = b_pl / h_pl_hi if h_pl_hi > 0 else float("inf")
+    return {"ratio": ratio, "ratio_lb": ratio_lb, "h_err": h_err, "b_err": b_err,
+            "h_pl": h_pl, "b_pl": b_pl}
 
 
 def _fmt_ratio(cell: dict[str, float]) -> str:
-    ratio = cell["ratio"]
-    low = cell["h_err"] < _LOW_STAT_ERRORS
-    if not np.isfinite(ratio):
-        return f"inf (herald 0/{int(cell['h_err'])}) †"
-    body = f"{ratio:.1f}×"
-    return f"{body} †" if low else body
+    if cell["h_err"] >= _MIN_ERRORS:
+        return f"{cell['ratio']:.1f}×"
+    # Below the 50-error gate: a Wilson lower bound, not a point ratio.
+    return f"> {cell['ratio_lb']:.0f}× †"
 
 
 def main() -> None:
@@ -85,8 +90,8 @@ def main() -> None:
     for d in DISTANCES:
         row = " | ".join(_fmt_ratio(cells[(r_e, d)]) for r_e in R_ES)
         print(f"| {d} | {row} |")
-    print(f"\n† low-statistics (herald errors < {_LOW_STAT_ERRORS}): "
-          "ratio is a lower bound, not a precise value.")
+    print(f"\n† below the {_MIN_ERRORS}-observed-error gate (same as the Lambda "
+          "figure): reported as a Wilson lower bound `> N×`, not a point ratio.")
 
     print("\nraw counts (herald_err / blind_err):")
     for d in DISTANCES:

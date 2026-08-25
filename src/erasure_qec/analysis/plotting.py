@@ -120,7 +120,9 @@ def _choose_threshold_fit(
 
 
 def _mark_threshold(ax: Axes, fit: FitResult) -> None:
-    if not fit.converged:
+    # Gate on `resolved`, not `converged`: a fit that converges but whose CI is
+    # wider than its own threshold (r_e=0.98 blind) must not be drawn as a line.
+    if not fit.resolved:
         ax.text(
             0.03, 0.03, f"no fit:\n{fit.message.splitlines()[0]}",
             transform=ax.transAxes, fontsize=6, va="bottom", ha="left", color="0.4",
@@ -145,7 +147,7 @@ def _mark_threshold(ax: Axes, fit: FitResult) -> None:
 
 
 def _add_collapse_inset(ax: Axes, fit: FitResult) -> None:
-    if not fit.converged:
+    if not fit.resolved:
         return
     inset = ax.inset_axes((0.60, 0.60, 0.38, 0.38))
     x = fit.scaling_x()
