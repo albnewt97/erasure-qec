@@ -31,9 +31,7 @@ def tasks_from_config(config: ExperimentConfig) -> Iterator[sinter.Task]:
     """One task per (distance, physical error rate) grid point, T = d."""
     for d in config.distances:
         for p in config.p_values:
-            circuit = build(
-                d, d, ErasureInjector(NoiseParams(p=p, r_e=config.r_e))
-            )
+            circuit = build(d, d, ErasureInjector(NoiseParams(p=p, r_e=config.r_e)))
             yield sinter.Task(
                 circuit=circuit,
                 detector_error_model=contract_dem(circuit),

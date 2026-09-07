@@ -28,9 +28,7 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 def tasks_from_config(config: ExperimentConfig) -> Iterator[sinter.Task]:
     """One task per distance at the fixed ``lambda_p``, T = d."""
     for d in config.distances:
-        circuit = build(
-            d, d, ErasureInjector(NoiseParams(p=config.lambda_p, r_e=config.r_e))
-        )
+        circuit = build(d, d, ErasureInjector(NoiseParams(p=config.lambda_p, r_e=config.r_e)))
         yield sinter.Task(
             circuit=circuit,
             detector_error_model=contract_dem(circuit),
