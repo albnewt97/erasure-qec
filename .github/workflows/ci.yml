@@ -33,8 +33,12 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check .
 
+      - name: Check formatting with ruff
+        run: uv run ruff format --check .
+
       - name: Type-check with mypy
-        run: uv run mypy src
+        # No path argument: mypy uses [tool.mypy] files = ["src", "tests"].
+        run: uv run mypy
 
       - name: Test with pytest (fast suite)
         run: uv run pytest -m "not slow" --cov=erasure_qec --cov-report=term-missing
@@ -66,8 +70,12 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check .
 
+      - name: Check formatting with ruff
+        run: uv run ruff format --check .
+
       - name: Type-check with mypy
-        run: uv run mypy src
+        # No path argument: mypy uses [tool.mypy] files = ["src", "tests"].
+        run: uv run mypy
 
       - name: Test with pytest (full suite, incl. slow)
         run: uv run pytest --cov=erasure_qec --cov-report=term-missing

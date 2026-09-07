@@ -38,7 +38,7 @@ target-version = "py311"
 src = ["src", "tests", "experiments"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "N"]
+select = ["E", "F", "I", "UP", "B", "SIM", "N", "RUF100"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["erasure_qec"]
@@ -46,6 +46,11 @@ known-first-party = ["erasure_qec"]
 [tool.mypy]
 strict = true
 files = ["src", "tests"]
+# Every `# type: ignore` in this repo is error-code scoped, which is what keeps
+# the P16 hazard narrow (a suppression relocated by `ruff format` still fails
+# on a line whose error has a different code). Nothing enforced that property
+# until now; this does.
+enable_error_code = ["ignore-without-code"]
 
 [[tool.mypy.overrides]]
 module = ["stim.*", "pymatching.*", "sinter.*", "scipy.*", "matplotlib.*"]
