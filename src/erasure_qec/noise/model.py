@@ -64,11 +64,7 @@ def channel_rates(params: NoiseParams) -> ChannelRates:
         meas_flip=params.meas,
         reset_flip=params.reset,
         idle_depolarize=params.idle * (1.0 - params.r_e) if convert else params.idle,
-        idle_herald=(
-            params.idle * params.r_e / _ERASURE_NONIDENTITY_FRACTION
-            if convert
-            else 0.0
-        ),
+        idle_herald=(params.idle * params.r_e / _ERASURE_NONIDENTITY_FRACTION if convert else 0.0),
     )
 
 
@@ -93,6 +89,6 @@ def nonidentity_pauli_probability(params: NoiseParams) -> float:
     not an iso-noise axis then. See docs/AUDIT.md.
     """
     rates = channel_rates(params)
-    return 1.0 - (1.0 - rates.depolarize2) * (
-        1.0 - _ERASURE_NONIDENTITY_FRACTION * rates.herald
-    ) ** 2
+    return (
+        1.0 - (1.0 - rates.depolarize2) * (1.0 - _ERASURE_NONIDENTITY_FRACTION * rates.herald) ** 2
+    )

@@ -19,7 +19,9 @@ from __future__ import annotations
 import numpy as np
 import stim
 
+from erasure_qec.analysis.dem_stats import heralded_fraction
 from erasure_qec.analysis.statistics import (
+    Z_95,
     SweepPoint,
     load_sweep,
     per_round_p_l,
@@ -73,8 +75,12 @@ def _fit_diagnostics(csv: str, decoder: str, d_min: int | None) -> dict[str, flo
         p_arr = np.array([p.p for p in used])
         d_arr = np.array([p.d for p in used], dtype=float)
         y = np.array([per_round_p_l(p.p_l_shot, p.rounds) for p in used])
+        # Must match _weighted_fit_arrays: per_round_estimate is a 95% Wilson
+        # interval, so divide the half-width by Z_95 to recover the 1-sigma
+        # weight the fitter actually uses. Using the raw half-width here scales
+        # chi^2 down by Z_95**2 ~ 3.84.
         sigma = np.array(
-            [max((e.high - e.low) / 2.0, 1e-9) for e in map(per_round_estimate, used)]
+            [max((e.high - e.low) / (2.0 * Z_95), 1e-9) for e in map(per_round_estimate, used)]
         )
         params = (fit.p_th, fit.nu, *fit.coeffs)
         resid = (y - _model((p_arr, d_arr), *params)) / sigma
@@ -92,19 +98,24 @@ def _nonidentity_pauli_prob(r_e: float, p: float = 0.02) -> float:
 
 
 def _dem_heralded_mass(d: int, p: float, r_e: float) -> float:
-    dem = _contract_dem(build(d, d, ErasureInjector(NoiseParams(p=p, r_e=r_e))))
-    heralds = _herald_detectors(dem)
-    total = 0.0
-    heralded = 0.0
-    for inst in dem:
-        if inst.type != "error":
-            continue
-        prob = inst.args_copy()[0]
-        dets = {t.val for t in inst.targets_copy() if t.is_relative_detector_id()}
-        total += prob
-        if dets & heralds:
-            heralded += prob
-    return heralded / total if total else float("nan")
+    """The **LEGACY** heralded-mass metric, which counts no-op herald branches.
+
+    This row of the audit table compares against a pre-fix auditor expectation,
+    so it must keep the pre-fix definition to stay comparable -- but that is the
+    superseded metric. ``HERALDED_ERASE`` heralds on all four Pauli branches,
+    identity included, so the decomposed DEM carries one mechanism per herald
+    detector that causes no syndrome and no logical error; counting those in
+    both numerator and denominator inflates the fraction. The corrected metric
+    is the default of :func:`heralded_fraction`, which is what ``README.md`` and
+    ``scripts/heralded_fraction.py`` report (0.454 vs 0.547 here).
+
+    This used to be a local reimplementation, which meant running this script
+    appeared to contradict the README with no indication the definitions
+    differed. It now calls the library with the legacy flag set explicitly, so
+    the choice is visible. Verified 2026-09-06 that the two agree to 1.5e-14
+    (float summation order; not bit-identical).
+    """
+    return heralded_fraction(NoiseParams(p=p, r_e=r_e), d=d, count_no_op_heralds=True)
 
 
 def _syndrome_density(d: int, p: float, r_e: float, shots: int = 20000) -> float:
@@ -127,9 +138,7 @@ def _herald_free_fraction(d: int, p: float, r_e: float, shots: int = 40000) -> f
 
 def _ablation_ratio(d: int, p: float, r_e: float, shots: int = 40000) -> tuple[float, int, int]:
     circ = build(d, d, ErasureInjector(NoiseParams(p=p, r_e=r_e)))
-    dets, obs = circ.compile_detector_sampler(seed=0).sample(
-        shots, separate_observables=True
-    )
+    dets, obs = circ.compile_detector_sampler(seed=0).sample(shots, separate_observables=True)
     herald = HeraldMatchingDecoder.from_circuit(circ)
     blind = BlindMatchingDecoder(circ)
     h_pred = herald.decode_batch(dets)
@@ -149,21 +158,29 @@ def main() -> None:
         rows.append((check, measured, expected))
 
     b7 = _fit_diagnostics(BASELINE, "herald_mwpm", 7)
-    add("baseline herald d_min=7",
-        f"p_th={b7['p_th']*100:.3f}%  nu={b7['nu']:.2f}", "p_th=1.376%, nu=1.45")
+    add(
+        "baseline herald d_min=7",
+        f"p_th={b7['p_th'] * 100:.3f}%  nu={b7['nu']:.2f}",
+        "p_th=1.376%, nu=1.45",
+    )
     b_none = _fit_diagnostics(BASELINE, "herald_mwpm", None)
-    add("baseline herald d_min=None",
-        f"p_th={b_none['p_th']*100:.3f}%  nu={b_none['nu']:.2f}", "p_th=1.708%, nu=2.22")
+    add(
+        "baseline herald d_min=None",
+        f"p_th={b_none['p_th'] * 100:.3f}%  nu={b_none['nu']:.2f}",
+        "p_th=1.708%, nu=2.22",
+    )
 
     r7 = _fit_diagnostics(R50, "herald_mwpm", 7)
-    add("r50 herald d_min=7",
-        f"p_th={r7['p_th']*100:.3f}% +/- {r7['p_th_err']*100:.3f}%",
-        "p_th=2.185% +/- 0.278% (README says 2.30% +/- 0.15%)")
+    add(
+        "r50 herald d_min=7",
+        f"p_th={r7['p_th'] * 100:.3f}% +/- {r7['p_th_err'] * 100:.3f}%",
+        "p_th=2.185% +/- 0.278% (README says 2.30% +/- 0.15%)",
+    )
     r_none = _fit_diagnostics(R50, "herald_mwpm", None)
     add(
         "r50 herald d_min=None",
-        f"p_th={r_none['p_th']*100:.3f}%  "
-        f"p_arr.max={r_none.get('p_arr_max', float('nan'))*100:.3f}%  "
+        f"p_th={r_none['p_th'] * 100:.3f}%  "
+        f"p_arr.max={r_none.get('p_arr_max', float('nan')) * 100:.3f}%  "
         f"pinned={bool(r_none.get('pinned_at_bound', 0))}  "
         f"chi2/dof={r_none.get('chi2_dof', float('nan')):.2f}  "
         f"converged={bool(r_none['converged'])}",
@@ -178,8 +195,11 @@ def main() -> None:
         _fit_diagnostics(R50, "herald_mwpm", 7).get("chi2_dof", float("nan")),
         _fit_diagnostics(R50, "blind_mwpm", 7).get("chi2_dof", float("nan")),
     ]
-    add("chi2/dof of d_min=7 fits",
-        "  ".join(f"{c:.2f}" for c in chi2s), "0.11-0.32 (over-parameterised)")
+    add(
+        "chi2/dof of d_min=7 fits",
+        "  ".join(f"{c:.2f}" for c in chi2s),
+        "0.11-0.32 (over-parameterised)",
+    )
 
     wmax = [
         _fit_diagnostics(BASELINE, "herald_mwpm", 7).get("window_max_pl_shot", float("nan")),
@@ -187,28 +207,52 @@ def main() -> None:
         _fit_diagnostics(R50, "herald_mwpm", 7).get("window_max_pl_shot", float("nan")),
         _fit_diagnostics(R50, "herald_mwpm", None).get("window_max_pl_shot", float("nan")),
     ]
-    add("max P_L_shot in fit window", f"max over 4 fits = {max(wmax):.3f}",
-        "0.42-0.50 (coin-flip data fitted)")
+    add(
+        "max P_L_shot in fit window",
+        f"max over 4 fits = {max(wmax):.3f}",
+        "0.42-0.50 (coin-flip data fitted)",
+    )
 
-    add("DEM heralded mass (d=5,p=0.02,r_e=0.98)",
-        f"{_dem_heralded_mass(5, 0.02, 0.98):.3f}", "0.475 (not 0.98)")
+    # LEGACY metric (counts no-op herald branches) -- see _dem_heralded_mass.
+    # The corrected metric, which README.md quotes, is printed beside it.
+    add(
+        "DEM heralded mass, LEGACY incl. no-op heralds (d=5,p=0.02,r_e=0.98)",
+        f"{_dem_heralded_mass(5, 0.02, 0.98):.3f}",
+        "0.475 (not 0.98)",
+    )
+    add(
+        "DEM heralded mass, CORRECTED (= README; d=5,p=0.02,r_e=0.98)",
+        f"{heralded_fraction(NoiseParams(p=0.02, r_e=0.98), d=5):.3f}",
+        "n/a (post-fix metric, no pre-fix expectation)",
+    )
 
     dens = [_syndrome_density(5, 0.02, re) for re in (0.0, 0.5, 0.98)]
-    add("syndrome density p=0.02 r_e=0/0.5/0.98",
-        "  ".join(f"{x:.4f}" for x in dens), "0.2149 / 0.1993 / 0.1837 (-15%)")
+    add(
+        "syndrome density p=0.02 r_e=0/0.5/0.98",
+        "  ".join(f"{x:.4f}" for x in dens),
+        "0.2149 / 0.1993 / 0.1837 (-15%)",
+    )
 
     npr = [_nonidentity_pauli_prob(re) for re in (0.0, 0.5, 0.98)]
-    add("non-identity Pauli /p  r_e=0/0.5/0.98",
-        "  ".join(f"{x:.3f}" for x in npr), "1.0 / 0.875 / 0.755")
+    add(
+        "non-identity Pauli /p  r_e=0/0.5/0.98",
+        "  ".join(f"{x:.3f}" for x in npr),
+        "1.0 / 0.875 / 0.755",
+    )
 
-    add("herald-free shot fraction (d=5,p=0.02,r_e=0.98)",
-        f"{_herald_free_fraction(5, 0.02, 0.98):.5f}", "~13/40000 = 0.00033")
+    add(
+        "herald-free shot fraction (d=5,p=0.02,r_e=0.98)",
+        f"{_herald_free_fraction(5, 0.02, 0.98):.5f}",
+        "~13/40000 = 0.00033",
+    )
 
     for d in (3, 5, 7):
         ratio, h_err, b_err = _ablation_ratio(d, 0.01, 0.98)
-        add(f"ablation ratio d={d} (p=1%,r_e=0.98)",
+        add(
+            f"ablation ratio d={d} (p=1%,r_e=0.98)",
             f"{ratio:.1f}x  (herald_err={h_err}, blind_err={b_err})",
-            {3: "1.9x", 5: "6.4x", 7: "~30x (n~22)"}[d])
+            {3: "1.9x", 5: "6.4x", 7: "~30x (n~22)"}[d],
+        )
 
     width = max(len(c) for c, _, _ in rows)
     print(f"{'CHECK':<{width}}  {'MEASURED':<48}  EXPECTED")

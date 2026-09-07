@@ -17,15 +17,13 @@ probe_name = sys.argv[1] if len(sys.argv) > 1 else "A"
 
 if probe_name == "A":
     title = "Probe A: center data qubit (3,3), heralded erasure between rounds 0/1"
-    circuit = build(d=3, rounds=2, injector=NullInjector(),
-                    probe_erasures=[(3 + 3j, 0)])
+    circuit = build(d=3, rounds=2, injector=NullInjector(), probe_erasures=[(3 + 3j, 0)])
     expected_herald = 4
     # Verified 2026-07-08: two bulk 2-detector edges, no L0 ((3,3) not in support).
     expected_edges = [((6, 11), ()), ((7, 10), ())]
 elif probe_name == "B":
     title = "Probe B: corner data qubit (1,1), heralded erasure between rounds 0/1"
-    circuit = build(d=3, rounds=2, injector=NullInjector(),
-                    probe_erasures=[(1 + 1j, 0)])
+    circuit = build(d=3, rounds=2, injector=NullInjector(), probe_erasures=[(1 + 1j, 0)])
     expected_herald = 4
     # Prediction (guide Step 3.3): two SINGLE-detector boundary edges;
     # L0 on the {6} edge ((1,1) IS in logical_z_support(3)).
@@ -34,10 +32,11 @@ elif probe_name == "B":
     expected_edges = [((5,), ()), ((6,), (0,))]
 elif probe_name == "C":
     title = "Probe C: Z-ancilla (2,2), round 1, between CX layers 2 and 3"
-    circuit = build(d=3, rounds=2, injector=NullInjector(),
-                    mid_round_probe_erasures=[(2 + 2j, 1, 1)])
+    circuit = build(
+        d=3, rounds=2, injector=NullInjector(), mid_round_probe_erasures=[(2 + 2j, 1, 1)]
+    )
     expected_herald = 4
-    expected_edges = [((5,), ()), ((6, 13), ())]  
+    expected_edges = [((5,), ()), ((6, 13), ())]
 else:
     raise SystemExit(f"unknown probe {probe_name!r}")
 

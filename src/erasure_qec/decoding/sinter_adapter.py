@@ -34,9 +34,7 @@ _U8Array = npt.NDArray[np.uint8]
 
 def _unpack(bit_packed: _U8Array, num_detectors: int) -> npt.NDArray[np.bool_]:
     """Bit-packed shots (n, ceil(dets/8)) -> bool (n, num_detectors)."""
-    return np.unpackbits(
-        bit_packed, axis=1, count=num_detectors, bitorder="little"
-    ).astype(bool)
+    return np.unpackbits(bit_packed, axis=1, count=num_detectors, bitorder="little").astype(bool)
 
 
 def _pack(predictions: npt.NDArray[np.bool_]) -> _U8Array:
@@ -50,9 +48,7 @@ class _CompiledHeraldMwpm(sinter.CompiledDecoder):
     def __init__(self, decoder: HeraldMatchingDecoder) -> None:
         self._decoder = decoder
 
-    def decode_shots_bit_packed(
-        self, *, bit_packed_detection_event_data: _U8Array
-    ) -> _U8Array:
+    def decode_shots_bit_packed(self, *, bit_packed_detection_event_data: _U8Array) -> _U8Array:
         shots = _unpack(bit_packed_detection_event_data, self._decoder.num_detectors)
         return _pack(self._decoder.decode_batch(shots))
 
@@ -66,14 +62,10 @@ class _CompiledBlindMwpm(sinter.CompiledDecoder):
         self._herald_cols = partition_flattened_dem(dem).herald_indices
         self._matching = pymatching.Matching.from_detector_error_model(dem)
 
-    def decode_shots_bit_packed(
-        self, *, bit_packed_detection_event_data: _U8Array
-    ) -> _U8Array:
+    def decode_shots_bit_packed(self, *, bit_packed_detection_event_data: _U8Array) -> _U8Array:
         shots = _unpack(bit_packed_detection_event_data, self._num_detectors)
         shots[:, self._herald_cols] = False  # strip the herald information
-        preds = np.asarray(
-            self._matching.decode_batch(shots.astype(np.uint8)), dtype=np.uint8
-        )
+        preds = np.asarray(self._matching.decode_batch(shots.astype(np.uint8)), dtype=np.uint8)
         out = np.zeros((preds.shape[0], self._num_observables), dtype=bool)
         w = min(preds.shape[1], self._num_observables)
         out[:, :w] = preds[:, :w].astype(bool)
@@ -83,9 +75,7 @@ class _CompiledBlindMwpm(sinter.CompiledDecoder):
 class HeraldMwpmDecoder(sinter.Decoder):
     """§9 ``herald_mwpm``: per-shot herald-reweighted MWPM (M6) under sinter."""
 
-    def compile_decoder_for_dem(
-        self, *, dem: stim.DetectorErrorModel
-    ) -> sinter.CompiledDecoder:
+    def compile_decoder_for_dem(self, *, dem: stim.DetectorErrorModel) -> sinter.CompiledDecoder:
         flat = dem.flattened()
         return _CompiledHeraldMwpm(HeraldMatchingDecoder(partition_flattened_dem(flat)))
 
@@ -96,9 +86,7 @@ class HeraldMwpmDecoder(sinter.Decoder):
 class BlindMwpmDecoder(sinter.Decoder):
     """§9 ``blind_mwpm``: herald-stripped static MWPM ablation baseline."""
 
-    def compile_decoder_for_dem(
-        self, *, dem: stim.DetectorErrorModel
-    ) -> sinter.CompiledDecoder:
+    def compile_decoder_for_dem(self, *, dem: stim.DetectorErrorModel) -> sinter.CompiledDecoder:
         return _CompiledBlindMwpm(dem.flattened())
 
     def decode_via_files(self, **kwargs: Any) -> None:

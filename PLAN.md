@@ -1,23 +1,139 @@
 # PLAN.md — Herald-Conditioned Decoding of the Erasure-Converted Rotated Surface Code
 
 > **What this is.** This is the specification I wrote before building anything — the plan the whole
-> project was built and measured against, now complete (every milestone M0–M9 is implemented and its
-> gate is green). I gated it on milestones deliberately: each stage had to be verifiably correct before
-> the next began, so a bug in the circuit could never hide behind a decoder. I have preserved it
-> essentially as written, in its original imperative voice, so the build order and the reasoning behind
-> it stay visible. A few details shifted during implementation — the ancilla checkerboard parity turned
-> out mirrored from my initial assumption, and the DEM partition ended up using per-component
-> conditioned edges rather than whole-mechanism hyperedges — and `docs/DEVLOG.md` records what actually
-> happened.
+> project was built and measured against. Every milestone M0–M9 is implemented; **M0–M8's gates are
+> green, M9's is only partially met** (see ERRATA E3 below). I gated it on milestones deliberately: each
+> stage had to be verifiably correct before the next began, so a bug in the circuit could never hide
+> behind a decoder. I have preserved it essentially as written, in its original imperative voice, so the
+> build order and the reasoning behind it stay visible. A few details shifted during implementation — the
+> ancilla checkerboard parity turned out mirrored from my initial assumption, and the DEM partition ended
+> up using per-component conditioned edges rather than whole-mechanism hyperedges — and `docs/DEVLOG.md`
+> records what actually happened. Where the plan as written is **wrong** rather than merely superseded,
+> the ERRATA block below says so explicitly and the body carries an inline marker at each site.
 
 > **This document is the single source of truth for the build.** Every implementation
 > task references a section number here. Build order is strictly milestone-by-milestone:
 > the noiseless circuit and its determinism tests come first; noise, DEM partitioning,
-> and decoding only begin once M3 is green.
+> and decoding only begin once M3 is green. **It is not, however, a correct record of what
+> was measured** — where it conflicts with `README.md` / `docs/AUDIT.md`, those win; see
+> ERRATA.
+
+---
+
+## ERRATA (added 2026-09-05, post-build)
+
+The plan body below is preserved as written. Four of its statements are **wrong or unmet**
+as against the shipped code and data. Each site in the body carries an inline `[ERRATA En]`
+marker pointing here. Nothing in the body has been silently corrected.
+
+### E1 — §5 "Key fact" states the wrong conditional probability
+
+> §5 as written: *"conditional on a herald firing, each nontrivial Pauli on that qubit has
+> probability 1/2"*
+
+**This is wrong.** `HERALDED_ERASE` replaces the qubit with `I/2`, so conditional on the
+herald each of **I, X, Y, Z has probability 1/4**, not 1/2. The `1/2` is the probability of
+the *graph-relevant component*, not of an individual Pauli: for the Z-basis memory's matching
+graph, the mechanisms that look like an X-flip to the Z-checks are X and Y, so
+`P(X) + P(Y) = 1/4 + 1/4 = 1/2`. That component probability is what gives
+`ln((1−p)/p) = ln((1−½)/½) = 0`.
+
+The numerical conclusion (weight 0) is therefore unaffected — only the stated reason is
+wrong. The shipped code and prose already say it correctly:
+`src/erasure_qec/decoding/dem_partition.py` scopes the 1/2 to the edge
+(`HERALD_CONDITIONAL_PROBABILITY = 0.5`, "every conditioned edge's probability is 1/2"), and
+`docs/dem_worksheet.md` spells out the `q/4` → `P(X)+P(Y) = 1/2` derivation. Only PLAN.md
+was wrong.
+
+### E2 — the noise model is UNBIASED erasure, not "biased erasure"
+
+> §0 as written: *"under a **biased-erasure noise model**"*
+> §1 as written: *"injector.py  # NoiseInjector protocol: Null / PauliOnly / BiasedErasure"*
+
+**Both are wrong, and they claim the opposite of what was built.** The implemented erasure is
+**unbiased**: `HERALDED_ERASE` replaces the qubit with the maximally mixed state `I/2`, all
+four Paulis equally likely conditioned on the herald. There is no Pauli bias anywhere in the
+model, and the README makes a point of this — the advantage reported is *from decoding, not
+from Pauli bias*. A biased-erasure model (in the Wu et al. sense, where the residual error is
+Z-dominated) was never implemented.
+
+The class is named **`ErasureInjector`**, not `BiasedErasure`; the injectors that exist are
+`NullInjector`, `ErasureInjector`, and `PauliOnlyInjector`. `grep -rn BiasedErasure` matches
+this file and nothing else in the repository.
+
+### E3 — §0's headline deliverable and §11's M9 gate are only partially met
+
+**§0 specified** panels at `R_e ∈ {0, 0.5, 0.9, 0.98}` "showing the threshold sliding from
+≈1% toward ≈4–5%". **Delivered:**
+
+- **Three panels, not four.** `r_e = 0.9` was never run. The committed sweeps are
+  `data/{baseline_pauli,erasure_r50,erasure_r98}.csv`, carrying `r_e ∈ {0, 0.5, 0.98}` only,
+  and `figures/threshold_panels.png` has three panels.
+- **The ≈4–5% endpoint is a reported non-result, not a measurement.** At `r_e = 0.98` the
+  collapse fit resolves **neither** threshold and the code encodes that verdict
+  (`resolved=False`): the herald fit rails ν to its bound (`nu at upper bound pinned at
+  optimiser bound`), and the blind fit converges but is rejected by the resolution guard
+  (`relative CI width 2.95 >= guard 1.0`) — `p_th = 1.64%`, 95% CI from ~1.5% to an upper endpoint
+  landing anywhere in 5.5–8.5% depending on the bootstrap seed (6.3% at `seed = 0`), 2.4–4.3× wider
+  than the threshold itself. (Seed range, `rel_ci_width` range and the grid-pin check:
+  `uv run python scripts/paired_separation.py --full-stability`, ~4.7 min. Both ends of the
+  5.5–8.5% span are grid-pinned, so it is not an interval estimate.) No `~4–5%` threshold
+  was measured, and none is claimed. The largest *resolved* threshold in the repo is
+  **2.32%** (herald, `r_e = 0.5`). The high-`r_e` story is carried by the deterministic
+  ablation instead.
+- **The slide that *is* measured** is `1.38% → 2.32%` (herald, `r_e = 0 → 0.5`), against
+  `1.44% → 1.49%` blind. That is the headline, and it is smaller in reach than §0 projected.
+
+**§11's M9 gate** — "README with figures, throughput table, CI badge" — likewise:
+
+- Figures: **met** (`figures/` holds `threshold_panels`, `ablation`, `lambda_vs_p`,
+  `hook_regression`; all four are referenced from the README).
+- CI badge: **now met.** It was absent at the time this errata was written; the badge for
+  `.github/workflows/ci.yml` was added to the top of `README.md` on 2026-09-05, resolving the
+  mismatch in favour of the gate.
+- Throughput **table**: **not met.** Throughput is reported as a single prose bullet under
+  "Other components" (~80k shots/s herald-free, ~1.6k shots/s at `r_e = 0.98`, a ~51× gap) —
+  two numbers, not a table. (Numbers corrected 2026-09-06: the bullet previously said
+  1,650 shots/s and 48×; re-measured on an Apple M2 over 13 runs the rates are
+  1,542–1,593 shots/s and the paired ratio 48.6–54.6×, median 51.3.) The gate over-specified the format for the amount of data there
+  is to show; it has not been upgraded to a table.
+
+Net: **M9's gate is partially met** — figures and CI badge yes, throughput table no. This is
+the sole reason the preamble no longer claims all gates are green.
+
+### E4 — §1's repository tree does not match the shipped layout
+
+> §1 as written lists `data/  # gitignored`, an `analysis/` package of three modules, an
+> `experiments/` of two collectors, and no `scripts/` or `docs/` directory at all.
+
+The one **wrong** statement is `data/  # gitignored`. It is not: `.gitignore` ignores `data/*`
+but explicitly un-ignores the three canonical sweeps (`baseline_pauli.csv`, `erasure_r50.csv`,
+`erasure_r98.csv`), which **are committed** so that every number the README quotes is
+reproducible from tracked data. Only the scratch in `data/` (collection logs, smoke CSVs,
+`stale_old_model/`) is ignored. `figures/` is likewise tracked, not generated-and-ignored.
+
+The rest is **incompleteness**, not error — code that shipped and the plan never named:
+
+| Path | Status |
+|---|---|
+| `scripts/` (6 files) | whole directory absent from the tree; `audit_checks.py`, `ablation_table.py`, `heralded_fraction.py`, `paired_separation.py`, `partition_check.py`, `worksheet_probe.py` |
+| `docs/` | whole directory absent; `AUDIT.md`, `DEVLOG.md`, `FUTURE_WORK.md`, `dem_worksheet.md`, `figures/` |
+| `src/erasure_qec/analysis/synthetic.py` | shipped, not planned |
+| `src/erasure_qec/analysis/dem_stats.py` | shipped, not planned |
+| `experiments/make_synthetic_fixtures.py` | shipped, not planned |
+| `tests/` | 14 test modules + `fixtures/` shipped; §1 lists 6 + `conftest.py`. Every module it lists exists. |
+| `uv.lock` | committed, not listed |
+
+Nothing §1 lists under `src/` is missing from the build: every planned module exists at the
+planned path (modulo E2's `BiasedErasure` → `ErasureInjector` rename). The drift is entirely
+one-directional — the build grew analysis and tooling the plan did not anticipate. The
+accurate current layout is the Architecture block in `README.md`.
 
 ---
 
 ## 0. Project Summary
+
+> ⚠️ **[ERRATA E2](#errata-added-2026-09-05-post-build)** — "biased-erasure" below is **wrong**: the implemented erasure is *unbiased* (`I/2`, all four Paulis equal).
 
 We implement a distance-d rotated surface code memory experiment (Z basis) in Stim,
 under a **biased-erasure noise model**: a fraction `R_e` of the physical error budget
@@ -26,6 +142,8 @@ the remainder stays as unheralded two-qubit depolarizing noise. A custom
 **herald-conditioned matching decoder** (PyMatching, wrapped as a `sinter.Decoder`)
 reads the herald bits per shot and sets the corresponding matching-graph edge
 weights to zero (conditional error probability 1/2 ⇒ weight ln((1−p)/p) = 0).
+
+> ⚠️ **[ERRATA E3](#errata-added-2026-09-05-post-build)** — only partially delivered: **three** panels, not four (no `r_e = 0.9`), and the `r_e = 0.98` threshold is a reported **non-result**, not a measured ≈4–5%.
 
 **Headline deliverable:** threshold curves p_L vs p_phys for d ∈ {3,5,7,9,11},
 one panel per R_e ∈ {0, 0.5, 0.9, 0.98}, showing the threshold sliding from
@@ -37,6 +155,8 @@ dual-rail superconducting cavities.
 ---
 
 ## 1. Repository Architecture
+
+> ⚠️ **[ERRATA E4](#errata-added-2026-09-05-post-build)** — the tree below is **not** the shipped layout: `data/` is not gitignored, and `scripts/`, `docs/`, two `analysis/` modules and one `experiments/` collector are missing from it.
 
 ```
 erasure-surface-code/
@@ -56,7 +176,7 @@ erasure-surface-code/
 │   │   └── builder.py               # only module that emits stim.Circuit
 │   ├── noise/
 │   │   ├── model.py                 # NoiseParams -> concrete channel specs
-│   │   └── injector.py              # NoiseInjector protocol: Null / PauliOnly / BiasedErasure
+│   │   └── injector.py              # NoiseInjector protocol: Null / PauliOnly / BiasedErasure   <-- [ERRATA E2] built as ErasureInjector (unbiased)
 │   ├── decoding/
 │   │   ├── dem_partition.py         # DEM -> (pauli sub-DEM, herald->edges table)
 │   │   ├── herald_matching.py       # per-shot reweighted matcher, fast/slow path
@@ -219,6 +339,8 @@ Supporting channels:
 Every herald record bit gets `DETECTOR(x, y, t, 1)` (sentinel per §3.4).
 The builder must append these herald detectors in the same round they occur.
 
+> ⚠️ **[ERRATA E1](#errata-added-2026-09-05-post-build)** — the "Key fact" below is **wrong as stated**: each of I/X/Y/Z has probability **1/4**; the 1/2 is `P(X)+P(Y)`, the *graph-relevant component*. The weight-0 conclusion still holds.
+
 Key fact: conditional on a herald firing, each nontrivial Pauli on that qubit has
 probability 1/2 → matching edge weight ln((1−½)/½) = **0**.
 
@@ -366,4 +488,4 @@ Only after 1–6 hold on paper AND in the test does M5 close.
 | M6 | herald_matching.py | forced-erasure correctness test |
 | M7 | sinter_adapter + experiment scripts | 10⁴-shot smoke run end-to-end |
 | M8 | statistics + threshold_fit + plotting | figures reproduce from CSVs deterministically |
-| M9 | README with figures, throughput table, CI badge | done |
+| M9 | README with figures, throughput table, CI badge | **partially met** — figures ✓, CI badge ✓ (added 2026-09-05), throughput table ✗ (a bullet); see [ERRATA E3](#errata-added-2026-09-05-post-build) |

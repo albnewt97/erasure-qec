@@ -155,12 +155,8 @@ def build(
     for q in data:
         data_meas[q] = meas_count
         meas_count += 1
-    _emit_closing_detectors(
-        circuit, z_ancillas, neighbors, data_meas, prev_round_meas, meas_count
-    )
-    obs = [
-        stim.target_rec(data_meas[q] - meas_count) for q in logical_z_support(d)
-    ]
+    _emit_closing_detectors(circuit, z_ancillas, neighbors, data_meas, prev_round_meas, meas_count)
+    obs = [stim.target_rec(data_meas[q] - meas_count) for q in logical_z_support(d)]
     circuit.append("OBSERVABLE_INCLUDE", obs, 0)
     return circuit
 
@@ -214,14 +210,10 @@ def _emit_round(
         heralded = injector.on_two_qubit_gate(circuit, pairs)
         meas_count = _emit_herald_detectors(circuit, heralded, rev_index, meas_count)
         active = {q for pair in pairs for q in pair}
-        idle_heralded = injector.on_idle(
-            circuit, [i for i in all_indices if i not in active]
-        )
+        idle_heralded = injector.on_idle(circuit, [i for i in all_indices if i not in active])
         # Idle-erasure herald bits land in the record right after the gate
         # heralds (before the TICK), so their detectors are emitted here too.
-        meas_count = _emit_herald_detectors(
-            circuit, idle_heralded, rev_index, meas_count
-        )
+        meas_count = _emit_herald_detectors(circuit, idle_heralded, rev_index, meas_count)
         circuit.append("TICK")
         meas_count = _emit_probe_erasures(
             circuit, mid_round_probes.get(layer, []), index, rev_index, meas_count, probe_q
@@ -320,9 +312,7 @@ def _emit_closing_detectors(
     """Time-closing Z detectors: (XOR of adjacent data) XOR last syndrome (§3.4)."""
     for a in z_ancillas:
         recs = [
-            stim.target_rec(data_meas[nb] - meas_count)
-            for nb in neighbors[a]
-            if nb is not None
+            stim.target_rec(data_meas[nb] - meas_count) for nb in neighbors[a] if nb is not None
         ]
         recs.append(stim.target_rec(prev_round_meas[a] - meas_count))
         circuit.append("DETECTOR", recs, (a.real, a.imag, 0))

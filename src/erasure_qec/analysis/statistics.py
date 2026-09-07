@@ -16,6 +16,11 @@ Confidence intervals come two ways, both exposed:
   through the (monotonic) per-round conversion — closed form, no sampling.
 - **Bootstrap** — resample ``errors ~ Binomial(shots, P_L_shot)`` and push each
   draw through the conversion, then take percentiles. Seeded for determinism.
+
+:func:`lambda_factor` bootstraps a *ratio*, so it additionally has to discard
+replicates with a zero denominator. Those discards are counted and surfaced on
+:class:`LambdaEstimate` rather than dropped silently — see that function's
+docstring for why the conditioning biases the interval's upper endpoint low.
 """
 
 from collections.abc import Iterable, Sequence
@@ -54,6 +59,45 @@ class Estimate:
     value: float
     low: float
     high: float
+
+
+@dataclass(frozen=True)
+class LambdaEstimate(Estimate):
+    """:class:`Estimate` plus the bootstrap-conditioning bookkeeping of
+    :func:`lambda_factor`.
+
+    A separate type rather than three more fields on :class:`Estimate`: the
+    Wilson interval from :func:`per_round_estimate` has no replicates at all, so
+    an ``n_boot_dropped = 0`` there would read as "checked, none dropped" when
+    nothing was ever checked. Subclassing keeps ``.value``/``.low``/``.high``
+    and ``isinstance(x, Estimate)`` working for existing callers.
+
+    Naming mirrors :class:`~erasure_qec.analysis.threshold_fit.FitResult`'s
+    ``n_boot`` / ``n_boot_failed`` pair.
+    """
+
+    n_boot: int = 0  # replicates drawn
+    n_boot_dropped: int = 0  # replicates with a zero denominator, excluded
+    ci: float = 0.95  # the interval's nominal coverage, for `ci_conditioned`
+
+    @property
+    def dropped_fraction(self) -> float:
+        """Fraction of replicates excluded from the CI (NaN if none drawn)."""
+        return self.n_boot_dropped / self.n_boot if self.n_boot else float("nan")
+
+    @property
+    def ci_conditioned(self) -> bool:
+        """True when the discards outweigh the tail the CI claims to measure.
+
+        The dropped replicates are exactly those where the ``d+2`` code logged
+        zero errors -- the ones whose unconditional ``Lambda`` is ``+inf``. Once
+        more than ``(1 - ci) / 2`` of the draws are dropped, the *true* upper
+        quantile is ``+inf``, and the reported ``high`` is not an approximation
+        of it: it is the upper endpoint of a different distribution (``Lambda``
+        given that ``d+2`` failed at least once). Treat such an interval the way
+        ``FitResult.resolved = False`` is treated -- do not quote it.
+        """
+        return bool(self.n_boot) and self.dropped_fraction > (1.0 - self.ci) / 2.0
 
 
 def per_round_p_l(p_l_shot: float, rounds: int) -> float:
@@ -127,10 +171,35 @@ def lambda_factor(
     n_boot: int = 2000,
     seed: int = 0,
     ci: float = 0.95,
-) -> Estimate:
+) -> LambdaEstimate:
     """Suppression factor ``Lambda = p_L(d) / p_L(d+2)`` at fixed p, with a
     bootstrap CI (§10). ``point_d2`` must be the ``d + 2`` partner of
-    ``point_d`` (same decoder, p, r_e)."""
+    ``point_d`` (same decoder, p, r_e).
+
+    **The CI is conditioned, and the conditioning is not ignorable.** A
+    replicate whose ``d+2`` draw logs zero errors has a zero denominator, so its
+    ``Lambda`` is ``+inf`` (or ``0/0``); such replicates are excluded from the
+    percentile CI. That is not missing-at-random -- it removes precisely the
+    largest values, so ``high`` is biased *low*, never high. The count is
+    reported as ``n_boot_dropped`` (cf. ``FitResult.n_boot_failed``, which the
+    threshold fit reports for the same reason).
+
+    Once the dropped fraction exceeds the CI's own tail mass ``(1 - ci) / 2``,
+    the unconditional upper quantile is ``+inf`` and ``high`` is the endpoint of
+    a *different* distribution -- ``Lambda`` given that ``d+2`` failed at least
+    once. :attr:`LambdaEstimate.ci_conditioned` flags exactly that case; do not
+    quote such an interval. Real example from ``data/erasure_r98.csv``:
+    ``herald_mwpm``, ``r_e = 0.98``, ``d = 3 -> 5`` at ``p = 0.001`` has 1 error
+    in 100k shots at ``d = 5``, drops 745/2000 replicates (37%), and reports
+    ``[10, 56]`` for a quantity whose honest upper limit is unbounded.
+
+    The dropped replicates are *excluded, not reweighted*: the estimator is left
+    as-is so committed figures stay reproducible. The ``>= 50``-observed-error
+    gate in :func:`~erasure_qec.analysis.plotting.figure_lambda` keeps every
+    plotted point clear of this -- all 425 gated-in pairs in ``data/`` drop zero
+    replicates -- but ``lambda_factor`` is public API and callers that skip the
+    gate must check ``ci_conditioned`` themselves.
+    """
     if point_d2.d != point_d.d + 2:
         raise ValueError(f"expected d+2={point_d.d + 2}, got d={point_d2.d}")
     num = per_round_p_l(point_d.p_l_shot, point_d.rounds)
@@ -139,16 +208,22 @@ def lambda_factor(
     num_draws = rng.binomial(point_d.shots, point_d.p_l_shot, n_boot) / point_d.shots
     den_draws = rng.binomial(point_d2.shots, point_d2.p_l_shot, n_boot) / point_d2.shots
     ratios = []
+    n_dropped = 0
     for a, b in zip(num_draws, den_draws, strict=True):
         pb = per_round_p_l(float(b), point_d2.rounds)
         if pb > 0.0:
             ratios.append(per_round_p_l(float(a), point_d.rounds) / pb)
+        else:
+            n_dropped += 1  # zero denominator: unconditional Lambda is +inf
     arr = np.array(ratios) if ratios else np.array([np.nan])
     lo_q, hi_q = (1.0 - ci) / 2.0, 1.0 - (1.0 - ci) / 2.0
-    return Estimate(
+    return LambdaEstimate(
         value=num / den if den > 0 else float("nan"),
         low=float(np.nanquantile(arr, lo_q)),
         high=float(np.nanquantile(arr, hi_q)),
+        n_boot=n_boot,
+        n_boot_dropped=n_dropped,
+        ci=ci,
     )
 
 

@@ -8,6 +8,7 @@ import pytest
 
 from erasure_qec.analysis.statistics import SweepPoint, load_sweep, shot_p_l_from_per_round
 from erasure_qec.analysis.threshold_fit import (
+    FitResult,
     ReplicateFailure,
     ThresholdDifference,
     bootstrap_threshold_difference,
@@ -116,7 +117,10 @@ def test_fitter_rejects_adversarial_saturated_fixture() -> None:
             assert not result.converged, (decoder, d_min, result.p_th, result.message)
             assert not result.resolved, (decoder, d_min)
             assert result.reason == expected_reason[d_min], (
-                decoder, d_min, result.reason, result.message,
+                decoder,
+                d_min,
+                result.reason,
+                result.message,
             )
 
 
@@ -283,7 +287,7 @@ _COV_SHOTS = 30_000
 
 
 def _cov_truth(p: float, d: int) -> float:
-    x = (p - _COV_P_TH) * d ** (1.0 / _COV_NU)
+    x: float = (p - _COV_P_TH) * d ** (1.0 / _COV_NU)
     return min(max(_COV_A + _COV_B * x + _COV_C * x * x, 1e-6), 0.45)
 
 
@@ -416,8 +420,8 @@ def _marginals(
     return herald, blind
 
 
-def _ci_width(fit: object) -> float:
-    lo, hi = fit.p_th_ci  # type: ignore[attr-defined]
+def _ci_width(fit: FitResult) -> float:
+    lo, hi = fit.p_th_ci
     return hi - lo
 
 
@@ -440,7 +444,11 @@ def test_paired_bootstrap_ci_covers_known_delta() -> None:
         }
         herald, blind = _marginals(realized)  # type: ignore[arg-type]
         r = bootstrap_threshold_difference(
-            herald, blind, joint_counts=realized, n_boot=150, seed=i  # type: ignore[arg-type]
+            herald,
+            blind,
+            joint_counts=realized,  # type: ignore[arg-type]
+            n_boot=150,
+            seed=i,
         )
         if not r.converged:
             continue
@@ -460,9 +468,7 @@ def test_paired_ci_narrower_than_naive_marginal_difference() -> None:
     narrower than the interval you'd get by naively differencing the two
     marginal CIs (whose width is the SUM of the marginal widths)."""
     joint, herald, blind = _paired_synthetic(0.020, 0.017, shots=40_000)
-    diff = bootstrap_threshold_difference(
-        herald, blind, joint_counts=joint, n_boot=400, seed=2
-    )
+    diff = bootstrap_threshold_difference(herald, blind, joint_counts=joint, n_boot=400, seed=2)
     herald_fit = fit_threshold(herald, n_boot=400, seed=2)
     blind_fit = fit_threshold(blind, n_boot=400, seed=2)
     naive_width = _ci_width(herald_fit) + _ci_width(blind_fit)
@@ -477,9 +483,7 @@ def test_shuffled_pairing_widens_ci() -> None:
     silently ignored the correlation, both CIs would match."""
     joint, herald, blind = _paired_synthetic(0.020, 0.017, shots=40_000)
     shuffled = _decorrelate(joint)
-    paired = bootstrap_threshold_difference(
-        herald, blind, joint_counts=joint, n_boot=400, seed=3
-    )
+    paired = bootstrap_threshold_difference(herald, blind, joint_counts=joint, n_boot=400, seed=3)
     unpaired = bootstrap_threshold_difference(
         herald, blind, joint_counts=shuffled, n_boot=400, seed=3
     )
@@ -527,11 +531,20 @@ def _make_diff(
     herald = np.full(len(deltas), 0.02)
     blind = herald + np.array(deltas, dtype=float)
     return ThresholdDifference(
-        converged=True, delta=float(np.mean(deltas)), delta_ci=(0.0, 0.0),
-        delta_err=0.0, excludes_zero=True, herald_p_th=0.02, blind_p_th=0.015,
-        correlation=0.0, paired=False, n_boot=len(deltas) + n_fail,
-        n_paired_failed=n_fail, herald_pth_draws=tuple(herald),
-        blind_pth_draws=tuple(blind), failures=failures,
+        converged=True,
+        delta=float(np.mean(deltas)),
+        delta_ci=(0.0, 0.0),
+        delta_err=0.0,
+        excludes_zero=True,
+        herald_p_th=0.02,
+        blind_p_th=0.015,
+        correlation=0.0,
+        paired=False,
+        n_boot=len(deltas) + n_fail,
+        n_paired_failed=n_fail,
+        herald_pth_draws=tuple(herald),
+        blind_pth_draws=tuple(blind),
+        failures=failures,
     )
 
 
@@ -547,10 +560,14 @@ def test_tipping_point_matches_percentile_construction() -> None:
         tip = tipping_point_discards(diff)
         arr = np.array(diff.blind_pth_draws) - np.array(diff.herald_pth_draws)
         empirical = next(
-            k for k in range(n_fail + 1)
-            if float(np.percentile(
-                np.concatenate([arr, np.full(k, 1e-6), np.full(n_fail - k, -1.0)]), 97.5
-            )) >= 0.0
+            k
+            for k in range(n_fail + 1)
+            if float(
+                np.percentile(
+                    np.concatenate([arr, np.full(k, 1e-6), np.full(n_fail - k, -1.0)]), 97.5
+                )
+            )
+            >= 0.0
         )
         assert tip == empirical, (tip, empirical, n_fail)
 
@@ -561,18 +578,27 @@ def test_partial_information_implied_delta_uses_recorded_pth_and_counts_unbounde
     neither finite is unbounded and excluded."""
     fails = (
         ReplicateFailure(  # blind bound-pinned high, herald converged -> +0.005
-            herald_p_th=0.020, blind_p_th=0.025, herald_converged=True,
-            blind_converged=False, herald_message="ok",
+            herald_p_th=0.020,
+            blind_p_th=0.025,
+            herald_converged=True,
+            blind_converged=False,
+            herald_message="ok",
             blind_message="not converged: p_th at window maximum pinned at optimiser bound",
         ),
         ReplicateFailure(  # only blind finite -> 0.030 - herald_median(0.020) = +0.010
-            herald_p_th=float("nan"), blind_p_th=0.030, herald_converged=False,
-            blind_converged=True, herald_message="insufficient data in window",
+            herald_p_th=float("nan"),
+            blind_p_th=0.030,
+            herald_converged=False,
+            blind_converged=True,
+            herald_message="insufficient data in window",
             blind_message="ok",
         ),
         ReplicateFailure(  # neither finite -> unbounded
-            herald_p_th=float("nan"), blind_p_th=float("nan"), herald_converged=False,
-            blind_converged=False, herald_message="insufficient data in window",
+            herald_p_th=float("nan"),
+            blind_p_th=float("nan"),
+            herald_converged=False,
+            blind_converged=False,
+            herald_message="insufficient data in window",
             blind_message="curve_fit failed on the point estimate",
         ),
     )

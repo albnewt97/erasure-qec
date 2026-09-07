@@ -29,12 +29,17 @@ import matplotlib
 
 matplotlib.use("Agg")
 
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-from matplotlib.axes import Axes  # noqa: E402
-from matplotlib.figure import Figure  # noqa: E402
+# The imports below sit after matplotlib.use() deliberately -- the backend must be
+# selected before pyplot is imported. They carry no E402 suppression: ruff exempts
+# matplotlib.use() (along with sys.path.* and os.environ mutation) from E402, so a
+# suppression here would be dead and RUF100 now rejects it. pycodestyle proper does
+# not grant that exemption -- if the linter is ever switched, the suppression returns.
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
-from erasure_qec.analysis.statistics import (  # noqa: E402
+from erasure_qec.analysis.statistics import (
     SweepPoint,
     available_conditions,
     group_curves,
@@ -42,7 +47,7 @@ from erasure_qec.analysis.statistics import (  # noqa: E402
     load_sweep,
     per_round_estimate,
 )
-from erasure_qec.analysis.threshold_fit import FitResult, fit_threshold  # noqa: E402
+from erasure_qec.analysis.threshold_fit import FitResult, fit_threshold
 
 BOOTSTRAP_SEED = 0
 _PNG_METADATA = {"Software": None, "Creation Time": None}
@@ -124,8 +129,14 @@ def _mark_threshold(ax: Axes, fit: FitResult) -> None:
     # wider than its own threshold (r_e=0.98 blind) must not be drawn as a line.
     if not fit.resolved:
         ax.text(
-            0.03, 0.03, f"no fit:\n{fit.message.splitlines()[0]}",
-            transform=ax.transAxes, fontsize=6, va="bottom", ha="left", color="0.4",
+            0.03,
+            0.03,
+            f"no fit:\n{fit.message.splitlines()[0]}",
+            transform=ax.transAxes,
+            fontsize=6,
+            va="bottom",
+            ha="left",
+            color="0.4",
         )
         return
     ax.axvline(fit.p_th, color="crimson", linestyle="--", linewidth=1.0)
@@ -136,13 +147,21 @@ def _mark_threshold(ax: Axes, fit: FitResult) -> None:
         # skewed, so this is the honest interval, not p_th +/- one std).
         ax.axvspan(lo, hi, color="crimson", alpha=0.12)
     scope = f"$d\\geq{fit.d_min}$ fit" if fit.d_min is not None else "all-$d$ fit"
-    ci_line = (
-        f"\n95% CI [{lo*100:.2f}, {hi*100:.2f}]" if has_ci else ""
-    )
+    # One decimal on the CI endpoints, two on p_th. p_th is RNG-free (curve_fit
+    # on fixed data) and exact; the bootstrap percentile endpoints drift with the
+    # seed and the NumPy build by more than 0.01 percentage points, so a second
+    # decimal here would be false precision. Same convention as README.md and
+    # docs/AUDIT.md "Reproducibility and environment sensitivity".
+    ci_line = f"\n95% CI [{lo * 100:.1f}, {hi * 100:.1f}]" if has_ci else ""
     ax.text(
-        0.97, 0.03,
-        f"{scope}\n$p_{{th}}={fit.p_th*100:.2f}\\%${ci_line}\n$\\nu={fit.nu:.2f}$",
-        transform=ax.transAxes, fontsize=6.5, va="bottom", ha="right", color="crimson",
+        0.97,
+        0.03,
+        f"{scope}\n$p_{{th}}={fit.p_th * 100:.2f}\\%${ci_line}\n$\\nu={fit.nu:.2f}$",
+        transform=ax.transAxes,
+        fontsize=6.5,
+        va="bottom",
+        ha="right",
+        color="crimson",
     )
 
 
@@ -177,15 +196,16 @@ def figure_threshold_panels(
         return None
     with _styled():
         fig, axes = plt.subplots(
-            1, len(conditions), figsize=(4.2 * len(conditions), 3.6),
-            squeeze=False, layout="constrained",
+            1,
+            len(conditions),
+            figsize=(4.2 * len(conditions), 3.6),
+            squeeze=False,
+            layout="constrained",
         )
         for ax, (dec, r_e) in zip(axes[0], conditions, strict=True):
             cond_points = [pt for pt in points if pt.decoder == dec and pt.r_e == r_e]
             _plot_curves_on(ax, cond_points)
-            fit = _choose_threshold_fit(
-                cond_points, window_factor=window_factor, seed=seed
-            )
+            fit = _choose_threshold_fit(cond_points, window_factor=window_factor, seed=seed)
             _mark_threshold(ax, fit)
             _add_collapse_inset(ax, fit)
             ax.set_title(f"{dec}, $r_e={r_e:g}$")
@@ -216,6 +236,15 @@ def figure_lambda(
     Only points where both distances have >= ``_LAMBDA_MIN_ERRORS`` observed
     logical errors are plotted; the low-statistics tail (whose bootstrap CIs
     swamp the signal) is dropped.
+
+    That gate is also what keeps :func:`lambda_factor`'s conditioned bootstrap
+    out of this figure: replicates with a zero ``d+2`` denominator are excluded
+    from its CI, which biases the upper bar low. On the committed sweeps no
+    gated-in point drops a single replicate, but that is a property of the data,
+    not a theorem -- so any point whose CI *is* conditioned
+    (:attr:`LambdaEstimate.ci_conditioned`) is counted and called out in the
+    corner note rather than drawn as if its error bar meant what it usually
+    means.
     """
     conditions = [(dec, re) for dec, re in available_conditions(points) if dec == decoder]
     if not conditions:
@@ -223,6 +252,7 @@ def figure_lambda(
     with _styled():
         fig, ax = plt.subplots(figsize=(5.0, 3.8), layout="constrained")
         plotted = False
+        n_conditioned = 0  # plotted points whose bootstrap CI is conditioned
         for _, r_e in conditions:
             curves = group_curves(points, decoder, r_e)
             all_d = sorted(curves)
@@ -240,11 +270,20 @@ def figure_lambda(
                 if not shared:
                     continue
                 lam = [lambda_factor(by_p[p], by_p2[p], seed=seed) for p in shared]
-                yerr = np.array([[max(la.value - la.low, 0) for la in lam],
-                                 [max(la.high - la.value, 0) for la in lam]])
+                n_conditioned += sum(la.ci_conditioned for la in lam)
+                yerr = np.array(
+                    [
+                        [max(la.value - la.low, 0) for la in lam],
+                        [max(la.high - la.value, 0) for la in lam],
+                    ]
+                )
                 ax.errorbar(
-                    shared, [la.value for la in lam], yerr=yerr, marker="s",
-                    capsize=2, label=f"$r_e={r_e:g}$, $d{{=}}{d}\\!\\to\\!{d + 2}$",
+                    shared,
+                    [la.value for la in lam],
+                    yerr=yerr,
+                    marker="s",
+                    capsize=2,
+                    label=f"$r_e={r_e:g}$, $d{{=}}{d}\\!\\to\\!{d + 2}$",
                 )
                 plotted = True
         if not plotted:
@@ -254,10 +293,21 @@ def figure_lambda(
         ax.set_xlabel("physical error rate $p$")
         ax.set_ylabel(r"$\Lambda = p_L(d)/p_L(d{+}2)$")
         ax.set_title(f"Distance suppression factor ({decoder})")
+        note = f"points require $\\geq {_LAMBDA_MIN_ERRORS}$ logical errors in both $d$"
+        if n_conditioned:
+            note += (
+                f"\n{n_conditioned} point(s) have a conditioned bootstrap CI:"
+                "\nupper bar is a lower bound on the true limit"
+            )
         ax.text(
-            0.02, 0.98,
-            f"points require $\\geq {_LAMBDA_MIN_ERRORS}$ logical errors in both $d$",
-            transform=ax.transAxes, fontsize=6.5, va="top", ha="left", color="0.4",
+            0.02,
+            0.98,
+            note,
+            transform=ax.transAxes,
+            fontsize=6.5,
+            va="top",
+            ha="left",
+            color="0.4",
         )
         ax.legend(fontsize=7)
         return _save(fig, out_path)
@@ -284,14 +334,16 @@ def figure_ablation(
         fig, ax = plt.subplots(figsize=(5.2, 3.9), layout="constrained")
         for d in shared_d:
             color = _color_for_distance(d, shared_d)
-            for pts, style, lab in (
-                (curves_h[d], "-", "herald"), (curves_b[d], "--", "blind")
-            ):
+            for pts, style, lab in ((curves_h[d], "-", "herald"), (curves_b[d], "--", "blind")):
                 ps = np.array([pt.p for pt in pts])
                 y = np.array([per_round_estimate(pt).value for pt in pts])
                 ax.plot(
-                    ps, y, linestyle=style, marker="o" if style == "-" else "x",
-                    color=color, label=f"d={d} {lab}",
+                    ps,
+                    y,
+                    linestyle=style,
+                    marker="o" if style == "-" else "x",
+                    color=color,
+                    label=f"d={d} {lab}",
                 )
         ax.set_xscale("log")
         ax.set_yscale("log")
@@ -302,9 +354,7 @@ def figure_ablation(
         return _save(fig, out_path)
 
 
-def figure_hook_regression(
-    out_path: Path, *, distances: Sequence[int] = (3, 5, 7)
-) -> Path:
+def figure_hook_regression(out_path: Path, *, distances: Sequence[int] = (3, 5, 7)) -> Path:
     """(v): shortest_graphlike_error length, correct vs broken schedule vs d.
 
     Computed directly from the M3 fixtures (imported, never modified): a small
@@ -364,12 +414,12 @@ def render_all(
     written: list[Path] = []
     if points:
         csv_figures = [
-            ("threshold_panels.png",
-             figure_threshold_panels(points, figures / "threshold_panels.png", seed=seed)),
-            ("lambda_vs_p.png",
-             figure_lambda(points, figures / "lambda_vs_p.png", seed=seed)),
-            ("ablation.png",
-             figure_ablation(points, figures / "ablation.png", seed=seed)),
+            (
+                "threshold_panels.png",
+                figure_threshold_panels(points, figures / "threshold_panels.png", seed=seed),
+            ),
+            ("lambda_vs_p.png", figure_lambda(points, figures / "lambda_vs_p.png", seed=seed)),
+            ("ablation.png", figure_ablation(points, figures / "ablation.png", seed=seed)),
         ]
         for name, result in csv_figures:
             if result is not None:

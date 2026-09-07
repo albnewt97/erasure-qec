@@ -1,24 +1,59 @@
 repos:
+  # ORDER IS LOAD-BEARING: ruff-format must run BEFORE the local mypy hook.
+  # `ruff format` can relocate a trailing `# type: ignore[...]` onto a
+  # different line when it rewraps the statement it sits on (the P16 hazard).
+  # With ruff-format first, `fail_fast` unset (so later hooks still run after
+  # an earlier one modifies files) and mypy at `pass_filenames: false` (so it
+  # re-checks the whole tree, not just the staged paths), mypy sees the
+  # POST-format source and the commit fails loudly on a suppression that has
+  # moved off its error. Put mypy first, or set `fail_fast: true`, and the
+  # hazard returns silently: the commit succeeds with a formatted tree that
+  # mypy never checked.
+  #
+  # `rev` must track the ruff version the project env resolves (`uv run ruff
+  # --version`, currently 0.15.20). CI gates `ruff format --check`, so a hook
+  # formatting to a different ruff's style would be an unwinnable loop: the
+  # hook reformats, CI rejects, the hook reformats back.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+    rev: v0.15.20
     hooks:
-      - id: ruff
+      # `ruff` is a legacy alias for `ruff-check` in ruff >= 0.13; name the
+      # real hook so pre-commit stops emitting the deprecation label.
+      - id: ruff-check
         args: [--fix]
       - id: ruff-format
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.14.1
+  # mypy runs in the PROJECT environment, not an isolated hook env, so that it
+  # is byte-for-byte the command CI runs (`uv run mypy`, which picks up
+  # [tool.mypy] files = ["src", "tests"] and strict = true from pyproject.toml).
+  #
+  # It used to be the mirrors-mypy hook with `additional_dependencies: [numpy,
+  # types-PyYAML]` and `files: ^src/`. That disagreed with CI twice over: it
+  # skipped tests/, and -- because the isolated env had no matplotlib -- it
+  # reported 3 errors in src/erasure_qec/analysis/plotting.py that CI does not,
+  # where matplotlib resolves to Any and leaks through the return types. The
+  # hook was red on a tree CI passes. Reproducing the project env inside the
+  # hook would mean duplicating the lockfile into additional_dependencies;
+  # calling the project env directly is the same result with no duplication.
+  - repo: local
     hooks:
       - id: mypy
-        additional_dependencies: [numpy, types-PyYAML]
-        args: [--strict]
-        files: ^src/
+        name: mypy (project env, matches CI)
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+      # docs/figures/*.svg are verbatim Stim output, and
+      # tests/test_worksheet_figures.py asserts they regenerate byte-for-byte
+      # (modulo float rounding). Appending a newline makes the committed file
+      # something the generator never emits; P16 had to revert six of them.
       - id: end-of-file-fixer
+        exclude: ^docs/figures/.*\.svg$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files

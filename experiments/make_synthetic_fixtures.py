@@ -9,8 +9,14 @@ are committed under ``data/`` and pinned under ``tests/fixtures/real_*.csv``.
 Run:
 
     uv run python experiments/make_synthetic_fixtures.py
+    uv run python experiments/make_synthetic_fixtures.py --out-dir /tmp/check
+
+``--out-dir`` exists so the regeneration can be *verified* without clobbering the
+committed fixtures: write to a scratch directory and diff. It defaults to
+``tests/fixtures/``, the previous hard-coded behaviour.
 """
 
+import argparse
 from pathlib import Path
 
 from erasure_qec.analysis.synthetic import (
@@ -35,11 +41,19 @@ SWEEPS = [
 
 
 def main() -> None:
-    FIXTURES.mkdir(parents=True, exist_ok=True)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=FIXTURES,
+        help="directory to write the fixtures into (default: tests/fixtures/)",
+    )
+    out_dir = parser.parse_args().out_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
     for name, r_e, p_th, penalty in SWEEPS:
         ansatz = AnsatzParams(p_th=p_th, nu=1.5, a=0.09, b=22.0)
         path = write_synthetic_csv(
-            FIXTURES / f"{name}.csv",
+            out_dir / f"{name}.csv",
             ansatz,
             decoders=("herald_mwpm", "blind_mwpm"),
             distances=DISTANCES,
@@ -52,7 +66,7 @@ def main() -> None:
 
     # Adversarial: inverted ordering + saturated tail; the fitter must reject it.
     adv = write_adversarial_csv(
-        FIXTURES / "synthetic_adversarial.csv",
+        out_dir / "synthetic_adversarial.csv",
         decoders=("herald_mwpm", "blind_mwpm"),
         distances=DISTANCES,
         p_values=P_VALUES,

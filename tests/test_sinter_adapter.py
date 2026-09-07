@@ -40,12 +40,8 @@ def test_adapters_match_direct_decoders_on_identical_shots() -> None:
 
     herald = CUSTOM_DECODERS["herald_mwpm"].compile_decoder_for_dem(dem=dem)
     blind = CUSTOM_DECODERS["blind_mwpm"].compile_decoder_for_dem(dem=dem)
-    herald_packed = herald.decode_shots_bit_packed(
-        bit_packed_detection_event_data=packed_dets
-    )
-    blind_packed = blind.decode_shots_bit_packed(
-        bit_packed_detection_event_data=packed_dets
-    )
+    herald_packed = herald.decode_shots_bit_packed(bit_packed_detection_event_data=packed_dets)
+    blind_packed = blind.decode_shots_bit_packed(bit_packed_detection_event_data=packed_dets)
 
     ref_herald = np.packbits(
         HeraldMatchingDecoder.from_circuit(circuit).decode_batch(dets),
@@ -91,9 +87,24 @@ def test_config_satisfies_sweep_grid_requirements(name: str) -> None:
     expected_band = {
         "baseline_pauli": [0.011, 0.013, 0.015, 0.017, 0.019],
         "erasure_r50": [0.018, 0.020, 0.022, 0.024, 0.026],
-        "erasure_r98": [0.030, 0.035, 0.040, 0.045, 0.050,
-                        0.052, 0.055, 0.058, 0.061, 0.064,
-                        0.067, 0.070, 0.073, 0.076, 0.080, 0.085],
+        "erasure_r98": [
+            0.030,
+            0.035,
+            0.040,
+            0.045,
+            0.050,
+            0.052,
+            0.055,
+            0.058,
+            0.061,
+            0.064,
+            0.067,
+            0.070,
+            0.073,
+            0.076,
+            0.080,
+            0.085,
+        ],
     }[name]
     assert extra == pytest.approx(expected_band)
 
