@@ -45,9 +45,7 @@ def test_probe_erasure_at_last_round_is_placed_before_closing_shift() -> None:
 
 
 def test_probe_supports_multiple_simultaneous_erasures() -> None:
-    circuit = build(
-        3, 2, NullInjector(), probe_erasures=[(complex(3, 3), 0), (complex(1, 1), 0)]
-    )
+    circuit = build(3, 2, NullInjector(), probe_erasures=[(complex(3, 3), 0), (complex(1, 1), 0)])
     assert circuit.num_detectors == num_detectors(3, 2) + 2
     coords = circuit.get_detector_coordinates()
     herald = {i: xy for i, xy in coords.items() if len(xy) == 4 and xy[3] == 1.0}
@@ -198,24 +196,21 @@ def test_convert_idle_holds_idle_budget_constant() -> None:
     the idle budget dep + (3/4) herald stays at p_idle for every r_e."""
     p_idle = 0.01
     for r_e in (0.0, 0.5, 0.9, 1.0):
-        rates = channel_rates(
-            NoiseParams(p=0.02, r_e=r_e, p_idle=p_idle, convert_idle=True)
-        )
+        rates = channel_rates(NoiseParams(p=0.02, r_e=r_e, p_idle=p_idle, convert_idle=True))
         assert rates.idle_depolarize == pytest.approx(p_idle * (1 - r_e))
         assert rates.idle_herald == pytest.approx(p_idle * r_e / 0.75)
         assert rates.idle_depolarize + 0.75 * rates.idle_herald == pytest.approx(p_idle)
 
 
 def _herald_count(circuit: stim.Circuit) -> int:
-    return sum(1 for xy in circuit.get_detector_coordinates().values()
-               if len(xy) == 4 and xy[3] == 1.0)
+    return sum(
+        1 for xy in circuit.get_detector_coordinates().values() if len(xy) == 4 and xy[3] == 1.0
+    )
 
 
 def test_convert_idle_emits_extra_heralds_and_is_noiseless_at_p_zero() -> None:
     gate_only = build(5, 5, ErasureInjector(NoiseParams(p=0.02, r_e=0.98)))
-    with_idle = build(
-        5, 5, ErasureInjector(NoiseParams(p=0.02, r_e=0.98, convert_idle=True))
-    )
+    with_idle = build(5, 5, ErasureInjector(NoiseParams(p=0.02, r_e=0.98, convert_idle=True)))
     assert _herald_count(with_idle) > _herald_count(gate_only)
     # p = 0 stays byte-identical to the noiseless circuit even with convert_idle.
     reference = build(5, 5, NullInjector())

@@ -132,9 +132,7 @@ def partition_flattened_dem(dem: stim.DetectorErrorModel) -> PartitionedDEM:
                 f"(at most 1 is supported by this noise model): {instr}"
             )
 
-        _route_single_herald(
-            instr, components, herald_set, herald_table, edge_index
-        )
+        _route_single_herald(instr, components, herald_set, herald_table, edge_index)
 
     return PartitionedDEM(
         dem_pauli=dem_pauli,
@@ -193,9 +191,7 @@ def _route_single_herald(
     """
     herald_val: int | None = None
     for comp in components:
-        herald_dets = [
-            t.val for t in comp if t.is_relative_detector_id() and t.val in herald_set
-        ]
+        herald_dets = [t.val for t in comp if t.is_relative_detector_id() and t.val in herald_set]
         if not herald_dets:
             continue
         # The herald must be its own component (D6 D11 ^ D4 is valid;

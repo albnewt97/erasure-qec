@@ -19,8 +19,14 @@ decoder provably fails:
   - herald-aware: both erased edges drop to weight 0 -> the two-edge no-flip
     route costs 0 -> CORRECT.
 
-All samplers are seeded: every assertion below is deterministic and was
-verified against a live run before being frozen.
+All samplers are seeded, but a seeded stim sampler reproduces only on the same
+machine AND the same stim version -- stim documents that SIMD width changes the
+draw, and it was confirmed empirically (the same seed gave 475 blind failures on
+arm64 and 498 in an x86 container). So: every *assertion* below is either a
+structural property of the circuit (independent of the draw) or a band sized
+from the binomial/McNemar sd, and neither kind is frozen to a specific draw. The
+exact counts in comments are draw-dependent and are labelled with the machine,
+stim version and date they were measured on.
 """
 
 import numpy as np
@@ -53,9 +59,7 @@ def _decoding_circuit() -> stim.Circuit:
     """Same structure, decoder-side noise model: background Pauli noise gives
     every graph edge a positive weight; probes at LOW q (0.02) so the blind
     decoder's static weights treat the erased locations as unlikely."""
-    return build(
-        3, 2, PauliOnlyInjector(NoiseParams(p=1e-3)), probe_erasures=PROBES, probe_q=0.02
-    )
+    return build(3, 2, PauliOnlyInjector(NoiseParams(p=1e-3)), probe_erasures=PROBES, probe_q=0.02)
 
 
 def _det_at(circuit: stim.Circuit, x: float, y: float, t: float) -> int:
@@ -77,9 +81,7 @@ def test_forced_erasure_pattern_blind_fails_herald_corrects() -> None:
     blind = BlindMatchingDecoder(decoding)
 
     n = 2048
-    dets, obs = sampling.compile_detector_sampler(seed=2026).sample(
-        n, separate_observables=True
-    )
+    dets, obs = sampling.compile_detector_sampler(seed=2026).sample(n, separate_observables=True)
     # Neither erased qubit is on the logical row -> the truth is NEVER a flip.
     assert not obs.any()
 
@@ -89,20 +91,31 @@ def test_forced_erasure_pattern_blind_fails_herald_corrects() -> None:
     blind_fails = (blind_pred != obs).any(axis=1)
 
     # Herald-aware decodes every shot correctly; blind fails on ~1/4 of shots
-    # (both probes X-like). Verified live: 0 vs 475 of 2048 with this seed.
+    # (both probes X-like), hence the fractional bound rather than an equality.
+    # Do NOT freeze an exact blind count here: stim documents that a seeded
+    # sampler reproduces only on the same machine and the same stim version
+    # (SIMD width changes the draw), so the count is environment-dependent.
+    # Measured 2026-09-06 on arm64 / stim 1.16.0 / pymatching 2.4.0: 0 vs 475;
+    # a sweep over seeds 0-19 gave blind in [479, 539] (mean 512.0), against
+    # Binomial(2048, 1/4) mean 512.0 sd 19.6. The band below is mean +/- 10 sd,
+    # so it survives a machine change with room to spare. The herald 0 is
+    # structural, not a draw.
     assert herald_fails.sum() == 0
     assert 0.15 * n < blind_fails.sum() < 0.35 * n
 
-    # The specific corrected pattern, pinned on the first blind failure:
-    # both heralds fired, syndrome == {D(2,2,1)} on the Z-check side, and the
-    # herald-aware decoder corrects exactly where blind fails.
-    i = int(np.flatnonzero(blind_fails)[0])
+    # The specific corrected pattern. Asserted over EVERY blind failure, not just
+    # the first: indexing `flatnonzero(...)[0]` would tie the test to which shot
+    # happens to fail first, which is draw- and therefore machine-dependent.
+    # Quantifying it as a universal is also the stronger claim, and it holds --
+    # all 475 failures at seed 2026 share the pattern (arm64 / stim 1.16.0,
+    # 2026-09-06).
     d_z22_r1 = _det_at(sampling, 2, 2, 1)
     d_z04_r1 = _det_at(sampling, 0, 4, 1)
-    assert dets[i, 4] and dets[i, 5]  # herald detectors (1,3,0,1) and (1,5,0,1)
-    assert dets[i, d_z22_r1] and not dets[i, d_z04_r1]  # the ambiguous syndrome
-    assert blind_pred[i].any() and not herald_pred[i].any()  # blind flips, herald doesn't
-    assert not obs[i].any()  # truth: no flip
+    for i in np.flatnonzero(blind_fails):
+        assert dets[i, 4] and dets[i, 5]  # herald detectors (1,3,0,1) and (1,5,0,1)
+        assert dets[i, d_z22_r1] and not dets[i, d_z04_r1]  # the ambiguous syndrome
+        assert blind_pred[i].any() and not herald_pred[i].any()  # blind flips, herald doesn't
+        assert not obs[i].any()  # truth: no flip
 
 
 def test_fast_path_matches_static_matcher_when_no_heralds_exist() -> None:
@@ -128,9 +141,7 @@ def test_conditional_only_edges_decode_pure_probe_circuit() -> None:
     assert partition.dem_pauli.num_errors == 0
 
     decoder = HeraldMatchingDecoder(partition)
-    dets, obs = sampling.compile_detector_sampler(seed=11).sample(
-        512, separate_observables=True
-    )
+    dets, obs = sampling.compile_detector_sampler(seed=11).sample(512, separate_observables=True)
     preds = decoder.decode_batch(dets)
     assert (preds == obs).all()
 
@@ -146,7 +157,9 @@ def test_two_tier_dispatch_batch_equals_per_shot_decoding() -> None:
     n = 256
     dets, _ = circuit.compile_detector_sampler(seed=13).sample(n, separate_observables=True)
     heralded = dets[:, partition.herald_indices].any(axis=1)
-    # The sample genuinely exercises both tiers (verified live: 73 of 256 heralded).
+    # The sample genuinely exercises both tiers. Measured 2026-09-06 on arm64 /
+    # stim 1.16.0: 115 of 256 heralded (seeds 0-19 gave 103-130), so the
+    # both-tiers assertion below has ~100 shots of margin at each end.
     assert 0 < int(heralded.sum()) < n
 
     batch = decoder.decode_batch(dets)
@@ -167,17 +180,73 @@ def test_ablation_herald_beats_blind_on_biased_erasure_circuit() -> None:
     """Smoke ablation on a real biased-erasure circuit: with r_e=0.9 the herald
     information is most of the error budget, so the herald-aware decoder must
     make strictly fewer logical errors than the blind one on identical shots.
-    Verified live with this seed: 371 vs 544 failures of 2048."""
+
+    Measured 2026-09-06 on arm64 / stim 1.16.0 / pymatching 2.4.0: herald 448 vs
+    blind 622 of 2048, a margin of 174. The two decoders see the SAME shots, so
+    the margin's sd is McNemar's sqrt(b_only + h_only) = sqrt(322 + 148) = 21.7,
+    and seeds 0-11 gave margins in [147, 201] (mean 167.4, sd 15.2). The band
+    below is > 90, i.e. ~5 sd below the mean margin -- wide enough to survive a
+    machine change, but tight enough to fail if herald-conditioning stops
+    helping, which a bare `herald < blind` would not catch."""
     circuit = build(3, 3, ErasureInjector(NoiseParams(p=0.03, r_e=0.9)))
     herald = HeraldMatchingDecoder.from_circuit(circuit)
     blind = BlindMatchingDecoder(circuit)
 
-    dets, obs = circuit.compile_detector_sampler(seed=17).sample(
-        2048, separate_observables=True
-    )
+    dets, obs = circuit.compile_detector_sampler(seed=17).sample(2048, separate_observables=True)
     herald_fails = int((herald.decode_batch(dets) != obs).any(axis=1).sum())
     blind_fails = int((blind.decode_batch(dets) != obs).any(axis=1).sum())
-    assert herald_fails < blind_fails
+    assert blind_fails - herald_fails > 90
+
+
+def test_slow_path_builds_one_matcher_per_signature_not_per_shot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The M7 throughput property, asserted STRUCTURALLY rather than by timing.
+
+    The regression worth catching is a revert to rebuilding a matcher per *shot*
+    instead of per distinct fired-herald *signature*. The throughput test in
+    ``tests/test_end_to_end_montecarlo.py`` cannot catch it: the per-shot-rebuild
+    ratio (68.9x) sits inside the range CPU contention alone produces on healthy
+    code (up to 65.3x), so no fixed threshold both fires on the regression and
+    survives a loaded machine, and that test deliberately gates catastrophe only.
+
+    Counting ``Matching.from_check_matrix`` calls sidesteps the problem entirely:
+    it is exact, needs no timing, and is machine-independent -- the count is a
+    property of the shot data, not of how fast the machine ran. A per-shot
+    rebuild fails it immediately.
+    """
+    import pymatching
+
+    circuit = build(3, 3, ErasureInjector(NoiseParams(p=0.01, r_e=0.5)))
+    decoder = HeraldMatchingDecoder.from_circuit(circuit)
+    partition = partition_dem(circuit)
+
+    n = 512
+    dets, _ = circuit.compile_detector_sampler(seed=3).sample(n, separate_observables=True)
+    heralds = dets[:, partition.herald_indices]
+    slow = heralds.any(axis=1)
+    signatures = {heralds[i].tobytes() for i in np.flatnonzero(slow)}
+
+    # The test only has teeth where signatures actually collide. Measured
+    # 2026-09-06 on arm64 / stim 1.16.0: ~211 heralded shots against ~158
+    # distinct signatures; seeds 0-7 gave gaps of 49-73. The `> 20` band is well
+    # below that and survives a machine change (the draw, hence the exact gap,
+    # is machine-dependent -- the equality assertion below is not).
+    assert int(slow.sum()) - len(signatures) > 20
+
+    calls = 0
+    real = pymatching.Matching.from_check_matrix
+
+    def counting(*args: object, **kwargs: object) -> object:
+        nonlocal calls
+        calls += 1
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(pymatching.Matching, "from_check_matrix", counting)
+    decoder.decode_batch(dets)
+
+    # Exactly one matcher per distinct signature -- not one per heralded shot.
+    assert calls == len(signatures)
 
 
 def test_rejects_wrong_shape() -> None:

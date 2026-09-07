@@ -34,12 +34,10 @@ def test_render_all_produces_every_figure(tmp_path: Path) -> None:
 def test_figures_regenerate_byte_stable(tmp_path: Path) -> None:
     """The M8 gate: identical CSVs -> byte-identical PNGs across runs."""
     first = {
-        p.name: _digest(p)
-        for p in render_all(FIXTURES, tmp_path / "a", config_names=SYNTHETIC)
+        p.name: _digest(p) for p in render_all(FIXTURES, tmp_path / "a", config_names=SYNTHETIC)
     }
     second = {
-        p.name: _digest(p)
-        for p in render_all(FIXTURES, tmp_path / "b", config_names=SYNTHETIC)
+        p.name: _digest(p) for p in render_all(FIXTURES, tmp_path / "b", config_names=SYNTHETIC)
     }
     assert first == second
 

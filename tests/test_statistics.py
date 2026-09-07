@@ -6,6 +6,7 @@ import pytest
 
 from erasure_qec.analysis.statistics import (
     Estimate,
+    LambdaEstimate,
     SweepPoint,
     bootstrap_per_round,
     lambda_factor,
@@ -89,3 +90,63 @@ def test_lambda_factor_ratio_and_validation() -> None:
     assert lam.value > 1.0  # bigger code suppresses errors below threshold
     with pytest.raises(ValueError):
         lambda_factor(p3, p3)  # not a d, d+2 pair
+
+
+def test_lambda_factor_reports_zero_dropped_on_healthy_statistics() -> None:
+    """With hundreds of errors in both distances, no replicate is discarded."""
+    p3 = SweepPoint("herald_mwpm", d=3, rounds=3, p=0.01, r_e=0.5, shots=10000, errors=450)
+    p5 = SweepPoint("herald_mwpm", d=5, rounds=5, p=0.01, r_e=0.5, shots=10000, errors=284)
+    lam = lambda_factor(p3, p5, seed=1)
+    assert isinstance(lam, LambdaEstimate)
+    assert isinstance(lam, Estimate)  # existing callers keep working
+    assert lam.n_boot == 2000
+    assert lam.n_boot_dropped == 0
+    assert lam.dropped_fraction == 0.0
+    assert lam.ci_conditioned is False
+
+
+def test_lambda_factor_surfaces_dropped_replicates_on_low_error_d2() -> None:
+    """A d+2 point with a handful of errors silently conditions the CI.
+
+    ``d + 2`` logs 3 errors in 100k shots, so a meaningful share of bootstrap
+    replicates draw zero errors there, hit a zero denominator, and are excluded.
+    Those are exactly the replicates whose Lambda is ``+inf``, so the discards
+    bias ``high`` low -- the count must be visible on the returned value rather
+    than swallowed by the loop.
+    """
+    p3 = SweepPoint("herald_mwpm", d=3, rounds=3, p=0.001, r_e=0.98, shots=100000, errors=200)
+    p5 = SweepPoint("herald_mwpm", d=5, rounds=5, p=0.001, r_e=0.98, shots=100000, errors=3)
+    lam = lambda_factor(p3, p5, seed=7)
+    assert lam.n_boot == 2000
+    assert lam.n_boot_dropped > 0, "zero-denominator replicates must be counted"
+    # P(Binomial(1e5, 3e-5) == 0) = e^-3 ~ 0.0498; 2000 draws puts this near 100.
+    assert lam.n_boot_dropped == pytest.approx(2000 * math.exp(-3.0), rel=0.25)
+    assert 0.0 < lam.dropped_fraction < 1.0
+    # 5% dropped vs the 2.5% upper tail the 95% CI claims to measure: the
+    # unconditional upper quantile is +inf, so the reported `high` is not it.
+    assert lam.ci_conditioned is True
+    assert math.isfinite(lam.high)  # ...yet a finite number is still returned
+
+
+def test_lambda_factor_dropped_count_is_seed_deterministic() -> None:
+    p3 = SweepPoint("herald_mwpm", d=3, rounds=3, p=0.001, r_e=0.98, shots=100000, errors=200)
+    p5 = SweepPoint("herald_mwpm", d=5, rounds=5, p=0.001, r_e=0.98, shots=100000, errors=3)
+    assert lambda_factor(p3, p5, seed=7) == lambda_factor(p3, p5, seed=7)
+
+
+def test_ci_conditioned_threshold_tracks_the_requested_ci_level() -> None:
+    """The flag compares discards against *this* interval's tail mass."""
+    lo_drop = LambdaEstimate(value=2.0, low=1.0, high=3.0, n_boot=1000, n_boot_dropped=30)
+    assert lo_drop.dropped_fraction == pytest.approx(0.03)
+    assert lo_drop.ci_conditioned is True  # 3% > 2.5% tail of a 95% CI
+    # A 90% CI has a 5% upper tail, so the same 3% no longer dominates it.
+    assert (
+        LambdaEstimate(
+            value=2.0, low=1.0, high=3.0, n_boot=1000, n_boot_dropped=30, ci=0.90
+        ).ci_conditioned
+        is False
+    )
+    # No replicates drawn at all -> nothing to condition on, and no false "0%".
+    none_drawn = LambdaEstimate(value=2.0, low=1.0, high=3.0)
+    assert math.isnan(none_drawn.dropped_fraction)
+    assert none_drawn.ci_conditioned is False

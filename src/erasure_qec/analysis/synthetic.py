@@ -160,8 +160,12 @@ def write_synthetic_csv(
             b=ansatz.b,
         )
         for d, rounds, errors, p, r_e_val in synthetic_stats(
-            scaled, decoder=decoder, distances=distances, p_values=p_values,
-            shots=shots, r_e=r_e,
+            scaled,
+            decoder=decoder,
+            distances=distances,
+            p_values=p_values,
+            shots=shots,
+            r_e=r_e,
         ):
             stat = sinter.TaskStats(
                 strong_id=f"{decoder}-d{d}-p{p:.6g}-re{r_e_val:g}",

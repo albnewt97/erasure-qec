@@ -26,9 +26,7 @@ NoiseFactory = Callable[[float], NoiseInjector]
 
 
 @pytest.mark.parametrize("d", DISTANCES)
-def test_correct_schedule_graphlike_distance_is_d(
-    d: int, make_noise: NoiseFactory
-) -> None:
+def test_correct_schedule_graphlike_distance_is_d(d: int, make_noise: NoiseFactory) -> None:
     circuit = build(d, d, make_noise(NOISE_P), schedule=HOOK_SAFE_SCHEDULE)
     assert len(circuit.shortest_graphlike_error()) == d
 
@@ -60,11 +58,7 @@ def test_broken_schedule_reduces_distance(d: int, make_noise: NoiseFactory) -> N
 
 
 @pytest.mark.parametrize("d", DISTANCES)
-def test_broken_schedule_is_strictly_worse_than_correct(
-    d: int, make_noise: NoiseFactory
-) -> None:
+def test_broken_schedule_is_strictly_worse_than_correct(d: int, make_noise: NoiseFactory) -> None:
     correct = build(d, d, make_noise(NOISE_P), schedule=HOOK_SAFE_SCHEDULE)
     broken = build(d, d, make_noise(NOISE_P), schedule=BROKEN_SCHEDULE)
-    assert len(broken.shortest_graphlike_error()) < len(
-        correct.shortest_graphlike_error()
-    )
+    assert len(broken.shortest_graphlike_error()) < len(correct.shortest_graphlike_error())

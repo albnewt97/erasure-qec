@@ -87,8 +87,7 @@ def _validate(detection_events: _BoolArray, num_detectors: int) -> _BoolArray:
     dets = np.asarray(detection_events, dtype=bool)
     if dets.ndim != 2 or dets.shape[1] != num_detectors:
         raise ValueError(
-            f"expected detection events of shape (n_shots, {num_detectors}), "
-            f"got {dets.shape}"
+            f"expected detection events of shape (n_shots, {num_detectors}), got {dets.shape}"
         )
     return dets
 
@@ -133,9 +132,7 @@ class HeraldMatchingDecoder:
         # resolve onto a base edge, the base fault ids are authoritative
         # (zero-weighting never changes which logical the edge flips).
         columns: list[_Edge] = list(self._base_edges.values())
-        col_of_key: dict[_EdgeKey, int] = {
-            key: i for i, key in enumerate(self._base_edges)
-        }
+        col_of_key: dict[_EdgeKey, int] = {key: i for i, key in enumerate(self._base_edges)}
         conditioned_cols: dict[int, set[int]] = {}
         for h, cond_edges in partition.herald_table.items():
             cols: set[int] = set()
@@ -161,8 +158,7 @@ class HeraldMatchingDecoder:
             [e.weight for e in columns], dtype=np.float64
         )
         self._cols_to_zero: dict[int, npt.NDArray[np.int64]] = {
-            h: np.array(sorted(cols), dtype=np.int64)
-            for h, cols in conditioned_cols.items()
+            h: np.array(sorted(cols), dtype=np.int64) for h, cols in conditioned_cols.items()
         }
         n_cols = len(columns)
         self._n_cols = n_cols
@@ -243,9 +239,7 @@ class HeraldMatchingDecoder:
         """Decode heralded shots, grouped by their fired-herald signature."""
         if self._n_cols == 0:
             if syndromes[slow_rows].any():
-                raise RuntimeError(
-                    "heralded shot has detection events but no edges exist for them"
-                )
+                raise RuntimeError("heralded shot has detection events but no edges exist for them")
             return
 
         groups: dict[bytes, list[int]] = {}

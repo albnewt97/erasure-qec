@@ -16,7 +16,7 @@ from erasure_qec.noise.injector import NullInjector
 # ---- choose the probe on the command line: A, B, or C -------------------
 # A: center data qubit (3,3), between rounds 0/1
 # B: corner data qubit (1,1), between rounds 0/1
-# C: Z-ancilla (4,2), round 1, after 0-indexed CX layer 1 (= between CX layers 2 and 3)
+# C: Z-ancilla (2,2), round 1, after 0-indexed CX layer 1 (= between CX layers 2 and 3)
 PROBES = {
     "A": dict(probe_erasures=[(3 + 3j, 0)]),
     "B": dict(probe_erasures=[(1 + 1j, 0)]),
@@ -25,15 +25,16 @@ PROBES = {
 probe_name = sys.argv[1] if len(sys.argv) > 1 else "A"
 
 if probe_name == "A":
-    c = build(d=3, rounds=2, injector=NullInjector(),
-              probe_erasures=[(3 + 3j, 0)])          # center data qubit, after round 0
+    c = build(
+        d=3, rounds=2, injector=NullInjector(), probe_erasures=[(3 + 3j, 0)]
+    )  # center data qubit, after round 0
 elif probe_name == "B":
-    c = build(d=3, rounds=2, injector=NullInjector(),
-              probe_erasures=[(1 + 1j, 0)])          # corner data qubit, after round 0
+    c = build(
+        d=3, rounds=2, injector=NullInjector(), probe_erasures=[(1 + 1j, 0)]
+    )  # corner data qubit, after round 0
 elif probe_name == "C":
     # after 0-indexed CX layer 1 (= between CX layers 2 and 3)
-    c = build(d=3, rounds=2, injector=NullInjector(),
-              mid_round_probe_erasures=[(2 + 2j, 1, 1)])
+    c = build(d=3, rounds=2, injector=NullInjector(), mid_round_probe_erasures=[(2 + 2j, 1, 1)])
 else:
     raise SystemExit(f"unknown probe {probe_name!r}")
 

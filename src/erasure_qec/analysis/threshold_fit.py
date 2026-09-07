@@ -136,12 +136,8 @@ class FitResult:
     n_boot_failed: int = 0  # replicates whose window was too thin or fit failed
     message: str = ""
     # Points actually used, as parallel arrays (for plotting the collapse).
-    used_p: npt.NDArray[np.float64] = field(
-        default_factory=lambda: np.array([], dtype=np.float64)
-    )
-    used_d: npt.NDArray[np.int64] = field(
-        default_factory=lambda: np.array([], dtype=np.int64)
-    )
+    used_p: npt.NDArray[np.float64] = field(default_factory=lambda: np.array([], dtype=np.float64))
+    used_d: npt.NDArray[np.int64] = field(default_factory=lambda: np.array([], dtype=np.int64))
     used_p_l: npt.NDArray[np.float64] = field(
         default_factory=lambda: np.array([], dtype=np.float64)
     )
@@ -150,9 +146,7 @@ class FitResult:
         """Scaling variable ``x = (p - p_th) d^(1/nu)`` for the used points."""
         return (self.used_p - self.p_th) * self.used_d.astype(float) ** (1.0 / self.nu)
 
-    def collapse_curve(
-        self, x: npt.NDArray[np.float64]
-    ) -> npt.NDArray[np.float64]:
+    def collapse_curve(self, x: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """The fitted universal parabola ``A + B x + C x^2`` at ``x``."""
         a, b, c = self.coeffs
         return a + b * x + c * x * x
@@ -250,8 +244,7 @@ def _select_window(
     return [
         pt
         for pt in points
-        if lo <= pt.p <= hi
-        and per_round_p_l(pt.p_l_shot, pt.rounds) < _SATURATION_CAP
+        if lo <= pt.p <= hi and per_round_p_l(pt.p_l_shot, pt.rounds) < _SATURATION_CAP
     ]
 
 
@@ -341,8 +334,12 @@ def fit_threshold(
     # points -> estimate_crossing -> window -> weighted fit), so the CI reflects
     # the same estimator the point fit uses, including crossing/window variance.
     boot, n_boot_failed = _bootstrap_pipeline(
-        points, window_factor=window_factor, p_center=p_center,
-        nu_guess=nu_guess, seed=seed, n_boot=n_boot,
+        points,
+        window_factor=window_factor,
+        p_center=p_center,
+        nu_guess=nu_guess,
+        seed=seed,
+        n_boot=n_boot,
     )
     if boot.size:
         lo_pct, hi_pct = _CI_PERCENTILES
@@ -367,6 +364,11 @@ def fit_threshold(
         else float("nan")
     )
 
+    # This line is the whole of the pin asymmetry: `converged` is what
+    # bootstrap_threshold_difference filters replicates on, while
+    # _bootstrap_pipeline (the marginal CI) ignores pinning entirely. That is
+    # deliberate and load-bearing for the r_e=0.98 blind verdict -- see the
+    # "DELIBERATE ASYMMETRY" block in _bootstrap_pipeline before changing either.
     converged = not pinned
     if pinned:
         resolved = False
@@ -431,10 +433,7 @@ class _CoreFit:
 
 def _sufficient(used: Sequence[SweepPoint]) -> bool:
     """Whether ``used`` can constrain the 5-parameter ansatz with >= _MIN_DOF."""
-    return (
-        len(used) >= _N_PARAMS + _MIN_DOF
-        and len({pt.d for pt in used}) >= 2
-    )
+    return len(used) >= _N_PARAMS + _MIN_DOF and len({pt.d for pt in used}) >= 2
 
 
 def _weighted_fit_arrays(
@@ -453,10 +452,7 @@ def _weighted_fit_arrays(
     # per_round_estimate is a 95% Wilson interval, so its half-width is ~Z_95
     # standard errors; divide by Z_95 to recover a ~1-sigma weight for the fit.
     sigma = np.array(
-        [
-            max((e.high - e.low) / (2.0 * Z_95), 1e-9)
-            for e in map(per_round_estimate, used)
-        ]
+        [max((e.high - e.low) / (2.0 * Z_95), 1e-9) for e in map(per_round_estimate, used)]
     )
     a0 = float(np.median(y))
     # The p_th initial guess must be inside the p-range of the windowed points
@@ -472,13 +468,23 @@ def _weighted_fit_arrays(
     )
     try:
         popt, _ = curve_fit(
-            _model, (p_arr, d_arr), y, p0=p0, sigma=sigma,
-            absolute_sigma=True, bounds=bounds, maxfev=20000,
+            _model,
+            (p_arr, d_arr),
+            y,
+            p0=p0,
+            sigma=sigma,
+            absolute_sigma=True,
+            bounds=bounds,
+            maxfev=20000,
         )
     except (RuntimeError, ValueError):
         return None
     params: _FitParams = (
-        float(popt[0]), float(popt[1]), float(popt[2]), float(popt[3]), float(popt[4]),
+        float(popt[0]),
+        float(popt[1]),
+        float(popt[2]),
+        float(popt[3]),
+        float(popt[4]),
     )
     return _CoreFit(params, p_arr, d_arr, y, sigma)
 
@@ -500,6 +506,34 @@ def _bootstrap_pipeline(
     the weighted fit exactly as the point estimate does. Returns the
     ``(n_ok, 2)`` array of recovered ``(p_th, nu)`` and the number of replicates
     that failed (thin window or non-converging fit) -- reported, never dropped.
+
+    **DELIBERATE ASYMMETRY -- do not "clean this up". READ THIS FIRST.**
+
+    This function applies NO bound-pin check: every replicate whose ``curve_fit``
+    returns is appended, including ones that pinned ``p_th`` at a window edge or
+    ``nu`` at a :data:`_NU_BOUNDS` bound. :func:`bootstrap_threshold_difference`
+    does the opposite -- it keeps only replicates with ``converged=True``, i.e.
+    ``not pinned`` (see the ``converged = not pinned`` line in
+    :func:`fit_threshold`), so it *discards* exactly these. Making the two
+    consistent by adding a pin check here is a change to a published estimator,
+    not a bookkeeping fix.
+
+    Measured on ``data/erasure_r98.csv``, r_e = 0.98 blind, ``d_min=7``,
+    ``window_factor=1.5``, ``n_boot=1000``, seeds 0-29 (Python 3.14.6 /
+    NumPy 2.5.1 / SciPy 1.18.0):
+
+    - pins RETAINED (today): ``rel_ci_width`` 2.43-4.26, ``resolved`` 0 of 30.
+    - pins EXCLUDED: ``rel_ci_width`` 0.39-1.36 -- straddling the 1.0
+      :data:`_MAX_REL_CI_WIDTH` guard -- ``resolved`` 9 of 30.
+    - the verdict FLIPS at 9 of 30 seeds; bound-pinned replicates are a steady
+      18.2-23.2% (mean 20.6%) at every seed, so this is not a tail effect.
+
+    **The trap:** at ``seed=0`` -- the seed this repo declares everywhere -- the
+    pins-excluded ``rel_ci_width`` is 1.02, marginally ABOVE the 1.0 guard, so
+    the verdict does NOT flip there. Testing seed 0 alone will show no change and
+    will NOT reveal that roughly a third of other seeds now resolve a threshold
+    the repo reports as unresolved. Any change here must be checked across seeds.
+    See docs/AUDIT.md "The bootstrap pin asymmetry is load-bearing".
     """
     rng = np.random.default_rng(seed)
     shots = np.array([pt.shots for pt in points])
@@ -508,13 +542,8 @@ def _bootstrap_pipeline(
     n_failed = 0
     for _ in range(n_boot):
         drawn = rng.binomial(shots, p_shot)
-        resampled = [
-            replace(pt, errors=int(e))
-            for pt, e in zip(points, drawn, strict=True)
-        ]
-        center = (
-            estimate_crossing(resampled) if p_center is None else p_center
-        )
+        resampled = [replace(pt, errors=int(e)) for pt, e in zip(points, drawn, strict=True)]
+        center = estimate_crossing(resampled) if p_center is None else p_center
         used = _select_window(resampled, center, window_factor)
         if not _sufficient(used):
             n_failed += 1
@@ -631,8 +660,11 @@ def _fit_pth(
     fit does not converge -- the SAME criterion (window, sufficiency, bound-pin)
     as :func:`fit_threshold`."""
     result = fit_threshold(
-        points, d_min=d_min, window_factor=window_factor,
-        nu_guess=nu_guess, n_boot=0,
+        points,
+        d_min=d_min,
+        window_factor=window_factor,
+        nu_guess=nu_guess,
+        n_boot=0,
     )
     return result.p_th if result.converged else None
 
@@ -672,18 +704,24 @@ def bootstrap_threshold_difference(
     def _fail(msg: str) -> ThresholdDifference:
         nan = float("nan")
         return ThresholdDifference(
-            converged=False, delta=nan, delta_ci=(nan, nan), delta_err=nan,
-            excludes_zero=False, herald_p_th=nan, blind_p_th=nan,
-            correlation=nan, paired=paired, n_boot=n_boot, n_paired_failed=0,
+            converged=False,
+            delta=nan,
+            delta_ci=(nan, nan),
+            delta_err=nan,
+            excludes_zero=False,
+            herald_p_th=nan,
+            blind_p_th=nan,
+            correlation=nan,
+            paired=paired,
+            n_boot=n_boot,
+            n_paired_failed=0,
             message=msg,
         )
 
     herald_pth = _fit_pth(
         herald_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess
     )
-    blind_pth = _fit_pth(
-        blind_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess
-    )
+    blind_pth = _fit_pth(blind_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess)
     if herald_pth is None or blind_pth is None:
         which = []
         if herald_pth is None:
@@ -708,6 +746,9 @@ def bootstrap_threshold_difference(
         bf = fit_threshold(
             b_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess, n_boot=0
         )
+        # Bound-pinned replicates are DISCARDED here, and RETAINED by
+        # _bootstrap_pipeline (the marginal CI). Read the "DELIBERATE ASYMMETRY"
+        # block there before making the two paths agree in either direction.
         if hf.converged and bf.converged:
             h_draws.append(hf.p_th)
             b_draws.append(bf.p_th)
@@ -726,8 +767,7 @@ def bootstrap_threshold_difference(
 
     if len(h_draws) < 2:
         return _fail(
-            f"too few converged replicates ({len(h_draws)} of {n_boot}); "
-            f"delta CI undefined"
+            f"too few converged replicates ({len(h_draws)} of {n_boot}); delta CI undefined"
         )
 
     h_arr = np.array(h_draws)

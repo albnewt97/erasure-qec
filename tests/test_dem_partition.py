@@ -33,9 +33,7 @@ from erasure_qec.decoding.dem_partition import (
 from erasure_qec.noise.injector import NullInjector
 
 
-def _edge_set(
-    part: PartitionedDEM, herald: int
-) -> set[tuple[tuple[int, ...], tuple[int, ...]]]:
+def _edge_set(part: PartitionedDEM, herald: int) -> set[tuple[tuple[int, ...], tuple[int, ...]]]:
     """Canonical {(sorted dets, obs_mask)} set for one herald's edges."""
     return {(e.dets, e.obs_mask) for e in part.herald_table[herald]}
 

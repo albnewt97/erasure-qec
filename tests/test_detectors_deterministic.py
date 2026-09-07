@@ -55,17 +55,13 @@ def test_detector_count_closed_form(d: int, rounds: int) -> None:
 def test_structural_diff_against_generated(d: int, rounds: int) -> None:
     """Detector count, observable count, and SGE length match Stim's generator."""
     mine = build(d, rounds, NullInjector())
-    reference = stim.Circuit.generated(
-        "surface_code:rotated_memory_z", distance=d, rounds=rounds
-    )
+    reference = stim.Circuit.generated("surface_code:rotated_memory_z", distance=d, rounds=rounds)
     assert mine.num_detectors == reference.num_detectors
     assert mine.num_observables == reference.num_observables == 1
 
 
 @pytest.mark.parametrize("d", DISTANCES)
-def test_shortest_graphlike_error_matches_generated(
-    d: int, make_noise: NoiseFactory
-) -> None:
+def test_shortest_graphlike_error_matches_generated(d: int, make_noise: NoiseFactory) -> None:
     """With matching uniform noise, both circuits have graphlike distance d."""
     p = 1e-3
     mine = build(d, d, make_noise(p))
