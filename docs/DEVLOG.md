@@ -69,6 +69,13 @@ reweighted matcher with a vectorized `pymatching.Matching.from_check_matrix` ove
 check matrix instead of per-edge Python loops (`src/erasure_qec/decoding/herald_matching.py`). That got
 it to ~1,650 shots/s (48×). Grouping stayed because it's free, but it wasn't the lever.
 
+*Correction, 2026-09-06.* The "48×" above is 80,000/1,650 — two independently rounded rates divided,
+not a measured ratio. Re-measured on an Apple M2 (8 cores, macOS 14.5), 10⁴ shots, 13 idle runs: the
+fast path is 77.4k–84.2k shots/s, the slow path 1,542–1,593 shots/s, and the **paired ratio is
+48.6–54.6×** (median 51.3). Reverting the slow path to per-shot `add_edge` rebuilds in the same session reproduced
+68.9×. So the vectorized construction bought ~69× → ~51×, and never got under the 50× target I had
+set — the original text lets 48× imply otherwise.
+
 ## Three bugs in my own analysis code
 
 `estimate_crossing` — which locates the threshold to seed the fit — failed three times, each documented
@@ -120,8 +127,12 @@ shrink the reported σ. I rewrote it to run the whole pipeline per replicate (re
 re-run the crossing estimate, the window, and the *weighted* fit), count failures, and report a
 percentile CI since the p_th distribution is skewed. A coverage test now checks the 95% CI actually
 covers a known p_th ~95% of the time. This mattered: the r_e=0.98 *blind* fit that looked like
-`1.64% ± 0.08%` has an honest 95% CI spanning roughly `[1.5, 8]%` and shifting with the seed — its
-crossing is bistable, so it is not a resolved threshold either.
+`1.64% ± 0.08%` has an honest 95% CI whose lower end is ~1.5% and whose upper end lands anywhere in
+5.5–8.5% depending on the seed (`uv run python scripts/paired_separation.py --full-stability`) — its
+crossing is bistable, so it is not a resolved threshold either. Three of those ten seeds put the upper
+end exactly on a sweep grid point, including both ends of the 5.5–8.5% span, so that span's width is a
+property of the grid rather than a spread of fitted values; see docs/AUDIT.md "Reproducibility and
+environment sensitivity".
 
 ## The result, honestly
 
@@ -130,11 +141,20 @@ From the re-collected fixed-model sweeps in `data/`, `figures/threshold_panels.p
 
 | r_e | herald | blind | χ²/dof |
 |---|---|---|---|
-| 0 | 1.38% `[1.33, 1.47]` | 1.44% `[1.36, 1.58]` | ~1.0 |
-| 0.5 | 2.32% `[2.18, 2.76]` | 1.49% `[1.42, 2.15]` | 0.6 / 0.5 |
-| 0.98 | **not resolved** | **not resolved** `[1.5, ~8]` | — / 0.20 |
+| 0 | 1.38% `[1.3, 1.5]` | 1.44% `[1.4, 1.6]` | ~1.0 |
+| 0.5 | 2.32% `[2.2, 2.8]` | 1.49% `[1.4, 2.2]`† | 0.6 / 0.5 |
+| 0.98 | **not resolved** | **not resolved** (upper 5.5–8.5 by seed, partly grid-pinned) | — / 0.20 |
 
-(CIs at `n_boot = 1000`; a later branch raised the default from 200 — see "Testing the separation".)
+(CIs at `n_boot = 1000`, seed 0, to one decimal — the second decimal moves with the NumPy build and
+the seed; see docs/AUDIT.md "Reproducibility and environment sensitivity". A later branch raised the
+`n_boot` default from 200 — see "Testing the separation". The 0.98 row's `5.5–8.5` seed range and its
+grid-pin check come from `uv run python scripts/paired_separation.py --full-stability`.)
+
+† The blind `r_e = 0.5` upper endpoint is a bound pin, not a fitted crossing, and seed 0 is an
+unlucky draw: over 30 seeds it takes four distinct values and 25 of 30 give `1.80%`, so the modal
+interval is `[1.4, 1.8]`. Excluding edge-pinned replicates moves it to 1.60%. The point estimate,
+ν and χ²/dof are unaffected and no verdict changes. See docs/AUDIT.md "The marginal CI upper
+endpoints are bound pins (2026-09-06)".
 
 The r_e=0 row is a control: with no heralds the two decoders agree within their CIs, and they do. The
 honest story is the *opposite* of what I first wrote. Where the fit resolves, with the budget held
@@ -164,7 +184,7 @@ the paired path (it genuinely narrows the CI on synthetic shared-shot data, and 
 it again), because that's the correct machinery when shot-level data is available — the real data just
 can't feed it.
 
-The verdict stands regardless: Δ = −0.83%, 95% CI [−1.24, −0.66], excludes zero, stable across five
+The verdict stands regardless: Δ = −0.83%, 95% CI [−1.2, −0.7], excludes zero, stable across five
 seeds. The r_e=0 control gives Δ consistent with zero, as it must. So the separation is significant — but
 from using the difference statistic, not from pairing and not from raising `n_boot` (the CI excluded zero
 at 200 too; I raised the default to 1000 because the *marginal* percentile tails were noisy). The
@@ -174,13 +194,16 @@ One more thing I had to check before trusting it: the Δ CI throws away replicat
 fails to converge, and ~10% do at r_e=0.5. Those discards are *not* missing-at-random — they're almost
 all blind bound-pinning high (its crossing is bistable), i.e. the replicates with Δ nearest zero, which
 flatters the interval. My first attempt to handle this was to impute the discards from the least-negative
-decile of Δ; the CI still cleared zero ([−1.23, −0.64]) and I reported it. A later review caught that the
+decile of Δ; the CI still cleared zero ([−1.229, −0.636] against the observed [−1.240, −0.661] — same
+seed-0 draws, so the comparison is exact) and I reported it. A later review caught that the
 endpoint had barely moved, which is the fingerprint of a broken imputation. It wasn't broken in the way
 suspected (it did sample 63 distinct values, not one point) — but it was weak: the empirical top-decile
 is bottom-heavy, so 75% of the imputed values sat below the old endpoint and the CI hardly shifted. The
 "plausible-pessimistic" label was wrong, and any imputation is arbitrary anyway. The honest replacement
 is a tipping-point bound that uses no assumed distribution: the CI's upper endpoint reaches zero only if
-≥ 24 of the 102 discards would have given Δ ≥ 0 — and I don't have to guess how many would, because 101
+≥ 24 of the 102 discards (at seed 0; 24–26 of 77–115 across seeds 0–9, from
+`uv run python scripts/paired_separation.py --full-stability`) would have given Δ ≥ 0 — and I don't
+have to guess how many would, because 101
 of the 102 discards recorded *both* decoders' p_th (one converged, one bound-pinned), and those imply
 Δ ≥ 0 for just 2. None are unbounded. So 2 against a tipping point of 24: the claim survives with margin,
 and now for a reason that doesn't depend on which tail I chose to draw from. The caveat still stands —
