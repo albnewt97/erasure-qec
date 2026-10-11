@@ -26,12 +26,18 @@ docstring for why the conditioning biases the interval's upper endpoint low.
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import sinter
 
 # Standard-normal 97.5th percentile: the z for a two-sided 95% interval.
 Z_95 = 1.959963984540054
+
+# Which logical-error quantity an analysis works in: "shot" is the block failure
+# probability P_L_shot over the whole T-round experiment; "round" is the
+# per-round rate obtained from it by :func:`per_round_p_l`.
+Metric = Literal["shot", "round"]
 
 
 @dataclass(frozen=True)
@@ -143,6 +149,36 @@ def per_round_estimate(point: SweepPoint, z: float = Z_95) -> Estimate:
         low=per_round_p_l(lo, point.rounds),
         high=per_round_p_l(hi, point.rounds),
     )
+
+
+def metric_value(point: SweepPoint, metric: Metric) -> float:
+    """The logical-error value of ``point`` in the requested ``metric``.
+
+    ``"shot"`` is ``P_L_shot = errors / shots`` clamped to ``[0, 1/2]`` (the same
+    clamp :func:`per_round_p_l` applies before converting). ``"round"`` is
+    :func:`per_round_p_l` of that rate over ``point.rounds``.
+    """
+    if metric == "shot":
+        return min(max(point.p_l_shot, 0.0), 0.5)
+    if metric == "round":
+        return per_round_p_l(point.p_l_shot, point.rounds)
+    raise ValueError(f"metric must be 'shot' or 'round', got {metric!r}")
+
+
+def metric_estimate(point: SweepPoint, metric: Metric, z: float = Z_95) -> Estimate:
+    """:func:`metric_value` with a Wilson confidence interval.
+
+    ``"shot"``: the Wilson score interval on ``errors / shots`` itself; ``value``
+    is the clamped :func:`metric_value`, the endpoints are the unclamped Wilson
+    limits. ``"round"``: :func:`per_round_estimate` (Wilson endpoints mapped
+    through the per-round conversion).
+    """
+    if metric == "shot":
+        lo, hi = wilson_interval(point.errors, point.shots, z)
+        return Estimate(value=metric_value(point, "shot"), low=lo, high=hi)
+    if metric == "round":
+        return per_round_estimate(point, z)
+    raise ValueError(f"metric must be 'shot' or 'round', got {metric!r}")
 
 
 def bootstrap_per_round(
