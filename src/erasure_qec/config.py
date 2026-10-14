@@ -116,10 +116,13 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
     base_grid = _log_spaced(
         float(raw["p_log10_min"]), float(raw["p_log10_max"]), int(raw["p_points"])
     )
-    # Optional additive dense band (e.g. extra fit-resolution points through the
-    # crossing); merged with the log grid, sorted, and de-duplicated.
+    # Optional additive dense bands, merged with the log grid, sorted, and
+    # de-duplicated: `extra_p` (points through the per-round crossing) and
+    # `extra_p_shot` (points through the per-shot crossing). Both are treated
+    # identically; either may be absent.
     extra = tuple(float(x) for x in raw.get("extra_p", ()))
-    p_values = tuple(sorted(set(base_grid) | set(extra)))
+    extra_shot = tuple(float(x) for x in raw.get("extra_p_shot", ()))
+    p_values = tuple(sorted(set(base_grid) | set(extra) | set(extra_shot)))
     return ExperimentConfig(
         name=str(raw["name"]),
         r_e=float(raw["r_e"]),
