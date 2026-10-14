@@ -1,0 +1,58 @@
+$ uv run python scripts/paired_separation.py
+# versions (stim pymatching sinter numpy scipy): 1.16.0 2.4.0 1.16.0 2.5.1 1.18.0
+# run on branch chore/remediation-setup from da47e3a, 2026-10-11T13:13Z
+# ---- stdout ----
+== 1. Are the sweeps paired? (shared shot counts per (p, d)) ==
+  r_e=0.0: 12/90 (p,d) pairs have DIFFERING herald/blind shot counts -> INDEPENDENT
+  r_e=0.5: 57/90 (p,d) pairs have DIFFERING herald/blind shot counts -> INDEPENDENT
+  r_e=0.98: 97/145 (p,d) pairs have DIFFERING herald/blind shot counts -> INDEPENDENT
+  => sinter samples each decoder independently; CSV stores only marginal
+     (shots, errors). Real data uses the UNPAIRED difference bootstrap.
+
+== 2. Marginal p_th 95% CI: n_boot 200 (before) vs 1000 (after) ==
+   r_e decoder     p_th           CI@200          CI@1000
+   0.0 herald    1.376%      [1.33,1.47]      [1.33,1.47]
+   0.0 blind     1.440%      [1.35,1.57]      [1.36,1.58]
+   0.5 herald    2.321%      [2.19,2.64]      [2.18,2.76]
+   0.5 blind     1.491%      [1.42,2.15]      [1.42,2.15]
+  0.98 herald   not resolved                -                -  
+  0.98 blind    not resolved      [1.52,6.99]      [1.52,6.35]  (rel_ci 2.95)
+
+== 3+4. Delta = p_th(blind) - p_th(herald), 95% CI, n_boot=1000 ==
+  r_e=0.0: delta=+0.064%  CI=[-0.041,+0.203]%  excludes_zero=False  corr=+0.022  failed=51/1000 (CONTROL: must include 0)
+  r_e=0.5: delta=-0.830%  CI=[-1.240,-0.661]%  excludes_zero=True  corr=+0.038  failed=102/1000
+  r_e=0.98: NON-RESULT (point fit did not converge for: herald)
+
+== 5. Seed stability of the r_e=0.5 Delta CI (5 seeds, n_boot=1000) ==
+  seed=0: CI=[-1.240,-0.661]%  excludes_zero=True
+  seed=1: CI=[-1.268,-0.675]%  excludes_zero=True
+  seed=2: CI=[-1.236,-0.672]%  excludes_zero=True
+  seed=3: CI=[-1.257,-0.661]%  excludes_zero=True
+  seed=4: CI=[-1.232,-0.659]%  excludes_zero=True
+  lower-endpoint spread: 0.036%  upper-endpoint spread: 0.017%
+  (default is 5 seeds; --full-stability runs the documented 10-seed table)
+
+== 6. Discarded-replicate diagnostics (conditioning on convergence) ==
+  r_e=0.0: 51/1000 discarded
+    by guard: blind:bound_pin=11, blind:insufficient_window=6, herald:bound_pin=26, herald:insufficient_window=8
+    blind p_th  success: median=1.445% q90=1.525%   failed: median=1.444% q10=1.310%
+    KS(failed vs success blind p_th): stat=0.168 p=1.58e-01  -> discards are NOT MAR-inconsistent; failed blind p_th not higher
+    [T1] imputed 51 vals: min/25/50/75/max=+0.154/+0.170/+0.185/+0.196/+0.346%  distinct=37  >+0.203%: 11/51
+    [T1] imputation CI=[-0.041,+0.216]% excl0=False (reproduces the earlier number; WEAK/arbitrary -- see below)
+    [T2a] tipping point: claim survives unless >= 0 of 51 discards give delta>=0
+    [T2b] implied delta from recorded p_th: >=0 in 26/51; a discard needs blind p_th >= herald centre 1.380%
+          (failed-blind median 1.444%, 35 reach it)
+    [T2c] discards with no converged decoder (unbounded): 0
+    => control: delta already consistent with zero; no significance to defend (tipping/implied are informational)
+  r_e=0.5: 102/1000 discarded
+    by guard: blind:bound_pin=73, herald:bound_pin=29, herald:insufficient_window=1
+    blind p_th  success: median=1.496% q90=1.561%   failed: median=1.800% q10=1.468%
+    KS(failed vs success blind p_th): stat=0.586 p=3.59e-30  -> discards ARE MAR-inconsistent; failed blind p_th higher
+    [T1] imputed 102 vals: min/25/50/75/max=-0.728/-0.713/-0.690/-0.659/+0.383%  distinct=63  >-0.661%: 27/102
+    [T1] imputation CI=[-1.229,-0.636]% excl0=True (reproduces the earlier number; WEAK/arbitrary -- see below)
+    [T2a] tipping point: claim survives unless >= 24 of 102 discards give delta>=0
+    [T2b] implied delta from recorded p_th: >=0 in 0/102; a discard needs blind p_th >= herald centre 2.371%
+          (failed-blind median 1.800%, 0 reach it)
+    [T2c] discards with no converged decoder (unbounded): 0
+    => significance claim: tipping 24 vs implied>=0 0 -> SURVIVES
+

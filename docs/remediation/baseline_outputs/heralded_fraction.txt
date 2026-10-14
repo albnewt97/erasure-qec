@@ -1,0 +1,13 @@
+$ uv run python scripts/heralded_fraction.py
+# versions (stim pymatching sinter numpy scipy): 1.16.0 2.4.0 1.16.0 2.5.1 1.18.0
+# run on branch chore/remediation-setup from da47e3a, 2026-10-11T13:13Z
+# ---- stdout ----
+heralded fraction of the DEM error budget  (p=0.02, d=5)
+corrected = no-op herald branches excluded from numerator and denominator
+legacy    = pre-correction definition, counted them in both (inflated)
+              convert_idle=False         convert_idle=True
+   r_e    corrected       legacy    corrected       legacy
+   0.5       0.2319       0.3045       0.3231       0.4175
+  0.98       0.4542       0.5468       0.6311       0.7198
+
+Note: heralded fraction < r_e always -- meas/reset errors are never heralded, so r_e (the 2q-gate fraction) overstates circuit-wide conversion.
