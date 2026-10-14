@@ -35,6 +35,8 @@ conventions: the repo's constant non-identity budget (data/*.csv) and wu2022
 - Before every commit:
   uv run ruff check . && uv run ruff format --check . && uv run mypy &&
   uv run pytest -m "not slow" -q
+- Run the gate exactly as written and check its exit status directly. Never pipe it
+  (`| tail`, `| tee`): a pipeline reports the last command's exit status, not the gate's.
 - Do not delete tests. If behaviour changes intentionally, change the call or
   add a new test, and say so in the report.
 - End every session with the report format the prompt specifies, then stop.
