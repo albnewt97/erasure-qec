@@ -38,6 +38,14 @@ class NoiseInjector(Protocol):
         """Append measurement noise (e.g. ``X_ERROR``) right before an ``M``/``MR``."""
         ...
 
+    def after_initial_data_reset(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
+        """Append noise right after the initial data-qubit ``R`` (preamble only)."""
+        ...
+
+    def before_final_data_measure(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
+        """Append noise right before the final, time-closing data-qubit ``M``."""
+        ...
+
     def on_two_qubit_gate(
         self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]
     ) -> list[int]:
@@ -67,6 +75,12 @@ class NullInjector:
 
     def before_measure(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
         return None
+
+    def after_initial_data_reset(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
+        self.after_reset(circuit, qubits)
+
+    def before_final_data_measure(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
+        self.before_measure(circuit, qubits)
 
     def on_two_qubit_gate(
         self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]
@@ -105,6 +119,12 @@ class ErasureInjector:
     def before_measure(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
         if qubits and self._rates.meas_flip > 0.0:
             circuit.append("X_ERROR", list(qubits), self._rates.meas_flip)
+
+    def after_initial_data_reset(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
+        self.after_reset(circuit, qubits)
+
+    def before_final_data_measure(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
+        self.before_measure(circuit, qubits)
 
     def on_two_qubit_gate(
         self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]
@@ -156,6 +176,12 @@ class PauliOnlyInjector:
 
     def before_measure(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
         self._delegate.before_measure(circuit, qubits)
+
+    def after_initial_data_reset(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
+        self.after_reset(circuit, qubits)
+
+    def before_final_data_measure(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
+        self.before_measure(circuit, qubits)
 
     def on_two_qubit_gate(
         self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]

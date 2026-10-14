@@ -110,7 +110,7 @@ def build(
         circuit.append("QUBIT_COORDS", [index[q]], [q.real, q.imag])
     data_idx = [index[q] for q in data]
     circuit.append("R", data_idx)
-    injector.after_reset(circuit, data_idx)
+    injector.after_initial_data_reset(circuit, data_idx)
     circuit.append("TICK")
 
     meas_count = 0
@@ -149,7 +149,7 @@ def build(
     # --- Time close: measure data, closing Z detectors, logical observable. ---
     circuit.append("SHIFT_COORDS", [], (0, 0, 1))
     data_idx = [index[q] for q in data]
-    injector.before_measure(circuit, data_idx)
+    injector.before_final_data_measure(circuit, data_idx)
     circuit.append("M", data_idx)
     data_meas: dict[complex, int] = {}
     for q in data:

@@ -60,6 +60,17 @@ def ancilla_coords(d: int) -> dict[complex, Basis]:
     return ancillas
 
 
+def num_code_qubits(d: int) -> int:
+    """Number of code qubits: d**2 data plus d**2 - 1 ancillas, i.e. 2*d**2 - 1.
+
+    Equals the builder's qubit-index count, so index ``num_code_qubits(d)`` is
+    the first index not used by any data or ancilla qubit.
+    """
+    if d < 1:
+        raise ValueError(f"distance must be >= 1, got {d}")
+    return 2 * d * d - 1
+
+
 def plaquette_neighbors(anc: complex, d: int) -> list[complex | None]:
     """Data-qubit neighbors of `anc` in the fixed canonical order [NE, NW, SE, SW].
 
