@@ -8,6 +8,8 @@ data/*
 !data/erasure_r98.csv
 figures/dev/          # scratch Stim diagrams; canonical copies live in docs/figures/ (tracked)
 !docs/figures/
+# collection run logs (nohup output)
+logs/
 
 # Python
 __pycache__/
