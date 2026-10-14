@@ -220,3 +220,28 @@ def test_bootstrap_ci_brackets_point_estimate() -> None:
     )
     assert n_no == 0
     assert lo <= est.value <= hi
+
+
+def test_unsaturated_sign_changes_ignore_noisy_saturated_tail() -> None:
+    """Sign flips among points at P ~ 1/2 count in n_sign_changes but not in
+    n_sign_changes_unsaturated, and do not move the reported crossing.
+
+    The base curves have g < 0 below p = 0.01, g == 0 exactly at 0.01 (counted
+    non-negative) and g > 0 above it: one sign change under both counters. The
+    tail adds p = 0.022 .. 0.028 where both curves sit near P = 0.495 (above the
+    0.4 saturation cap) and g alternates - + - +.
+    """
+    base = _synthetic_points()
+    tail = []
+    for i, (e5, e7) in enumerate([(495000, 494000), (495000, 496000)] * 2):
+        p = round(0.022 + 0.002 * i, 3)
+        tail.append(SweepPoint("herald_mwpm", 5, 5, p, 0.0, SHOTS, e5))
+        tail.append(SweepPoint("herald_mwpm", 7, 7, p, 0.0, SHOTS, e7))
+
+    clean = pairwise_crossing(base, 5, 7, metric="shot")
+    noisy = pairwise_crossing(base + tail, 5, 7, metric="shot")
+    assert clean.n_sign_changes == 1
+    assert clean.n_sign_changes_unsaturated == 1
+    assert noisy.n_sign_changes == 5  # + -> - -> + -> - -> + across the tail
+    assert noisy.n_sign_changes_unsaturated == 1
+    assert (noisy.value, noisy.bracket) == (clean.value, clean.bracket)

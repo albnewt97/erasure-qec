@@ -94,6 +94,9 @@ _MIN_DOF = 3
 # present so the ordering-inversion guard can reject an above-threshold p.
 # The cap is applied to the value of whichever `metric` is being fitted.
 _SATURATION_CAP = 0.4
+# Public name for the same constant (read by analysis.crossing's unsaturated
+# sign-change diagnostic). An alias, not a second value: change neither.
+SATURATION_CAP = _SATURATION_CAP
 
 # nu optimiser bounds; a fit landing on either is unconstrained, not converged.
 _NU_BOUNDS = (0.5, 6.0)
