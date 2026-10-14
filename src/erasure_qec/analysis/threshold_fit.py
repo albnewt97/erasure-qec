@@ -50,13 +50,13 @@ Every function here takes a keyword ``metric`` selecting the fitted quantity.
 ``T = d``-round experiment, which is the quantity the finite-size scaling of
 Wang-Harrington-Preskill and of Wu et al. is applied to. ``metric="round"``
 (the default) fits the per-round rate ``p_L`` and is kept for continuity with
-earlier results. At ``T = d`` the per-round conversion divides the shot-level
-rate by roughly ``d`` (``p_L ~ P_L_shot / d`` for small rates), so two curves
-that cross in ``P_L_shot`` do not cross in ``p_L`` at the same ``p``: the
-larger-``d`` curve sits lower by about the ratio of the distances, and the
-finite-``d`` per-round crossing is displaced upward. This is a property of the
-definition, independent of the data. The saturation cap, the window rule and
-the Wilson weights all act on whichever metric is selected.
+earlier results. At ``T = d`` the per-round crossing of two distances never
+lies below their per-shot crossing
+(``tests/test_crossing.py::test_round_negative_wherever_shot_nonpositive``).
+Which of the two is closer to the asymptotic threshold at finite ``d`` is not
+fixed by the definitions; see ``results/threshold_table_committed.json`` for
+the committed data. The saturation cap, the window rule and the Wilson weights
+all act on whichever metric is selected.
 """
 
 from collections.abc import Mapping, Sequence
