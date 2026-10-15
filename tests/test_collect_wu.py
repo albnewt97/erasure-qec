@@ -149,3 +149,21 @@ def test_committed_configs_load_with_pre_registered_settings(name: str) -> None:
 
 def test_config_dir_holds_exactly_the_seven_configs() -> None:
     assert {p.stem for p in CONFIG_DIR.glob("*.yaml")} == set(EXPECTED_COUNTS)
+
+
+# Edge rule for scaled grids, docs/remediation/WU_DPAIR_DECISION.md (2026-10-16).
+SCALED_C = {"wu_fig3b_re050": 0.021946, "wu_fig3b_re090": 0.032103}
+EDGE_UPPER_F = (1.295, 1.340, 1.385)
+EDGE_LOWER_F = (0.755, 0.710, 0.665)
+
+
+@pytest.mark.parametrize("name", sorted(SCALED_C))
+def test_scaled_edge_extensions_are_new_points(name: str) -> None:
+    grid = collect_wu.load_wu_config(CONFIG_DIR / f"{name}.yaml").p_values
+    c = SCALED_C[name]
+    upper = [round(c * f, 4) for f in EDGE_UPPER_F]
+    lower = [round(c * f, 4) for f in EDGE_LOWER_F]
+    extension = upper + lower
+    assert len(set(extension)) == 6
+    assert not set(extension) & set(grid)
+    assert min(upper) > max(grid) and max(lower) < min(grid)

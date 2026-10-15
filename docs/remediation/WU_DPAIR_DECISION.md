@@ -168,3 +168,14 @@ used in any result.
   decoder's predictions equal plain PyMatching on the same DEM (T3, 5000 shots, d = 5).
 - **Edge rule (applied in P5b):** if a d-pair crossing's bracket touches either end of a grid,
   append 3 points beyond that end at the same step and re-collect that config once.
+
+## Edge rule for scaled grids (decided 2026-10-16, before any Wu data)
+
+- Fixed-step configs (re000, re098, re100, pm005, pmp): append 3 points beyond the
+  touched end at the config's step.
+- Scaled configs (re050 c=0.021946, re090 c=0.032103 from wu_coarse_scan.txt):
+  continue the multiplicative sequence: upper f = 1.295, 1.340, 1.385; lower
+  f = 0.755, 0.710, 0.665; points = round(c * f, 4).
+- The edge rule is applied at most once per config.
+- The planning c values used in the projection (0.020, 0.036) are superseded by the
+  scan; the d-pair decision is unaffected (memory-bound; time margin unchanged in kind).
