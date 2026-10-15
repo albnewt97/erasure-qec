@@ -25,6 +25,12 @@ class UniformCircuitNoise:
         if qubits:
             circuit.append("X_ERROR", list(qubits), self.p)
 
+    def after_initial_data_reset(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
+        self.after_reset(circuit, qubits)
+
+    def before_final_data_measure(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
+        self.before_measure(circuit, qubits)
+
     def on_two_qubit_gate(
         self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]
     ) -> list[int]:

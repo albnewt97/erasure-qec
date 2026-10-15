@@ -134,6 +134,13 @@ def partition_flattened_dem(dem: stim.DetectorErrorModel) -> PartitionedDEM:
 
         _route_single_herald(instr, components, herald_set, herald_table, edge_index)
 
+    # Declare every observable of the input DEM in dem_pauli. Without this, a
+    # DEM whose only observable-flipping mechanisms are heralded (r_e = 1 with
+    # no measurement, reset or idle noise) yields a dem_pauli with
+    # num_observables == 0, and the decoder would size its outputs from that.
+    for i in range(dem_pauli.num_observables, dem.num_observables):
+        dem_pauli.append("logical_observable", [], [stim.target_logical_observable_id(i)])
+
     return PartitionedDEM(
         dem_pauli=dem_pauli,
         herald_table=herald_table,
