@@ -283,6 +283,23 @@ class BlindMatchingDecoder:
         self._herald_cols: npt.NDArray[np.int64] = partition_flattened_dem(dem).herald_indices
         self._matching: pymatching.Matching = pymatching.Matching.from_detector_error_model(dem)
 
+    @classmethod
+    def from_dem(
+        cls, dem: stim.DetectorErrorModel, herald_indices: npt.NDArray[np.int64]
+    ) -> "BlindMatchingDecoder":
+        """Build the blind decoder from an already-built DEM and its herald columns.
+
+        ``dem`` is matched as given (e.g. a tagged Wu decoding DEM, whose
+        erasure generators enter at their unconditional marginals); the
+        ``herald_indices`` columns are zeroed before every decode.
+        """
+        self = cls.__new__(cls)
+        self.num_detectors = dem.num_detectors
+        self.num_observables = dem.num_observables
+        self._herald_cols = np.asarray(herald_indices, dtype=np.int64)
+        self._matching = pymatching.Matching.from_detector_error_model(dem)
+        return self
+
     def decode_batch(self, detection_events: _BoolArray) -> _BoolArray:
         """Decode full detector vectors, ignoring the herald bits entirely."""
         dets = _validate(detection_events, self.num_detectors)
