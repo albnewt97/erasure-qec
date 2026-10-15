@@ -662,3 +662,88 @@ def test_baseline_control_discards_are_missing_at_random() -> None:
     assert not r.excludes_zero  # control: Delta consistent with zero
     # And there is no significance to defend: the endpoint already reaches zero.
     assert tipping_point_discards(r) == 0
+
+
+# --- metric option: default is unchanged "round"; "shot" is threaded through ----
+
+
+def _sigmoid_shot_points() -> list[SweepPoint]:
+    """Points whose expected P_L_shot is equal across d at p = 0.01 exactly."""
+    a = math.log(0.25)  # 0.5 * sigmoid(a) = 0.1 at p = 0.01 for every d
+    points: list[SweepPoint] = []
+    for d in (5, 7, 9, 11):
+        for i in range(9):
+            p = round(0.004 + 0.002 * i, 3)
+            z = a + 100.0 * (p - 0.01) * d ** (1.0 / 1.5)
+            errors = round(10**6 * 0.5 / (1.0 + math.exp(-z)))
+            points.append(SweepPoint("herald_mwpm", d, d, p, 0.0, 10**6, errors))
+    return points
+
+
+def _fit_fields(r: FitResult) -> tuple[object, ...]:
+    return (
+        r.converged,
+        r.resolved,
+        r.reason,
+        r.p_th,
+        r.nu,
+        r.chi2_dof,
+        r.p_th_ci,
+        r.nu_ci,
+        r.n_boot_failed,
+        r.p_center,
+        r.n_points,
+        tuple(r.used_p_l),
+    )
+
+
+def test_default_metric_is_round_and_unchanged() -> None:
+    """Omitting `metric` and passing metric="round" give the identical fit."""
+    pts = [
+        p for p in load_sweep(FIXTURES / "real_baseline_pauli.csv") if p.decoder == "herald_mwpm"
+    ]
+    default = fit_threshold(pts, d_min=7, n_boot=50, seed=0)
+    explicit = fit_threshold(pts, d_min=7, n_boot=50, seed=0, metric="round")
+    assert default.metric == explicit.metric == "round"
+    assert _fit_fields(default) == _fit_fields(explicit)
+
+
+def test_default_difference_metric_is_round_and_unchanged() -> None:
+    pts = load_sweep(FIXTURES / "real_erasure_r50.csv")
+    herald = [p for p in pts if p.decoder == "herald_mwpm"]
+    blind = [p for p in pts if p.decoder == "blind_mwpm"]
+    default = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=20, seed=0)
+    explicit = bootstrap_threshold_difference(
+        herald, blind, d_min=7, n_boot=20, seed=0, metric="round"
+    )
+    assert default.metric == explicit.metric == "round"
+    assert (default.delta, default.delta_ci, default.n_paired_failed) == (
+        explicit.delta,
+        explicit.delta_ci,
+        explicit.n_paired_failed,
+    )
+    assert default.herald_pth_draws == explicit.herald_pth_draws
+
+
+def test_shot_metric_fits_shot_values_and_records_metric() -> None:
+    pts = _sigmoid_shot_points()
+    r = fit_threshold(pts, n_boot=0, metric="shot")
+    assert r.metric == "shot"
+    by_key = {(pt.p, pt.d): pt.p_l_shot for pt in pts}
+    expected = [by_key[(p, int(d))] for p, d in zip(r.used_p, r.used_d, strict=True)]
+    assert list(r.used_p_l) == pytest.approx(expected)
+
+
+def test_shot_metric_recorded_on_failed_fit_and_difference() -> None:
+    few = _sigmoid_shot_points()[:3]  # too few points to fit
+    assert fit_threshold(few, n_boot=0, metric="shot").metric == "shot"
+    diff = bootstrap_threshold_difference(few, few, n_boot=2, metric="shot")
+    assert not diff.converged
+    assert diff.metric == "shot"
+
+
+def test_estimate_crossing_uses_requested_metric() -> None:
+    """Shot curves coincide exactly at p = 0.01; per-round curves do not."""
+    pts = _sigmoid_shot_points()
+    assert estimate_crossing(pts, metric="shot") == 0.01
+    assert estimate_crossing(pts) != 0.01

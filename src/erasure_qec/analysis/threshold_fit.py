@@ -44,6 +44,19 @@ To compare two decoders' thresholds, :func:`bootstrap_threshold_difference`
 bootstraps ``Delta = p_th(blind) - p_th(herald)`` directly -- the valid
 significance test, since overlapping marginal CIs do not imply a
 non-significant difference.
+
+Every function here takes a keyword ``metric`` selecting the fitted quantity.
+``metric="shot"`` fits the block failure probability ``P_L_shot`` of the whole
+``T = d``-round experiment, which is the quantity the finite-size scaling of
+Wang-Harrington-Preskill and of Wu et al. is applied to. ``metric="round"``
+(the default) fits the per-round rate ``p_L`` and is kept for continuity with
+earlier results. At ``T = d`` the per-round crossing of two distances never
+lies below their per-shot crossing
+(``tests/test_crossing.py::test_round_negative_wherever_shot_nonpositive``).
+Which of the two is closer to the asymptotic threshold at finite ``d`` is not
+fixed by the definitions; see ``results/threshold_table_committed.json`` for
+the committed data. The saturation cap, the window rule and the Wilson weights
+all act on whichever metric is selected.
 """
 
 from collections.abc import Mapping, Sequence
@@ -55,9 +68,10 @@ from scipy.optimize import curve_fit
 
 from erasure_qec.analysis.statistics import (
     Z_95,
+    Metric,
     SweepPoint,
-    per_round_estimate,
-    per_round_p_l,
+    metric_estimate,
+    metric_value,
 )
 
 _FitParams = tuple[float, float, float, float, float]
@@ -78,6 +92,7 @@ _MIN_DOF = 3
 # downweighted by their large 1-sigma Wilson errors. In estimate_crossing a p
 # is dropped if *any* distance saturates, keeping the saturated large-d points
 # present so the ordering-inversion guard can reject an above-threshold p.
+# The cap is applied to the value of whichever `metric` is being fitted.
 _SATURATION_CAP = 0.4
 
 # nu optimiser bounds; a fit landing on either is unconstrained, not converged.
@@ -136,11 +151,13 @@ class FitResult:
     n_boot_failed: int = 0  # replicates whose window was too thin or fit failed
     message: str = ""
     # Points actually used, as parallel arrays (for plotting the collapse).
+    # `used_p_l` holds the fitted metric's value (per-round p_L for "round").
     used_p: npt.NDArray[np.float64] = field(default_factory=lambda: np.array([], dtype=np.float64))
     used_d: npt.NDArray[np.int64] = field(default_factory=lambda: np.array([], dtype=np.int64))
     used_p_l: npt.NDArray[np.float64] = field(
         default_factory=lambda: np.array([], dtype=np.float64)
     )
+    metric: str = "round"  # the fitted quantity: "shot" or "round"
 
     def scaling_x(self) -> npt.NDArray[np.float64]:
         """Scaling variable ``x = (p - p_th) d^(1/nu)`` for the used points."""
@@ -189,8 +206,8 @@ def _ordering_inverted(pl_by_d: dict[int, float]) -> bool:
     return upper > lower * (1.0 + _INVERSION_TOL)
 
 
-def estimate_crossing(points: Sequence[SweepPoint]) -> float:
-    """Estimate the threshold crossing as the p where the p_L curves coincide.
+def estimate_crossing(points: Sequence[SweepPoint], *, metric: Metric = "round") -> float:
+    """Estimate the threshold crossing as the p where the ``metric`` curves coincide.
 
     At threshold the per-round ``p_L`` becomes distance-independent, so the
     curves for different ``d`` cross and the spread across distances is
@@ -214,11 +231,13 @@ def estimate_crossing(points: Sequence[SweepPoint]) -> float:
        — an artifact at the low edge of the p-grid. Dividing by the mean
        measures spread on the scale of the curves themselves.
 
-    Falls back to the geometric-mean p when no p survives as a candidate.
+    Falls back to the geometric-mean p when no p survives as a candidate. The
+    description above is for the default per-round metric; with
+    ``metric="shot"`` every step acts on ``P_L_shot`` instead.
     """
     by_p: dict[float, dict[int, float]] = {}
     for pt in points:
-        by_p.setdefault(pt.p, {})[pt.d] = per_round_p_l(pt.p_l_shot, pt.rounds)
+        by_p.setdefault(pt.p, {})[pt.d] = metric_value(pt, metric)
 
     relative_spread: dict[float, float] = {}
     for p, vals in by_p.items():
@@ -238,14 +257,14 @@ def estimate_crossing(points: Sequence[SweepPoint]) -> float:
 
 
 def _select_window(
-    points: Sequence[SweepPoint], p_center: float, window_factor: float
+    points: Sequence[SweepPoint],
+    p_center: float,
+    window_factor: float,
+    *,
+    metric: Metric = "round",
 ) -> list[SweepPoint]:
     lo, hi = p_center / window_factor, p_center * window_factor
-    return [
-        pt
-        for pt in points
-        if lo <= pt.p <= hi and per_round_p_l(pt.p_l_shot, pt.rounds) < _SATURATION_CAP
-    ]
+    return [pt for pt in points if lo <= pt.p <= hi and metric_value(pt, metric) < _SATURATION_CAP]
 
 
 def fit_threshold(
@@ -257,6 +276,7 @@ def fit_threshold(
     n_boot: int = 1000,
     seed: int = 0,
     d_min: int | None = None,
+    metric: Metric = "round",
 ) -> FitResult:
     """Fit the finite-size scaling ansatz to ``points`` (one decoder/r_e).
 
@@ -266,6 +286,11 @@ def fit_threshold(
             (largest finite-size corrections) gives the asymptotic threshold;
             the effective crossing drifts upward when small-d curves are
             included (§10).
+        metric: the fitted quantity, ``"round"`` (per-round ``p_L``, default)
+            or ``"shot"`` (``P_L_shot``); see the module docstring. It is used
+            by the crossing estimate, the saturation cut, the fit values and
+            the Wilson weights, in the point fit and in every bootstrap
+            replicate.
 
     Returns a :class:`FitResult`; ``converged=False`` (with a message and NaN
     parameters) when there is not enough data or the optimizer fails, so
@@ -273,8 +298,8 @@ def fit_threshold(
     """
     if d_min is not None:
         points = [pt for pt in points if pt.d >= d_min]
-    center = estimate_crossing(points) if p_center is None else p_center
-    used = _select_window(points, center, window_factor)
+    center = estimate_crossing(points, metric=metric) if p_center is None else p_center
+    used = _select_window(points, center, window_factor, metric=metric)
     distances = tuple(sorted({pt.d for pt in used}))
 
     def _fail(msg: str, reason: str) -> FitResult:
@@ -293,6 +318,7 @@ def fit_threshold(
             reason=reason,
             d_min=d_min,
             message=msg,
+            metric=metric,
         )
 
     # 5 free parameters; require >= _MIN_DOF degrees of freedom and >= 2
@@ -305,7 +331,7 @@ def fit_threshold(
             _REASON_INSUFFICIENT,
         )
 
-    core = _weighted_fit_arrays(used, center, nu_guess)
+    core = _weighted_fit_arrays(used, center, nu_guess, metric=metric)
     if core is None:
         return _fail("curve_fit failed on the point estimate", _REASON_CURVE_FIT)
     popt = core.popt
@@ -340,6 +366,7 @@ def fit_threshold(
         nu_guess=nu_guess,
         seed=seed,
         n_boot=n_boot,
+        metric=metric,
     )
     if boot.size:
         lo_pct, hi_pct = _CI_PERCENTILES
@@ -417,6 +444,7 @@ def fit_threshold(
         used_p=core.p_arr,
         used_d=core.d_arr.astype(np.int64),
         used_p_l=core.y,
+        metric=metric,
     )
 
 
@@ -437,7 +465,11 @@ def _sufficient(used: Sequence[SweepPoint]) -> bool:
 
 
 def _weighted_fit_arrays(
-    used: Sequence[SweepPoint], center: float, nu_guess: float
+    used: Sequence[SweepPoint],
+    center: float,
+    nu_guess: float,
+    *,
+    metric: Metric = "round",
 ) -> _CoreFit | None:
     """Build the weighted-LSQ arrays for ``used`` and run ``curve_fit`` once.
 
@@ -448,11 +480,14 @@ def _weighted_fit_arrays(
     """
     p_arr = np.array([pt.p for pt in used], dtype=float)
     d_arr = np.array([pt.d for pt in used], dtype=float)
-    y = np.array([per_round_p_l(pt.p_l_shot, pt.rounds) for pt in used])
-    # per_round_estimate is a 95% Wilson interval, so its half-width is ~Z_95
+    y = np.array([metric_value(pt, metric) for pt in used])
+    # metric_estimate is a 95% Wilson interval, so its half-width is ~Z_95
     # standard errors; divide by Z_95 to recover a ~1-sigma weight for the fit.
     sigma = np.array(
-        [max((e.high - e.low) / (2.0 * Z_95), 1e-9) for e in map(per_round_estimate, used)]
+        [
+            max((e.high - e.low) / (2.0 * Z_95), 1e-9)
+            for e in (metric_estimate(pt, metric) for pt in used)
+        ]
     )
     a0 = float(np.median(y))
     # The p_th initial guess must be inside the p-range of the windowed points
@@ -497,8 +532,9 @@ def _bootstrap_pipeline(
     nu_guess: float,
     seed: int,
     n_boot: int,
+    metric: Metric = "round",
 ) -> tuple[npt.NDArray[np.float64], int]:
-    """Full-pipeline parametric bootstrap of ``(p_th, nu)``.
+    """Full-pipeline parametric bootstrap of ``(p_th, nu)`` in ``metric``.
 
     Each replicate resamples ``errors ~ Binomial(shots, P_L_shot)`` over **all**
     ``points`` (the same d-filtered set the point estimate saw, not the frozen
@@ -543,12 +579,12 @@ def _bootstrap_pipeline(
     for _ in range(n_boot):
         drawn = rng.binomial(shots, p_shot)
         resampled = [replace(pt, errors=int(e)) for pt, e in zip(points, drawn, strict=True)]
-        center = estimate_crossing(resampled) if p_center is None else p_center
-        used = _select_window(resampled, center, window_factor)
+        center = estimate_crossing(resampled, metric=metric) if p_center is None else p_center
+        used = _select_window(resampled, center, window_factor, metric=metric)
         if not _sufficient(used):
             n_failed += 1
             continue
-        core = _weighted_fit_arrays(used, center, nu_guess)
+        core = _weighted_fit_arrays(used, center, nu_guess, metric=metric)
         if core is None:
             n_failed += 1
             continue
@@ -616,6 +652,7 @@ class ThresholdDifference:
     blind_pth_draws: tuple[float, ...] = ()
     failures: tuple[ReplicateFailure, ...] = ()
     message: str = ""
+    metric: str = "round"  # the fitted quantity: "shot" or "round"
 
 
 def _resample_independent(
@@ -655,6 +692,7 @@ def _fit_pth(
     d_min: int | None,
     window_factor: float,
     nu_guess: float,
+    metric: Metric = "round",
 ) -> float | None:
     """Full-pipeline point fit (no nested bootstrap); ``p_th`` or ``None`` if the
     fit does not converge -- the SAME criterion (window, sufficiency, bound-pin)
@@ -665,6 +703,7 @@ def _fit_pth(
         window_factor=window_factor,
         nu_guess=nu_guess,
         n_boot=0,
+        metric=metric,
     )
     return result.p_th if result.converged else None
 
@@ -680,8 +719,12 @@ def bootstrap_threshold_difference(
     seed: int = 0,
     n_boot: int = 1000,
     decoders: tuple[str, str] = ("herald_mwpm", "blind_mwpm"),
+    metric: Metric = "round",
 ) -> ThresholdDifference:
     """Bootstrap ``delta = p_th(blind) - p_th(herald)`` and test it against 0.
+
+    ``metric`` selects the fitted quantity for both decoders (see
+    :func:`fit_threshold`).
 
     Each replicate runs the FULL pipeline for BOTH decoders -- resample ->
     :func:`estimate_crossing` -> :func:`_select_window` -> weighted fit (via
@@ -716,12 +759,15 @@ def bootstrap_threshold_difference(
             n_boot=n_boot,
             n_paired_failed=0,
             message=msg,
+            metric=metric,
         )
 
     herald_pth = _fit_pth(
-        herald_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess
+        herald_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess, metric=metric
     )
-    blind_pth = _fit_pth(blind_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess)
+    blind_pth = _fit_pth(
+        blind_points, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess, metric=metric
+    )
     if herald_pth is None or blind_pth is None:
         which = []
         if herald_pth is None:
@@ -741,10 +787,20 @@ def bootstrap_threshold_difference(
         else:
             h_res, b_res = _resample_paired(joint_counts, decoders, rng)
         hf = fit_threshold(
-            h_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess, n_boot=0
+            h_res,
+            d_min=d_min,
+            window_factor=window_factor,
+            nu_guess=nu_guess,
+            n_boot=0,
+            metric=metric,
         )
         bf = fit_threshold(
-            b_res, d_min=d_min, window_factor=window_factor, nu_guess=nu_guess, n_boot=0
+            b_res,
+            d_min=d_min,
+            window_factor=window_factor,
+            nu_guess=nu_guess,
+            n_boot=0,
+            metric=metric,
         )
         # Bound-pinned replicates are DISCARDED here, and RETAINED by
         # _bootstrap_pipeline (the marginal CI). Read the "DELIBERATE ASYMMETRY"
@@ -802,6 +858,7 @@ def bootstrap_threshold_difference(
         blind_pth_draws=tuple(b_draws),
         failures=tuple(failures),
         message="ok",
+        metric=metric,
     )
 
 

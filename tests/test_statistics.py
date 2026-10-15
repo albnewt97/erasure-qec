@@ -1,15 +1,19 @@
 """Unit tests for per-round conversion and CIs (PLAN.md §10)."""
 
 import math
+from typing import cast
 
 import pytest
 
 from erasure_qec.analysis.statistics import (
     Estimate,
     LambdaEstimate,
+    Metric,
     SweepPoint,
     bootstrap_per_round,
     lambda_factor,
+    metric_estimate,
+    metric_value,
     per_round_estimate,
     per_round_p_l,
     shot_p_l_from_per_round,
@@ -150,3 +154,74 @@ def test_ci_conditioned_threshold_tracks_the_requested_ci_level() -> None:
     none_drawn = LambdaEstimate(value=2.0, low=1.0, high=3.0)
     assert math.isnan(none_drawn.dropped_fraction)
     assert none_drawn.ci_conditioned is False
+
+
+# --- metric_value / metric_estimate: "shot" vs "round" --------------------------
+
+
+def _pt(errors: int, shots: int = 10000, rounds: int = 5) -> SweepPoint:
+    return SweepPoint(
+        "herald_mwpm", d=5, rounds=rounds, p=0.01, r_e=0.5, shots=shots, errors=errors
+    )
+
+
+def test_metric_value_shot_is_errors_over_shots() -> None:
+    assert metric_value(_pt(284), "shot") == pytest.approx(0.0284)
+
+
+def test_metric_value_round_is_per_round_conversion() -> None:
+    assert metric_value(_pt(284), "round") == per_round_p_l(0.0284, 5)
+
+
+def test_metric_value_shot_clamps_to_half() -> None:
+    assert metric_value(_pt(7000), "shot") == 0.5
+
+
+def test_metric_values_agree_at_one_round() -> None:
+    """At T = 1 the per-round conversion is the identity."""
+    pt = _pt(284, rounds=1)
+    assert metric_value(pt, "round") == pytest.approx(metric_value(pt, "shot"))
+
+
+def test_metric_estimate_shot_is_direct_wilson() -> None:
+    est = metric_estimate(_pt(284), "shot")
+    lo, hi = wilson_interval(284, 10000)
+    assert est.value == pytest.approx(0.0284)
+    assert (est.low, est.high) == (lo, hi)
+    assert est.low < est.value < est.high
+
+
+def test_metric_estimate_round_equals_per_round_estimate() -> None:
+    pt = _pt(284)
+    assert metric_estimate(pt, "round") == per_round_estimate(pt)
+
+
+@pytest.mark.parametrize("metric", ["shot", "round"])
+def test_metric_estimate_zero_errors(metric: Metric) -> None:
+    est = metric_estimate(_pt(0), metric)
+    assert est.value == 0.0
+    assert est.low == 0.0
+    assert est.high > 0.0
+
+
+def test_metric_estimate_all_errors_shot() -> None:
+    """errors == shots: value clamps to 1/2, the Wilson upper limit is 1."""
+    est = metric_estimate(_pt(10000), "shot")
+    assert est.value == 0.5
+    assert est.high == pytest.approx(1.0)
+    assert est.low < 1.0
+
+
+def test_metric_estimate_all_errors_round() -> None:
+    """errors == shots: every endpoint maps through the clamp to 1/2."""
+    est = metric_estimate(_pt(10000), "round")
+    assert est.value == pytest.approx(0.5)
+    assert est.high == pytest.approx(0.5)
+
+
+def test_unknown_metric_raises() -> None:
+    bad = cast(Metric, "block")
+    with pytest.raises(ValueError):
+        metric_value(_pt(1), bad)
+    with pytest.raises(ValueError):
+        metric_estimate(_pt(1), bad)
