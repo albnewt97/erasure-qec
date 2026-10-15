@@ -27,6 +27,8 @@ Register via ``sinter.collect(..., custom_decoders=CUSTOM_DECODERS)``, or
 ``WU_DECODERS`` for Wu tasks.
 """
 
+import multiprocessing
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -181,3 +183,18 @@ def wu_task(d: int, params: WuNoiseParams, metadata: dict[str, Any]) -> sinter.T
         ),
         json_metadata=metadata,
     )
+
+
+def wu_tasks_parallel(
+    specs: Sequence[tuple[int, WuNoiseParams, dict[str, Any]]], processes: int = 8
+) -> list[sinter.Task]:
+    """:func:`wu_task` for every ``(d, params, metadata)`` spec, built in a process pool.
+
+    Results come back in ``specs`` order. Tasks cross the process boundary by
+    pickle, which stim implements via ``str()`` (about 6 significant digits);
+    sinter pickles every task to its workers the same way, so workers receive
+    identical circuits and DEMs whether a task was built here or serially, and
+    ``strong_id`` (computed from ``str()``) is unchanged.
+    """
+    with multiprocessing.get_context("spawn").Pool(processes) as pool:
+        return pool.starmap(wu_task, specs)

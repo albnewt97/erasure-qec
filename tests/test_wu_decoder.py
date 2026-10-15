@@ -8,18 +8,20 @@ the machine and versions they were measured on.
 
 import itertools
 import math
+import pickle
 from collections.abc import Mapping
 
 import numpy as np
 import numpy.typing as npt
 import pymatching
 import pytest
+import sinter
 import stim
 
 from erasure_qec.circuits.builder import build
 from erasure_qec.decoding.dem_partition import _split_components
 from erasure_qec.decoding.herald_matching import BlindMatchingDecoder, HeraldMatchingDecoder
-from erasure_qec.decoding.sinter_adapter import WU_DECODERS, wu_task
+from erasure_qec.decoding.sinter_adapter import WU_DECODERS, wu_task, wu_tasks_parallel
 from erasure_qec.decoding.tagged_partition import partition_tagged, partition_tagged_dem
 from erasure_qec.noise.wu import WuDecodingInjector, WuNoiseParams, WuSamplingInjector
 
@@ -239,3 +241,37 @@ def test_t4_herald_beats_blind_by_five_standard_errors() -> None:
     ler_b = fails["wu_blind_mwpm"] / n
     se = math.sqrt(ler_h * (1 - ler_h) / n + ler_b * (1 - ler_b) / n)
     assert ler_b - ler_h > 5 * se, (ler_h, ler_b, se)
+
+
+def test_pool_built_tasks_match_serial_tasks() -> None:
+    """6b-i: pool-built tasks have the serial strong_id, and pickle (what sinter
+    does to send a task to a worker) yields identical circuits and DEMs."""
+    specs = [
+        (3, WuNoiseParams(0.042, 0.98), {"d": 3, "p": 0.042}),
+        (5, WuNoiseParams(0.05, 1.0, p_m=0.005), {"d": 5, "p": 0.05}),
+    ]
+    pooled = wu_tasks_parallel(specs, processes=2)
+    for (d, params, meta), pool_task in zip(specs, pooled, strict=True):
+        serial = wu_task(d, params, meta)
+        assert serial.circuit is not None and serial.detector_error_model is not None
+        assert pool_task.circuit is not None and pool_task.detector_error_model is not None
+        for decoder in WU_DECODERS:  # sinter.collect fills in the decoder per task
+            ids = [
+                sinter.Task(
+                    circuit=t.circuit,
+                    decoder=decoder,
+                    detector_error_model=t.detector_error_model,
+                    json_metadata=t.json_metadata,
+                ).strong_id()
+                for t in (serial, pool_task)
+            ]
+            assert ids[0] == ids[1]
+        assert str(pool_task.circuit) == str(serial.circuit)
+        assert str(pool_task.detector_error_model) == str(serial.detector_error_model)
+        # What a sinter worker receives is the same in both paths.
+        assert pickle.loads(pickle.dumps(serial.circuit)) == pickle.loads(
+            pickle.dumps(pool_task.circuit)
+        )
+        assert pickle.loads(pickle.dumps(serial.detector_error_model)) == pickle.loads(
+            pickle.dumps(pool_task.detector_error_model)
+        )
