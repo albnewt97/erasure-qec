@@ -6,6 +6,10 @@ data/*
 !data/baseline_pauli.csv
 !data/erasure_r50.csv
 !data/erasure_r98.csv
+# Wu et al. validation sweeps (wu2022 convention): commit data/wu/*.csv only.
+!data/wu/
+data/wu/*
+!data/wu/*.csv
 figures/dev/          # scratch Stim diagrams; canonical copies live in docs/figures/ (tracked)
 !docs/figures/
 
