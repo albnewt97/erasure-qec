@@ -1,4 +1,4 @@
-"""Wu et al. (2022) two-qubit-gate erasure noise: sampling circuit only.
+"""Wu et al. (2022) two-qubit-gate erasure noise: sampling and decoding circuits.
 
 Reference: Wu, Kolkowitz, Puri, Thompson, Nat. Commun. 13, 4657 (2022),
 arXiv:2201.03540, Sec. III and Methods VII.A. Per two-qubit gate, exactly one
@@ -14,34 +14,58 @@ of the following happens:
 Ancilla initialization and measurement each flip with probability ``p_m``
 (``X_ERROR``). Idle errors and single-qubit gate errors are neglected.
 
+Sampling circuit (:class:`WuSamplingInjector`)
+----------------------------------------------
 The sampler is exclusive: Pauli and erasure branches share one
 ``CORRELATED_ERROR`` / ``ELSE_CORRELATED_ERROR`` chain per gate, so they never
-co-occur on one gate. The decoding circuit (P4) treats Pauli and erasure as
-independent channels; that is a decoder approximation at ``O(p_p * p_e)``.
+co-occur on one gate. The herald is a flag qubit (index ``num_code_qubits(d)``
+= ``2 d^2 - 1``, no ``QUBIT_COORDS``) that is reset, flipped by the erasure
+branches, and measured once per gate pair, giving one herald record bit per
+pair. Because the herald and the Pauli are one correlated mechanism, stim's
+``decompose_errors`` either merges the herald with a syndrome detector
+(``R_e = 0.98``) or fails (``R_e = 1.0``). Never call
+``detector_error_model()`` on circuits built with :class:`WuSamplingInjector`.
 
-The herald is a flag qubit (index ``num_code_qubits(d)`` = ``2 d^2 - 1``, no
-``QUBIT_COORDS``) that is reset, flipped by the erasure branches, and measured
-once per gate pair, giving one herald record bit per pair. Because the herald
-and the Pauli are one correlated mechanism, stim's ``decompose_errors``
-either merges the herald with a syndrome detector (``R_e = 0.98``) or fails
-(``R_e = 1.0``). Never call ``detector_error_model()`` on circuits built with
-:class:`WuSamplingInjector`; decode with a separate decoding circuit.
+Decoding circuit (:class:`WuDecodingInjector`)
+----------------------------------------------
+Same builder call and same detector layout, but at each erasure location ``k``
+the erasure is emitted as four independent tagged generators
+``X_ERROR[wu_e{k}:Xa]``, ``Z_ERROR[wu_e{k}:Za]``, ``X_ERROR[wu_e{k}:Xb]``,
+``Z_ERROR[wu_e{k}:Zb]``, each at ``p_e / 2``, followed by a noiseless
+``R flag; M flag``. A Pauli uniform over ``{I,X,Y,Z}^2`` is four independent
+fair bits ``(x_a, z_a, x_b, z_b)``: conditional on the herald each generator
+fires with probability 1/2 (matching weight 0); unconditionally each fires
+with probability ``p_e / 2`` (the blind decoder's marginal). The tags let the
+decoder attribute each DEM mechanism to its herald without the herald
+detector appearing in the mechanism. The decoding circuit treats Pauli
+(``DEPOLARIZE2(p_p)``) and erasure as independent channels, while the sampler
+makes them exclusive; that is a decoder approximation at ``O(p_p * p_e)``.
+
+Flag layout rule (both injectors): whenever ``params.p_e > 0`` or
+``location_overrides`` is non-empty, every gate pair gets ``R flag ... M flag``
+and one herald detector, even if that pair's effective ``p_e`` is 0. The
+detector layout therefore does not depend on which locations are active.
+Location ``k`` is the global pair index in emission order, equal to the
+herald index; both injectors assign it through one shared enumerator.
 
 Assumptions not fixed by Wu et al.:
 
 - Data-qubit initialization is noiseless (Wu does not specify it), and the
   final data measurement is perfect (Wu: d rounds then one round of perfect
   measurements). ``p_m`` applies to ancillas only.
-- When ``p_p == 0`` the 15 Pauli branches are omitted from the chain; they
-  have probability 0, so the sampled distribution is unchanged.
-- At ``p_e == 0`` the gate noise is a single ``DEPOLARIZE2(p_p)`` over the
-  whole CX layer, which makes the circuit identical to ``ErasureInjector`` at
-  ``r_e = 0`` with no measurement, reset or idle noise.
+- Zero-probability branches are omitted: the 15 Pauli branches when
+  ``p_p == 0`` and the 16 erasure branches when a location's ``p_e`` is 0.
+  The sampled distribution is unchanged.
+- At ``p_e == 0`` with no overrides the gate noise is a single
+  ``DEPOLARIZE2(p_p)`` over the whole CX layer, which makes the circuit
+  identical to ``ErasureInjector`` at ``r_e = 0`` with no measurement, reset
+  or idle noise.
 """
 
 import itertools
-from collections.abc import Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from types import MappingProxyType
 
 import stim
 
@@ -50,6 +74,7 @@ from erasure_qec.config import _check_probability
 
 _PAULIS = "IXYZ"
 _PAULI_TARGET = {"X": stim.target_x, "Y": stim.target_y, "Z": stim.target_z}
+_NO_OVERRIDES: Mapping[int, float] = MappingProxyType({})
 
 
 @dataclass(frozen=True)
@@ -96,16 +121,18 @@ def append_wu_gate_chain(
 
     The chain has 16 erasure branches (probability ``p_e / 16`` each, targets
     ``X(flag)`` plus the non-identity factors of each ``(P_a, P_b)`` in
-    ``itertools.product("IXYZ", "IXYZ")`` order), followed by 15 non-identity
-    Pauli branches without the flag (``p_p / 15`` each; omitted if
-    ``p_p == 0``). The first branch is ``CORRELATED_ERROR(q)``, each later one
+    ``itertools.product("IXYZ", "IXYZ")`` order; omitted if ``p_e == 0``),
+    followed by 15 non-identity Pauli branches without the flag (``p_p / 15``
+    each; omitted if ``p_p == 0``). The first branch is
+    ``CORRELATED_ERROR(q)``, each later one
     ``ELSE_CORRELATED_ERROR(q / (1 - cumulative))``, so branch marginals are
     exactly ``q``. Appends exactly one measurement record bit (the herald).
-    Requires ``p_e > 0`` and ``p_e + p_p <= 1``.
+    Requires ``p_e + p_p <= 1``.
     """
     branches: list[tuple[float, list[stim.GateTarget]]] = []
-    for pa, pb in itertools.product(_PAULIS, _PAULIS):
-        branches.append((p_e / 16, [stim.target_x(flag), *_pauli_targets(pa, a, pb, b)]))
+    if p_e > 0.0:
+        for pa, pb in itertools.product(_PAULIS, _PAULIS):
+            branches.append((p_e / 16, [stim.target_x(flag), *_pauli_targets(pa, a, pb, b)]))
     if p_p > 0.0:
         for pa, pb in itertools.product(_PAULIS, _PAULIS):
             if pa == "I" and pb == "I":
@@ -134,17 +161,27 @@ def _pauli_targets(pa: str, a: int, pb: str, b: int) -> list[stim.GateTarget]:
     return targets
 
 
-class WuSamplingInjector:
-    """``NoiseInjector`` emitting the Wu et al. model as a sampling circuit.
+class _WuInjectorBase:
+    """Shared hooks, flag layout and location enumeration of the Wu injectors.
 
-    Sampling only: do not build a detector error model from its circuits (see
-    module docstring). ``locations`` records ``(a, b, k)`` for every gate pair
-    that received an erasure chain, where ``k`` counts pairs in emission order
-    (equal to the pair's herald-bit index among all herald bits).
+    ``location_overrides`` maps a location index to that pair's ``p_e``. It is
+    a test affordance (forcing or isolating single erasure locations); the
+    default is empty. ``locations`` records ``(a, b, k)`` for every pair that
+    received a flag, ``k`` being the global pair index in emission order.
     """
 
-    def __init__(self, d: int, params: WuNoiseParams) -> None:
+    def __init__(
+        self,
+        d: int,
+        params: WuNoiseParams,
+        location_overrides: Mapping[int, float] = _NO_OVERRIDES,
+    ) -> None:
+        for k, p_e_k in location_overrides.items():
+            _check_probability(p_e_k, f"location_overrides[{k}]")
+            if p_e_k + params.p_p > 1.0:
+                raise ValueError(f"location {k}: p_e + p_p must be <= 1")
         self.params = params
+        self.location_overrides: dict[int, float] = dict(location_overrides)
         self.flag = num_code_qubits(d)
         self.locations: list[tuple[int, int, int]] = []
 
@@ -162,20 +199,72 @@ class WuSamplingInjector:
     def before_final_data_measure(self, circuit: stim.Circuit, qubits: Sequence[int]) -> None:
         return None
 
+    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
+        return []
+
     def on_two_qubit_gate(
         self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]
     ) -> list[int]:
         if not pairs:
             return []
-        p_e, p_p = self.params.p_e, self.params.p_p
-        if p_e == 0.0:
-            if p_p > 0.0:
-                circuit.append("DEPOLARIZE2", [q for pair in pairs for q in pair], p_p)
+        if self.params.p_e == 0.0 and not self.location_overrides:
+            if self.params.p_p > 0.0:
+                circuit.append("DEPOLARIZE2", [q for pair in pairs for q in pair], self.params.p_p)
             return []
-        for a, b in pairs:
-            append_wu_gate_chain(circuit, a, b, self.flag, p_e, p_p)
-            self.locations.append((a, b, len(self.locations)))
+        self._emit_heralded_layer(circuit, pairs)
         return [a for a, _ in pairs]
 
-    def on_idle(self, circuit: stim.Circuit, qubits: Sequence[int]) -> list[int]:
-        return []
+    def _enumerate_locations(
+        self, pairs: Sequence[tuple[int, int]]
+    ) -> Iterator[tuple[int, int, int, float]]:
+        """Assign location indices: yield ``(k, a, b, p_e_k)`` per pair, in order.
+
+        The only place ``k`` is assigned, so sampling and decoding circuits
+        enumerate locations identically.
+        """
+        for a, b in pairs:
+            k = len(self.locations)
+            self.locations.append((a, b, k))
+            yield k, a, b, self.location_overrides.get(k, self.params.p_e)
+
+    def _emit_heralded_layer(self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]) -> None:
+        raise NotImplementedError
+
+
+class WuSamplingInjector(_WuInjectorBase):
+    """``NoiseInjector`` emitting the Wu et al. model as a sampling circuit.
+
+    Sampling only: do not build a detector error model from its circuits (see
+    module docstring). Each flagged pair gets :func:`append_wu_gate_chain`
+    with that location's ``p_e`` and the global ``p_p``.
+    """
+
+    def _emit_heralded_layer(self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]) -> None:
+        for _, a, b, p_e_k in self._enumerate_locations(pairs):
+            append_wu_gate_chain(circuit, a, b, self.flag, p_e_k, self.params.p_p)
+
+
+class WuDecodingInjector(_WuInjectorBase):
+    """``NoiseInjector`` emitting the Wu et al. decoding circuit.
+
+    Same detector layout as :class:`WuSamplingInjector` with equal arguments.
+    Per CX layer: ``DEPOLARIZE2(p_p)`` on all pairs, then per pair four tagged
+    generators at ``p_e_k / 2`` and a noiseless ``R flag; M flag``.
+    """
+
+    def _emit_heralded_layer(self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]) -> None:
+        if self.params.p_p > 0.0:
+            circuit.append("DEPOLARIZE2", [q for pair in pairs for q in pair], self.params.p_p)
+        for k, a, b, p_e_k in self._enumerate_locations(pairs):
+            if p_e_k > 0.0:
+                for gate, qubit, side in (
+                    ("X_ERROR", a, "Xa"),
+                    ("Z_ERROR", a, "Za"),
+                    ("X_ERROR", b, "Xb"),
+                    ("Z_ERROR", b, "Zb"),
+                ):
+                    circuit.append(
+                        stim.CircuitInstruction(gate, [qubit], [p_e_k / 2], tag=f"wu_e{k}:{side}")
+                    )
+            circuit.append("R", [self.flag])
+            circuit.append("M", [self.flag])
