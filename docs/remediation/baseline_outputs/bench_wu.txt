@@ -1,0 +1,14 @@
+$ uv run python scripts/bench_wu.py
+# versions (stim pymatching sinter numpy scipy): 1.16.0 2.4.0 1.16.0 2.5.1 1.18.0
+# run on branch feat/wu-noise-model from 8747fae, 2026-10-15T07:01Z (foreground, wall 9 min)
+# ---- stdout ----
+# machine: Darwin 27.0.0 arm64, Apple M2, 8 logical cores
+# python 3.14.6, stim 1.16.0, pymatching 2.4.0, sinter 1.16.0, numpy 2.5.1
+# shots per point: 500; rounds = d; seed 2026; single process
+# repo row: build_dec_s repeats build_samp_s (one circuit); no blind decoder
+model d p R_e instr_samp instr_dec build_samp_s build_dec_s sampler_compile_s sample_s dem_s compile_herald_s herald_shots/s compile_blind_s blind_shots/s
+wu 11 0.040 0.98 166290 35654 58.80 13.71 0.004 0.029 0.07 0.27 298.2 0.26 4639.9
+wu 15 0.040 0.98 432438 92298 157.08 35.67 0.018 0.074 0.18 0.71 98.7 0.70 1434.5
+wu 11 0.050 1.00 93690 35610 37.12 12.51 0.002 0.022 0.01 0.12 286.5 0.13 3855.2
+wu 15 0.050 1.00 243438 92238 96.12 32.43 0.011 0.061 0.04 0.34 93.4 0.34 1206.3
+repo 15 0.040 0.98 29450 29450 21.68 21.68 0.001 0.054 0.32 1.37 66.8 - -
