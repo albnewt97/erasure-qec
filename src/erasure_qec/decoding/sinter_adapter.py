@@ -195,6 +195,12 @@ def wu_tasks_parallel(
     sinter pickles every task to its workers the same way, so workers receive
     identical circuits and DEMs whether a task was built here or serially, and
     ``strong_id`` (computed from ``str()``) is unchanged.
+
+    The pool is closed and joined before returning, so no pool worker is alive
+    when the caller starts ``sinter.collect``.
     """
     with multiprocessing.get_context("spawn").Pool(processes) as pool:
-        return pool.starmap(wu_task, specs)
+        tasks = pool.starmap(wu_task, specs)
+        pool.close()
+        pool.join()
+    return tasks
