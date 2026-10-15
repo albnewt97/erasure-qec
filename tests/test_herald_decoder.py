@@ -249,6 +249,20 @@ def test_slow_path_builds_one_matcher_per_signature_not_per_shot(
     assert calls == len(signatures)
 
 
+def test_full_erasure_repo_model_keeps_observable_and_decodes() -> None:
+    """r_e = 1 with no meas/reset/idle noise: every observable-flipping mechanism
+    is heralded, so dem_pauli has no errors but must still declare L0."""
+    circuit = build(
+        3, 3, ErasureInjector(NoiseParams(p=0.02, r_e=1.0, p_meas=0, p_reset=0, p_idle=0))
+    )
+    partition = partition_dem(circuit)
+    assert not any(i.type == "error" for i in partition.dem_pauli)
+    assert partition.dem_pauli.num_observables == circuit.num_observables == 1
+    dets, obs = circuit.compile_detector_sampler(seed=2026).sample(100, separate_observables=True)
+    pred = HeraldMatchingDecoder(partition).decode_batch(dets)
+    assert pred.shape == obs.shape == (100, 1)
+
+
 def test_rejects_wrong_shape() -> None:
     decoder = HeraldMatchingDecoder.from_circuit(_decoding_circuit())
     with pytest.raises(ValueError, match="shape"):
