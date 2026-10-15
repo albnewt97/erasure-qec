@@ -129,6 +129,17 @@ def partition_tagged_dem(dem: stim.DetectorErrorModel) -> PartitionedDEM:
             f"{len(locations_seen)} tagged erasure locations but "
             f"{len(herald_indices)} herald detectors"
         )
+    # Declare every observable of the input DEM in dem_pauli. Without this, a
+    # DEM whose only observable-flipping mechanisms are tagged (R_e = 1,
+    # p_m = 0) yields a dem_pauli with num_observables == 0, and the decoder
+    # would size its observable outputs from that.
+    for i in range(dem_pauli.num_observables, dem.num_observables):
+        dem_pauli.append("logical_observable", [], [stim.target_logical_observable_id(i)])
+    if (dem_pauli.num_detectors, dem_pauli.num_observables) != (
+        dem.num_detectors,
+        dem.num_observables,
+    ):
+        raise ValueError("dem_pauli lost detectors or observables of the input DEM")
 
     return PartitionedDEM(
         dem_pauli=dem_pauli,

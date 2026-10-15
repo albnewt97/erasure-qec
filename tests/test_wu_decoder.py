@@ -104,6 +104,22 @@ def test_partition_tagged_dem_rejects_malformed_tags() -> None:
         partition_tagged_dem(stim.DetectorErrorModel(base + "error(0.1) D0 D1"))
 
 
+def test_full_erasure_partition_keeps_observables_and_decodes() -> None:
+    """R_e = 1, p_m = 0: every observable-flipping mechanism is tagged, so
+    dem_pauli has no errors; it must still declare the observable."""
+    task = wu_task(3, WuNoiseParams(0.02, 1.0), {})
+    assert task.circuit is not None and task.detector_error_model is not None
+    dem = task.detector_error_model.flattened()
+    partition = partition_tagged_dem(dem)
+    assert not any(i.type == "error" for i in partition.dem_pauli)
+    assert partition.dem_pauli.num_observables == dem.num_observables == 1
+    dets, obs = task.circuit.compile_detector_sampler(seed=SEED).sample(
+        256, separate_observables=True
+    )
+    pred = HeraldMatchingDecoder(partition).decode_batch(dets)
+    assert pred.shape == obs.shape == (256, 1)
+
+
 # --- T1: herald_table[k] equals the edges of location k's generators alone. ---
 
 
