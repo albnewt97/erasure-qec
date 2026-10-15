@@ -48,6 +48,13 @@ detector layout therefore does not depend on which locations are active.
 Location ``k`` is the global pair index in emission order, equal to the
 herald index; both injectors assign it through one shared enumerator.
 
+Both injectors emit their per-pair instructions as stim program text (one
+cached template per probability, formatted per pair and parsed once per CX
+layer) instead of one ``append`` call per instruction. Probabilities are
+written with ``repr()``, so parsing reproduces the exact doubles;
+tests/test_wu_text_build.py checks the result against the per-instruction
+``append`` construction.
+
 Assumptions not fixed by Wu et al.:
 
 - Data-qubit initialization is noiseless (Wu does not specify it), and the
@@ -62,6 +69,7 @@ Assumptions not fixed by Wu et al.:
   or idle noise.
 """
 
+import functools
 import itertools
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -73,7 +81,6 @@ from erasure_qec.circuits.layout import num_code_qubits
 from erasure_qec.config import _check_probability
 
 _PAULIS = "IXYZ"
-_PAULI_TARGET = {"X": stim.target_x, "Y": stim.target_y, "Z": stim.target_z}
 _NO_OVERRIDES: Mapping[int, float] = MappingProxyType({})
 
 
@@ -129,36 +136,62 @@ def append_wu_gate_chain(
     exactly ``q``. Appends exactly one measurement record bit (the herald).
     Requires ``p_e + p_p <= 1``.
     """
-    branches: list[tuple[float, list[stim.GateTarget]]] = []
+    circuit.append_from_stim_program_text(_chain_template(p_e, p_p).format(a=a, b=b, f=flag))
+
+
+@functools.lru_cache(maxsize=256)
+def _chain_template(p_e: float, p_p: float) -> str:
+    """Stim text of :func:`append_wu_gate_chain` with ``{a}``, ``{b}``, ``{f}`` placeholders."""
+    branches: list[tuple[float, str]] = []
     if p_e > 0.0:
         for pa, pb in itertools.product(_PAULIS, _PAULIS):
-            branches.append((p_e / 16, [stim.target_x(flag), *_pauli_targets(pa, a, pb, b)]))
+            branches.append((p_e / 16, " ".join(["X{f}", *_pauli_text(pa, pb)])))
     if p_p > 0.0:
         for pa, pb in itertools.product(_PAULIS, _PAULIS):
             if pa == "I" and pb == "I":
                 continue
-            branches.append((p_p / 15, _pauli_targets(pa, a, pb, b)))
+            branches.append((p_p / 15, " ".join(_pauli_text(pa, pb))))
 
-    circuit.append("R", [flag])
+    lines = ["R {f}"]
     used = 0.0
     for k, (q, targets) in enumerate(branches):
         # min() only absorbs float round-off when p_e + p_p == 1.
         conditional = min(1.0, q / (1.0 - used))
-        circuit.append(
-            "CORRELATED_ERROR" if k == 0 else "ELSE_CORRELATED_ERROR", targets, conditional
-        )
+        name = "CORRELATED_ERROR" if k == 0 else "ELSE_CORRELATED_ERROR"
+        lines.append(f"{name}({conditional!r}) {targets}")
         used += q
-    circuit.append("M", [flag])
+    lines.append("M {f}")
+    return "\n".join(lines) + "\n"
 
 
-def _pauli_targets(pa: str, a: int, pb: str, b: int) -> list[stim.GateTarget]:
-    """Pauli targets for ``P_a(a) P_b(b)``, skipping identity factors."""
-    targets: list[stim.GateTarget] = []
+def _pauli_text(pa: str, pb: str) -> list[str]:
+    """Stim text targets for ``P_a(a) P_b(b)``, skipping identity factors."""
+    targets: list[str] = []
     if pa != "I":
-        targets.append(_PAULI_TARGET[pa](a))
+        targets.append(pa + "{a}")
     if pb != "I":
-        targets.append(_PAULI_TARGET[pb](b))
+        targets.append(pb + "{b}")
     return targets
+
+
+@functools.lru_cache(maxsize=256)
+def _decoding_template(p_e: float) -> str:
+    """Stim text of one decoding location: tagged generators (if ``p_e > 0``) and the flag.
+
+    Placeholders ``{k}`` (location), ``{a}``, ``{b}``, ``{f}`` (flag).
+    """
+    lines: list[str] = []
+    if p_e > 0.0:
+        prob = repr(p_e / 2)
+        for gate, qubit, side in (
+            ("X_ERROR", "{a}", "Xa"),
+            ("Z_ERROR", "{a}", "Za"),
+            ("X_ERROR", "{b}", "Xb"),
+            ("Z_ERROR", "{b}", "Zb"),
+        ):
+            lines.append(f"{gate}[wu_e{{k}}:{side}]({prob}) {qubit}")
+    lines += ["R {f}", "M {f}"]
+    return "\n".join(lines) + "\n"
 
 
 class _WuInjectorBase:
@@ -240,8 +273,13 @@ class WuSamplingInjector(_WuInjectorBase):
     """
 
     def _emit_heralded_layer(self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]) -> None:
-        for _, a, b, p_e_k in self._enumerate_locations(pairs):
-            append_wu_gate_chain(circuit, a, b, self.flag, p_e_k, self.params.p_p)
+        p_p, f = self.params.p_p, self.flag
+        circuit.append_from_stim_program_text(
+            "".join(
+                _chain_template(p_e_k, p_p).format(a=a, b=b, f=f)
+                for _, a, b, p_e_k in self._enumerate_locations(pairs)
+            )
+        )
 
 
 class WuDecodingInjector(_WuInjectorBase):
@@ -255,16 +293,10 @@ class WuDecodingInjector(_WuInjectorBase):
     def _emit_heralded_layer(self, circuit: stim.Circuit, pairs: Sequence[tuple[int, int]]) -> None:
         if self.params.p_p > 0.0:
             circuit.append("DEPOLARIZE2", [q for pair in pairs for q in pair], self.params.p_p)
-        for k, a, b, p_e_k in self._enumerate_locations(pairs):
-            if p_e_k > 0.0:
-                for gate, qubit, side in (
-                    ("X_ERROR", a, "Xa"),
-                    ("Z_ERROR", a, "Za"),
-                    ("X_ERROR", b, "Xb"),
-                    ("Z_ERROR", b, "Zb"),
-                ):
-                    circuit.append(
-                        stim.CircuitInstruction(gate, [qubit], [p_e_k / 2], tag=f"wu_e{k}:{side}")
-                    )
-            circuit.append("R", [self.flag])
-            circuit.append("M", [self.flag])
+        f = self.flag
+        circuit.append_from_stim_program_text(
+            "".join(
+                _decoding_template(p_e_k).format(k=k, a=a, b=b, f=f)
+                for k, a, b, p_e_k in self._enumerate_locations(pairs)
+            )
+        )
