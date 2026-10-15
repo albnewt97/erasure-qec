@@ -1,0 +1,80 @@
+$ uv run python scripts/wu_projection.py profile --out DIR
+$ uv run python scripts/wu_projection.py pilot --config NAME --out DIR   # each of the 7 configs, sequentially
+$ uv run python scripts/wu_projection.py project --dir DIR
+# versions (stim pymatching sinter numpy scipy): 1.16.0 2.4.0 1.16.0 2.5.1 1.18.0
+# profile and pilots run on branch feat/wu-noise-model from f3a5314 with scripts/wu_projection.py as committed alongside this file (project-step output columns extended after the runs; measurement code unchanged), 2026-10-15; one command at a time
+# profile/pilot JSON inputs are planning-only scratch (not committed, not in data/)
+# ---- stdout of project ----
+# machine: Darwin arm64, Apple M2, 8 logical cores, RAM 8.0 GiB
+# python 3.14.6, stim 1.16.0, pymatching 2.4.0, sinter 1.16.0
+# max_shots 100000, max_errors 1000, workers 8, pilot shots 1000, d = {7, d_lo, d_hi}
+
+## 6a profile: one wu_fig3_re098 task at p = 0.042 (fresh process per d)
+d build_samp_s build_dec_s dem_s str_s strong_id_s len_sampling str_samp_MB str_dem_MB peak_rss_one_task_MB held_MB_per_task
+7 1.07 1.39 0.02 0.02 0.02 40533 1.5 0.5 91 8
+9 2.27 2.98 0.03 0.04 0.05 89157 3.5 1.1 89 13
+11 4.22 5.47 0.07 0.09 0.10 166301 6.5 2.1 90 22
+13 6.91 9.04 0.12 0.13 0.17 278541 11.0 3.5 112 46
+15 11.89 15.72 0.23 0.22 0.29 432453 17.1 5.7 96 66
+worker peak RSS (pickled task, sampler + both decoders, 1000 shots): config d p after_unpickle_MB peak_MB
+  wu_fig3_re098 13 0.05 161 229
+  wu_fig3_re098 15 0.05 193 315
+  wu_fig3b_re100 13 0.06 118 193
+  wu_fig3b_re100 15 0.06 139 242
+parallel build_d11: alone 4.28s, 8 concurrent mean 7.06s, efficiency 0.61
+parallel decode_d13: alone 3.08s, 8 concurrent mean 5.80s, efficiency 0.53
+
+## pilot P_L (herald, planning-only scratch; zero failures flagged *)
+config d_hi p failures P_L
+wu_fig3_re000 13 0.0075 2 0.002
+wu_fig3_re000 13 0.0125 70 0.07
+wu_fig3_re000 15 0.0075 3 0.003
+wu_fig3_re000 15 0.0125 68 0.068
+wu_fig3_re098 13 0.034 5 0.005
+wu_fig3_re098 13 0.05 116 0.116
+wu_fig3_re098 15 0.034 1 0.001
+wu_fig3_re098 15 0.05 130 0.13
+wu_fig3b_re100 13 0.042 16 0.016
+wu_fig3b_re100 13 0.06 298 0.298
+wu_fig3b_re100 15 0.042 9 0.009
+wu_fig3b_re100 15 0.06 307 0.307
+wu_si_pm005 13 0.03 4 0.004
+wu_si_pm005 13 0.046 102 0.102
+wu_si_pm005 15 0.03 3 0.003
+wu_si_pm005 15 0.046 137 0.137
+wu_si_pmp 13 0.022 4 0.004
+wu_si_pmp 13 0.036 172 0.172
+wu_si_pmp 15 0.022 0 0.0005*
+wu_si_pmp 15 0.036 243 0.243
+wu_fig3b_re050 13 0.016 24 0.024
+wu_fig3b_re050 13 0.025 244 0.244
+wu_fig3b_re050 15 0.016 24 0.024
+wu_fig3b_re050 15 0.025 272 0.272
+wu_fig3b_re090 13 0.0288 10 0.01
+wu_fig3b_re090 13 0.045 205 0.205
+wu_fig3b_re090 15 0.0288 11 0.011
+wu_fig3b_re090 15 0.045 246 0.246
+
+## 6c projection, d-pair (11,15) (+ d = 7)
+config tasks shots build_h shots_h compile_h total_h peak_RAM_GiB held_tasks_GiB workers_GiB total_h_at_measured_efficiency
+wu_fig3_re000 33 2150031 0.01 0.00 0.00 0.02 3.57 1.03 2.46 0.03
+wu_fig3_re098 51 6676446 0.02 0.61 0.01 0.64 4.13 1.60 2.46 1.20
+wu_fig3b_re100 57 3587178 0.02 0.35 0.01 0.38 4.32 1.79 2.46 0.70
+wu_si_pm005 51 5683698 0.02 0.52 0.01 0.55 4.13 1.60 2.46 1.03
+wu_si_pmp 45 5679600 0.02 0.52 0.01 0.55 3.94 1.41 2.46 1.03
+wu_fig3b_re050 33 1079562 0.01 0.09 0.01 0.11 3.57 1.03 2.46 0.20
+wu_fig3b_re090 33 1975260 0.01 0.17 0.01 0.19 3.57 1.03 2.46 0.35
+TOTAL 2.45 h (at measured efficiency 4.54 h); max peak RAM 4.32 GiB (limit 4.00 GiB)
+
+## 6c projection, d-pair (9,13) (+ d = 7)
+config tasks shots build_h shots_h compile_h total_h peak_RAM_GiB held_tasks_GiB workers_GiB total_h_at_measured_efficiency
+wu_fig3_re000 33 2247039 0.01 0.00 0.00 0.01 2.60 0.72 1.79 0.02
+wu_fig3_re098 51 5226618 0.01 0.29 0.01 0.31 2.99 1.12 1.79 0.58
+wu_fig3b_re100 57 2386602 0.01 0.13 0.00 0.15 3.12 1.25 1.79 0.28
+wu_si_pm005 51 5713020 0.02 0.32 0.01 0.34 2.99 1.12 1.79 0.63
+wu_si_pmp 45 4460646 0.01 0.25 0.01 0.27 2.86 0.99 1.79 0.50
+wu_fig3b_re050 33 1113642 0.01 0.06 0.00 0.07 2.60 0.72 1.79 0.13
+wu_fig3b_re090 33 2218584 0.01 0.12 0.00 0.13 2.60 0.72 1.79 0.24
+TOTAL 1.28 h (at measured efficiency 2.37 h); max peak RAM 3.12 GiB (limit 4.00 GiB)
+
+## 6d decision: d-pair (9,13); deferred: none
