@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 import sinter
+import yaml
 
 from erasure_qec.decoding.sinter_adapter import wu_task
 
@@ -35,6 +36,8 @@ EXPECTED_COUNTS = {
     "wu_si_pm005": 17,
     "wu_si_pmp": 15,
 }
+# Points appended by the edge rule (extra_p_edge), per config.
+EDGE_COUNTS = {"wu_fig3b_re050": 3}
 META_KEYS = {"convention", "config", "d", "rounds", "p", "R_e", "p_m", "p_m_follows_p"}
 
 TINY_YAML = """\
@@ -136,7 +139,7 @@ def test_p_m_follows_p_metadata_records_effective_p_m() -> None:
 def test_committed_configs_load_with_pre_registered_settings(name: str) -> None:
     config = collect_wu.load_wu_config(CONFIG_DIR / f"{name}.yaml")
     assert config.name == name
-    assert len(config.p_values) == EXPECTED_COUNTS[name]
+    assert len(config.p_values) == EXPECTED_COUNTS[name] + EDGE_COUNTS.get(name, 0)
     assert all(p == round(p, 4) for p in config.p_values)
     assert config.distances == (7, 9, 13)
     assert config.max_shots == 100_000
@@ -157,9 +160,15 @@ EDGE_UPPER_F = (1.295, 1.340, 1.385)
 EDGE_LOWER_F = (0.755, 0.710, 0.665)
 
 
+def _base_grid(name: str) -> tuple[float, ...]:
+    """The pre-registered ``p_values`` of a committed config, without ``extra_p_edge``."""
+    raw = yaml.safe_load((CONFIG_DIR / f"{name}.yaml").read_text(encoding="utf-8"))
+    return tuple(float(p) for p in raw["p_values"])
+
+
 @pytest.mark.parametrize("name", sorted(SCALED_C))
 def test_scaled_edge_extensions_are_new_points(name: str) -> None:
-    grid = collect_wu.load_wu_config(CONFIG_DIR / f"{name}.yaml").p_values
+    grid = _base_grid(name)
     c = SCALED_C[name]
     upper = [round(c * f, 4) for f in EDGE_UPPER_F]
     lower = [round(c * f, 4) for f in EDGE_LOWER_F]
@@ -167,3 +176,47 @@ def test_scaled_edge_extensions_are_new_points(name: str) -> None:
     assert len(set(extension)) == 6
     assert not set(extension) & set(grid)
     assert min(upper) > max(grid) and max(lower) < min(grid)
+
+
+TINY_EDGE_YAML = TINY_YAML + "extra_p_edge: [0.05, 0.02, 0.06]\n"
+
+
+def test_extra_p_edge_is_merged_sorted_into_p_values(tmp_path: Path) -> None:
+    path = tmp_path / "wu_tiny.yaml"
+    path.write_text(TINY_EDGE_YAML, encoding="utf-8")
+    config = collect_wu.load_wu_config(path)
+    assert config.p_values == (0.02, 0.03, 0.04, 0.05, 0.06)
+    assert [meta["p"] for _, _, meta in collect_wu.task_specs(config)] == list(config.p_values)
+
+
+def test_extra_p_edge_keeps_metadata_of_existing_points(tmp_path: Path) -> None:
+    """Base-grid task metadata is unchanged by the merge, so resume skips those tasks."""
+    plain = _tiny_config(tmp_path)
+    path = tmp_path / "wu_tiny_edge.yaml"
+    path.write_text(TINY_EDGE_YAML, encoding="utf-8")
+    merged = collect_wu.load_wu_config(path)
+    plain_meta = [meta for _, _, meta in collect_wu.task_specs(plain)]
+    merged_meta = [meta for _, _, meta in collect_wu.task_specs(merged)]
+    assert all(meta in merged_meta for meta in plain_meta)
+
+
+def test_duplicate_base_p_values_are_rejected(tmp_path: Path) -> None:
+    path = tmp_path / "wu_tiny.yaml"
+    path.write_text(TINY_YAML.replace("[0.03, 0.04]", "[0.03, 0.03]"), encoding="utf-8")
+    with pytest.raises(ValueError, match="distinct"):
+        collect_wu.load_wu_config(path)
+
+
+def test_re050_extra_p_edge_is_the_pre_registered_lower_extension() -> None:
+    raw = yaml.safe_load((CONFIG_DIR / "wu_fig3b_re050.yaml").read_text(encoding="utf-8"))
+    c = SCALED_C["wu_fig3b_re050"]
+    assert tuple(raw["extra_p_edge"]) == tuple(round(c * f, 4) for f in EDGE_LOWER_F)
+    config = collect_wu.load_wu_config(CONFIG_DIR / "wu_fig3b_re050.yaml")
+    edge = tuple(raw["extra_p_edge"])
+    assert config.p_values == tuple(sorted(_base_grid("wu_fig3b_re050") + edge))
+
+
+def test_only_re050_has_extra_p_edge() -> None:
+    for path in CONFIG_DIR.glob("*.yaml"):
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert ("extra_p_edge" in raw) == (path.stem in EDGE_COUNTS), path.stem

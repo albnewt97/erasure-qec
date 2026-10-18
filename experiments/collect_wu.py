@@ -68,20 +68,30 @@ class WuConfig:
 
 
 def load_wu_config(path: str | Path) -> WuConfig:
-    """Parse one experiments/configs/wu/*.yaml file; requires ``convention: wu2022``."""
+    """Parse one experiments/configs/wu/*.yaml file; requires ``convention: wu2022``.
+
+    The optional ``extra_p_edge`` list (points appended by the edge rule,
+    docs/remediation/WU_DPAIR_DECISION.md) is merged with ``p_values``, sorted
+    and de-duplicated, as ``extra_p`` is in
+    :func:`erasure_qec.config.load_experiment_config`.
+    """
     with open(path, encoding="utf-8") as f:
         raw = yaml.safe_load(f)
     if not isinstance(raw, dict):
         raise ValueError(f"{path}: expected a YAML mapping at top level")
     if raw.get("convention") != CONVENTION:
         raise ValueError(f"{path}: convention must be {CONVENTION!r}")
+    base = tuple(float(p) for p in raw["p_values"])
+    if len(set(base)) != len(base):
+        raise ValueError(f"{path}: p_values must be distinct")
+    edge = tuple(float(p) for p in raw.get("extra_p_edge", ()))
     return WuConfig(
         name=str(raw["name"]),
         R_e=float(raw["R_e"]),
         p_m=None if raw["p_m"] is None else float(raw["p_m"]),
         p_m_follows_p=bool(raw["p_m_follows_p"]),
         distances=tuple(int(d) for d in raw["distances"]),
-        p_values=tuple(float(p) for p in raw["p_values"]),
+        p_values=tuple(sorted(set(base) | set(edge))),
         max_shots=int(raw["max_shots"]),
         max_errors=int(raw["max_errors"]),
         decoders=tuple(str(dec) for dec in raw["decoders"]),
