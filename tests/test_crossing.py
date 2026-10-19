@@ -220,3 +220,46 @@ def test_bootstrap_ci_brackets_point_estimate() -> None:
     )
     assert n_no == 0
     assert lo <= est.value <= hi
+
+
+# --- saturation cap ---------------------------------------------------------------
+
+# Both curves sit in the saturated tail (P_L_shot 0.44 .. 0.49) and cross between
+# p = 0.01 and p = 0.02 (g < 0, then g >= 0).
+_SATURATED_E1 = [4500, 4700, 4800]
+_SATURATED_E2 = [4400, 4800, 4900]
+CAP = 0.4
+
+
+def test_crossing_in_saturated_tail_is_classified_saturated() -> None:
+    pts = _pair_points(5, 7, _SATURATED_E1, _SATURATED_E2)
+    plain = pairwise_crossing(pts, 5, 7, metric="shot")
+    capped = pairwise_crossing(pts, 5, 7, metric="shot", saturation_cap=CAP)
+    assert math.isfinite(plain.value) and not plain.saturated
+    assert capped.saturated
+    assert math.isnan(capped.value)
+    assert capped.bracket == plain.bracket == (0.01, 0.02)
+    assert capped.bracket_max_p_l_shot == pytest.approx(0.48)
+
+
+def test_saturated_bootstrap_replicates_count_as_no_crossing() -> None:
+    pts = _pair_points(5, 7, _SATURATED_E1, _SATURATED_E2)
+    _, _, n_no_plain = bootstrap_pairwise_crossing(pts, 5, 7, metric="shot", n_boot=200)
+    _, ci, n_no = bootstrap_pairwise_crossing(
+        pts, 5, 7, metric="shot", n_boot=200, saturation_cap=CAP
+    )
+    assert n_no_plain < 200
+    assert n_no == 200
+    assert all(math.isnan(x) for x in ci)
+
+
+def test_unsaturated_crossing_is_unchanged_by_the_cap() -> None:
+    pts = _synthetic_points()
+    for d1, d2 in ADJACENT_PAIRS:
+        plain = bootstrap_pairwise_crossing(pts, d1, d2, metric="shot", n_boot=200)
+        capped = bootstrap_pairwise_crossing(
+            pts, d1, d2, metric="shot", n_boot=200, saturation_cap=CAP
+        )
+        assert capped == plain
+        assert not capped[0].saturated
+        assert capped[0].bracket_max_p_l_shot < CAP

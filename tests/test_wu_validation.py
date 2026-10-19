@@ -56,3 +56,9 @@ def test_unsaturated_flag_uses_the_cap_at_both_distances() -> None:
     g = wu_validation.usable_g(points, 9, 13)
     assert [(p, unsat) for p, _, unsat in g] == [(0.01, True), (0.02, False)]
     assert g[0][1] < 0.0 < g[1][1]
+
+
+def test_unsaturated_crossings_needs_both_bracket_points_unsaturated() -> None:
+    g = [(0.01, -0.2, True), (0.02, 0.1, True), (0.03, -0.1, True), (0.04, 0.3, False)]
+    assert wu_validation.unsaturated_crossings(g) == 1
+    assert wu_validation.unsaturated_crossings([(0.01, -0.2, False), (0.02, 0.1, True)]) == 0

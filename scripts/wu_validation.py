@@ -12,9 +12,15 @@ share a strong_id). For each config and decoder (wu_herald_mwpm, wu_blind_mwpm):
   n_sign_changes_unsaturated (sign changes between adjacent usable p at which
   P_L_shot < SATURATION_CAP = 0.4 at both distances, the cap of
   :mod:`erasure_qec.analysis.threshold_fit`) and the number of bootstrap
-  replicates without a crossing. Where the point estimate has no crossing the
-  status is "no crossing in grid (below)" (g >= 0 at the first usable p) or
-  "(above)" (g < 0 at every usable p); no off-grid value or CI is given;
+  replicates without a crossing. Saturated-crossing rule (added after the P5b
+  blind rows were inspected; every row and pair): a crossing whose bracket has
+  P_L_shot >= SATURATION_CAP at either distance at either bracket point is
+  reported as "saturated, not a threshold" with no value, and bootstrap
+  replicates whose crossing is saturated count as no-crossing. Where the point
+  estimate has no crossing the status is "no crossing in grid (below)"
+  (g >= 0 at the first usable p) or "(above)" (g < 0 at every usable p). A
+  wu_blind_mwpm pair with no unsaturated crossing anywhere on its grid is
+  reported as BLIND_BELOW. No off-grid value or CI is given;
 - fit_threshold(metric="shot", d_min=7, window_factor=1.5, n_boot=1000,
   seed=0) and the gap (collapse - (9,13) pairwise) in percentage points;
 - for wu_herald_mwpm: the edge-rule check of docs/remediation/WU_DPAIR_DECISION.md
@@ -69,6 +75,8 @@ D_MIN = 7
 WINDOW_FACTOR = 1.5
 SATURATION_CAP = _SATURATION_CAP
 WU_LINE_LABEL = "Wu et al. (UF, d = 11/15)"
+SATURATED = "saturated, not a threshold"
+BLIND_BELOW = "no unsaturated crossing in grid; blind threshold below the grid"
 
 
 @dataclass(frozen=True)
@@ -176,6 +184,11 @@ def no_crossing_status(gs: list[float]) -> str:
     return "no crossing in grid (below)" if gs[0] >= 0.0 else "no crossing in grid (above)"
 
 
+def unsaturated_crossings(g: list[tuple[float, float, bool]]) -> int:
+    """Adjacent usable pairs with g < 0 -> g >= 0 whose two points are both unsaturated."""
+    return sum(a[1] < 0.0 <= b[1] and a[2] and b[2] for a, b in zip(g, g[1:], strict=False))
+
+
 def edge_touched(bracket: tuple[float, float] | None, gs: list[float], grid: list[float]) -> str:
     """The edge-rule outcome of WU_DPAIR_DECISION.md: "none", "lower" or "upper"."""
     if bracket is not None:
@@ -197,20 +210,31 @@ def wu_inside(ci: tuple[float | None, float | None], wu: float | None) -> bool |
     return lo <= wu <= hi
 
 
-def crossing_entry(points: list[SweepPoint], d1: int, d2: int) -> dict[str, Any]:
+def crossing_entry(points: list[SweepPoint], d1: int, d2: int, decoder: str) -> dict[str, Any]:
     est, ci, n_no = bootstrap_pairwise_crossing(
-        points, d1, d2, metric="shot", n_boot=N_BOOT, seed=SEED
+        points, d1, d2, metric="shot", n_boot=N_BOOT, seed=SEED, saturation_cap=SATURATION_CAP
     )
     g = usable_g(points, d1, d2)
     gs = [x[1] for x in g]
-    crossed = est.bracket is not None
+    crossed = est.bracket is not None and not est.saturated
+    status = "crossing" if crossed else no_crossing_status(gs)
+    if est.saturated:
+        status = SATURATED
+    n_unsat = unsaturated_crossings(g)
+    if decoder == BLIND and n_unsat == 0:
+        if status == "no crossing in grid (above)":
+            raise SystemExit(f"{decoder} ({d1},{d2}): g < 0 at every usable p; not 'below'")
+        status = BLIND_BELOW
     return {
         "d1": d1,
         "d2": d2,
-        "status": "crossing" if crossed else no_crossing_status(gs),
+        "status": status,
         "value": _finite(est.value) if crossed else None,
         "ci95": [_finite(ci[0]), _finite(ci[1])] if crossed else None,
         "bracket": list(est.bracket) if est.bracket is not None else None,
+        "bracket_max_p_l_shot": _finite(est.bracket_max_p_l_shot),
+        "saturated": est.saturated,
+        "n_unsaturated_crossings": n_unsat,
         "n_sign_changes": est.n_sign_changes,
         "n_sign_changes_unsaturated": sign_changes([x[1] for x in g if x[2]]),
         "n_no_crossing": n_no,
@@ -252,7 +276,7 @@ def analyse(collect_wu: Any) -> dict[str, Any]:
             points = load_points(path, name, decoder)
             if sorted({pt.p for pt in points}) != grid:
                 raise SystemExit(f"{name} {decoder}: data p values differ from the config grid")
-            pairs = {f"{d1},{d2}": crossing_entry(points, d1, d2) for d1, d2 in PAIRS}
+            pairs = {f"{d1},{d2}": crossing_entry(points, d1, d2, decoder) for d1, d2 in PAIRS}
             fit = fit_entry(points)
             x913 = pairs["9,13"]["value"]
             row: dict[str, Any] = {
@@ -275,6 +299,10 @@ def analyse(collect_wu: Any) -> dict[str, Any]:
                 row["ours_minus_wu_pp"] = 100.0 * (x913 - ref.value) if both else None
                 ci = c["ci95"] or [None, None]
                 row["wu_inside_ci"] = wu_inside((ci[0], ci[1]), ref.value)
+                x79 = pairs["7,9"]["value"]
+                row["shift_913_minus_79_pp"] = (
+                    100.0 * (x913 - x79) if x913 is not None and x79 is not None else None
+                )
             rows.append(row)
         results[name] = {
             "R_e": config.R_e,
@@ -369,6 +397,38 @@ def markdown(results: dict[str, Any]) -> str:
             f"| {name} | {_crossing_cell(c)} | {row['wu']['text']} | {row['wu']['source']} "
             f"| {_num(row['ours_minus_wu_pp'])} | {'—' if inside is None else inside} "
             f"| {row['edge_rule']} |"
+        )
+    lines += [
+        "",
+        "Herald saturation diagnostics: sc_u = n_sign_changes_unsaturated; max P_L = largest "
+        "per-shot P_L at the two distances and two bracket points.",
+        "",
+        "| config | (9,13) sc_u | (9,13) max P_L | (7,9) sc_u | (7,9) max P_L |",
+        "|---|---|---|---|---|",
+    ]
+    for name, entry in results.items():
+        cs = entry["rows"][0]["crossings"]
+        lines.append(
+            f"| {name} | "
+            + " | ".join(
+                f"{cs[k]['n_sign_changes_unsaturated']} | {_num(cs[k]['bracket_max_p_l_shot'])}"
+                for k in ("9,13", "7,9")
+            )
+            + " |"
+        )
+    lines += [
+        "",
+        "Herald finite-size window: shift = (9,13) − (7,9) per-shot crossing, pp.",
+        "",
+        "| config | (7,9), % [95% CI] | (9,13), % [95% CI] | shift (pp) |",
+        "|---|---|---|---|",
+    ]
+    for name, entry in results.items():
+        row = entry["rows"][0]
+        cs = row["crossings"]
+        lines.append(
+            f"| {name} | {_crossing_cell(cs['7,9'])} | {_crossing_cell(cs['9,13'])} "
+            f"| {_num(row['shift_913_minus_79_pp'])} |"
         )
     return "\n".join(lines)
 

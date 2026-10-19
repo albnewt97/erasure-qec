@@ -9,7 +9,10 @@ With ``g(p) = ln m(p, d2) - ln m(p, d1)``, below threshold the larger code has
 the smaller logical rate, so ``g < 0`` when ``d2 > d1``; the crossing is where
 ``g`` first becomes non-negative. Between the two bracketing grid points the
 crossing is located by linear interpolation of ``g`` in ``ln p``. No model of
-the curves is fitted and no saturation cut is applied.
+the curves is fitted. By default no saturation cut is applied; with
+``saturation_cap`` set, a first crossing whose bracket has a per-shot rate
+``P_L_shot >= saturation_cap`` at either distance at either bracket point is
+classified as saturated and carries no value (see :class:`CrossingEstimate`).
 """
 
 import math
@@ -29,10 +32,16 @@ class CrossingEstimate:
 
     ``value`` is NaN and ``bracket`` is ``None`` when ``g`` never goes from
     negative to non-negative. ``bracket`` is the pair of adjacent grid values of
-    ``p`` the interpolation used. ``n_sign_changes`` counts every change of sign
-    class (negative vs non-negative) between adjacent usable grid points, in
-    either direction; a value above 1 means the curves cross more than once on
-    the grid and only the first crossing is reported.
+    ``p`` the interpolation used. ``bracket_max_p_l_shot`` is the largest
+    per-shot rate ``P_L_shot`` (clamped to ``[0, 1/2]``) at the two distances
+    and the two bracket points (NaN without a bracket). ``saturated`` is True
+    when a ``saturation_cap`` was given and ``bracket_max_p_l_shot`` reaches
+    it; the crossing is then "saturated, not a threshold": ``value`` is NaN and
+    ``bracket`` is kept. Later crossings on the grid are not searched.
+    ``n_sign_changes`` counts every change of sign class (negative vs
+    non-negative) between adjacent usable grid points, in either direction; a
+    value above 1 means the curves cross more than once on the grid and only
+    the first crossing is reported.
     """
 
     value: float
@@ -41,6 +50,8 @@ class CrossingEstimate:
     metric: str
     d1: int
     d2: int
+    bracket_max_p_l_shot: float = float("nan")
+    saturated: bool = False
 
 
 def _validated_curves(
@@ -67,6 +78,7 @@ def _crossing_from_curves(
     d1: int,
     d2: int,
     metric: Metric,
+    saturation_cap: float | None = None,
 ) -> CrossingEstimate:
     ps: list[float] = []
     gs: list[float] = []
@@ -83,13 +95,17 @@ def _crossing_from_curves(
         if gs[i] < 0.0 <= gs[i + 1]:
             lp0, lp1 = math.log(ps[i]), math.log(ps[i + 1])
             lp = lp0 - gs[i] * (lp1 - lp0) / (gs[i + 1] - gs[i])
+            peak = max(metric_value(c[p], "shot") for c in (c1, c2) for p in (ps[i], ps[i + 1]))
+            saturated = saturation_cap is not None and peak >= saturation_cap
             return CrossingEstimate(
-                value=math.exp(lp),
+                value=float("nan") if saturated else math.exp(lp),
                 bracket=(ps[i], ps[i + 1]),
                 n_sign_changes=n_sign_changes,
                 metric=metric,
                 d1=d1,
                 d2=d2,
+                bracket_max_p_l_shot=peak,
+                saturated=saturated,
             )
     return CrossingEstimate(
         value=float("nan"),
@@ -102,7 +118,12 @@ def _crossing_from_curves(
 
 
 def pairwise_crossing(
-    points: Sequence[SweepPoint], d1: int, d2: int, *, metric: Metric
+    points: Sequence[SweepPoint],
+    d1: int,
+    d2: int,
+    *,
+    metric: Metric,
+    saturation_cap: float | None = None,
 ) -> CrossingEstimate:
     """First crossing of the ``d1`` and ``d2`` curves of ``metric``.
 
@@ -113,10 +134,12 @@ def pairwise_crossing(
     ``g(p) = ln m(d2) - ln m(d1)``, the estimate is the first adjacent pair
     ``(p_i, p_{i+1})`` with ``g_i < 0 <= g_{i+1}``, interpolated linearly in
     ``(ln p, g)`` to ``g = 0``. Returns ``value = NaN`` and ``bracket = None``
-    if there is no such pair.
+    if there is no such pair. With ``saturation_cap`` set, a first crossing
+    whose bracket reaches the cap is returned with ``saturated = True`` and
+    ``value = NaN``.
     """
     c1, c2 = _validated_curves(points, d1, d2)
-    return _crossing_from_curves(c1, c2, d1, d2, metric)
+    return _crossing_from_curves(c1, c2, d1, d2, metric, saturation_cap)
 
 
 def bootstrap_pairwise_crossing(
@@ -127,6 +150,7 @@ def bootstrap_pairwise_crossing(
     metric: Metric,
     n_boot: int = 1000,
     seed: int = 0,
+    saturation_cap: float | None = None,
 ) -> tuple[CrossingEstimate, tuple[float, float], int]:
     """:func:`pairwise_crossing` with a parametric-bootstrap 95% percentile CI.
 
@@ -136,7 +160,9 @@ def bootstrap_pairwise_crossing(
     order so the result does not depend on the input order) and recomputes the
     crossing. The CI is the 2.5th/97.5th percentile over the replicates that
     have a crossing; the others are counted and returned as ``n_no_crossing``.
-    If no replicate has a crossing the CI is ``(nan, nan)``.
+    With ``saturation_cap`` set, a replicate whose crossing is saturated (its
+    own resampled rates reach the cap at a bracket point) counts as having no
+    crossing. If no replicate has a crossing the CI is ``(nan, nan)``.
 
     The CI reflects binomial sampling noise only. It does NOT include the
     interpolation error inside the bracket: the true curves need not be linear
@@ -147,7 +173,7 @@ def bootstrap_pairwise_crossing(
     :func:`pairwise_crossing` on the unresampled data.
     """
     c1, c2 = _validated_curves(points, d1, d2)
-    estimate = _crossing_from_curves(c1, c2, d1, d2, metric)
+    estimate = _crossing_from_curves(c1, c2, d1, d2, metric, saturation_cap)
 
     ordered = sorted([*c1.values(), *c2.values()], key=lambda pt: (pt.d, pt.p))
     shots = np.array([pt.shots for pt in ordered], dtype=np.int64)
@@ -163,7 +189,7 @@ def bootstrap_pairwise_crossing(
         for pt, e in zip(ordered, drawn, strict=True):
             target = r1 if pt.d == d1 else r2
             target[pt.p] = SweepPoint(pt.decoder, pt.d, pt.rounds, pt.p, pt.r_e, pt.shots, int(e))
-        rep = _crossing_from_curves(r1, r2, d1, d2, metric)
+        rep = _crossing_from_curves(r1, r2, d1, d2, metric, saturation_cap)
         if math.isnan(rep.value):
             n_no_crossing += 1
         else:
