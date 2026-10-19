@@ -25,6 +25,7 @@
                 0.0105,
                 0.011
               ],
+              "bracket_max_p_l_shot": 0.03530834340991536,
               "ci95": [
                 0.010362778801869197,
                 0.011659427073641804
@@ -80,6 +81,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.01094942975169021
             },
@@ -88,6 +91,7 @@
                 0.01,
                 0.0105
               ],
+              "bracket_max_p_l_shot": 0.028272367291557056,
               "ci95": [
                 0.010343041317955371,
                 0.011215683148540838
@@ -143,6 +147,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.010489736843018092
             }
@@ -174,6 +180,7 @@
           "gap_collapse_minus_913_pp": 0.04158989223638984,
           "n_points": 33,
           "ours_minus_wu_pp": 0.11197368430180925,
+          "shift_913_minus_79_pp": -0.045969290867211784,
           "wu": {
             "source": "Fig. 3a",
             "text": "0.937(4)%",
@@ -214,6 +221,7 @@
                 0.043,
                 0.044
               ],
+              "bracket_max_p_l_shot": 0.0482821760709295,
               "ci95": [
                 0.04168510298687205,
                 0.04641714651601459
@@ -293,6 +301,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 3,
               "n_sign_changes_unsaturated": 3,
+              "n_unsaturated_crossings": 2,
+              "saturated": false,
               "status": "crossing",
               "value": 0.043803281141147364
             },
@@ -301,6 +311,7 @@
                 0.047,
                 0.048
               ],
+              "bracket_max_p_l_shot": 0.08676019996774714,
               "ci95": [
                 0.04486355801067806,
                 0.04794398813347711
@@ -380,6 +391,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.04716809558660762
             }
@@ -411,6 +424,7 @@
           "gap_collapse_minus_913_pp": -0.10925425853804197,
           "n_points": 51,
           "ours_minus_wu_pp": 0.5668095586607614,
+          "shift_913_minus_79_pp": 0.33648144454602524,
           "wu": {
             "source": "Fig. 3a",
             "text": "4.15(2)%",
@@ -422,6 +436,7 @@
           "crossings": {
             "7,9": {
               "bracket": null,
+              "bracket_max_p_l_shot": null,
               "ci95": null,
               "d1": 7,
               "d2": 9,
@@ -495,10 +510,12 @@
                   0.028270433938255568
                 ]
               ],
-              "n_no_crossing": 143,
+              "n_no_crossing": 1000,
               "n_sign_changes": 0,
               "n_sign_changes_unsaturated": 0,
-              "status": "no crossing in grid (below)",
+              "n_unsaturated_crossings": 0,
+              "saturated": false,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
               "value": null
             },
             "9,13": {
@@ -506,10 +523,8 @@
                 0.035,
                 0.036
               ],
-              "ci95": [
-                0.034188605064219245,
-                0.04599999999999999
-              ],
+              "bracket_max_p_l_shot": 0.5,
+              "ci95": null,
               "d1": 9,
               "d2": 13,
               "g": [
@@ -582,11 +597,13 @@
                   0.00788041560396291
                 ]
               ],
-              "n_no_crossing": 9,
+              "n_no_crossing": 1000,
               "n_sign_changes": 6,
               "n_sign_changes_unsaturated": 0,
-              "status": "crossing",
-              "value": 0.0350456120734734
+              "n_unsaturated_crossings": 0,
+              "saturated": true,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
+              "value": null
             }
           },
           "decoder": "wu_blind_mwpm",
@@ -643,6 +660,7 @@
                 0.0166,
                 0.0176
               ],
+              "bracket_max_p_l_shot": 0.03861389946540518,
               "ci95": [
                 0.015560945894261522,
                 0.0177936268640478
@@ -710,6 +728,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.01712370999087856
             },
@@ -718,6 +738,7 @@
                 0.0166,
                 0.0176
               ],
+              "bracket_max_p_l_shot": 0.04036421992743511,
               "ci95": [
                 0.01655394974095354,
                 0.018655146811146963
@@ -785,6 +806,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.0172020043764333
             }
@@ -816,6 +839,7 @@
           "gap_collapse_minus_913_pp": -0.00036811326790571475,
           "n_points": 42,
           "ours_minus_wu_pp": null,
+          "shift_913_minus_79_pp": 0.00782943855547405,
           "wu": {
             "source": "not tabulated",
             "text": "not tabulated",
@@ -827,6 +851,7 @@
           "crossings": {
             "7,9": {
               "bracket": null,
+              "bracket_max_p_l_shot": null,
               "ci95": null,
               "d1": 7,
               "d2": 9,
@@ -891,11 +916,14 @@
               "n_no_crossing": 1000,
               "n_sign_changes": 0,
               "n_sign_changes_unsaturated": 0,
-              "status": "no crossing in grid (below)",
+              "n_unsaturated_crossings": 0,
+              "saturated": false,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
               "value": null
             },
             "9,13": {
               "bracket": null,
+              "bracket_max_p_l_shot": null,
               "ci95": null,
               "d1": 9,
               "d2": 13,
@@ -960,7 +988,9 @@
               "n_no_crossing": 1000,
               "n_sign_changes": 0,
               "n_sign_changes_unsaturated": 0,
-              "status": "no crossing in grid (below)",
+              "n_unsaturated_crossings": 0,
+              "saturated": false,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
               "value": null
             }
           },
@@ -1017,6 +1047,7 @@
                 0.0329,
                 0.0344
               ],
+              "bracket_max_p_l_shot": 0.04504464085423303,
               "ci95": [
                 0.03302695004891242,
                 0.03489463353491786
@@ -1072,6 +1103,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.033721425546846866
             },
@@ -1080,6 +1113,7 @@
                 0.0344,
                 0.0358
               ],
+              "bracket_max_p_l_shot": 0.05617661929105106,
               "ci95": [
                 0.03267493237852903,
                 0.03550364645738923
@@ -1135,6 +1169,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.0348112184745196
             }
@@ -1166,6 +1202,7 @@
           "gap_collapse_minus_913_pp": -0.08812215119351277,
           "n_points": 33,
           "ours_minus_wu_pp": null,
+          "shift_913_minus_79_pp": 0.10897929276727364,
           "wu": {
             "source": "not tabulated",
             "text": "not tabulated",
@@ -1177,6 +1214,7 @@
           "crossings": {
             "7,9": {
               "bracket": null,
+              "bracket_max_p_l_shot": null,
               "ci95": null,
               "d1": 7,
               "d2": 9,
@@ -1226,14 +1264,17 @@
                   0.021372140275873086
                 ]
               ],
-              "n_no_crossing": 999,
+              "n_no_crossing": 1000,
               "n_sign_changes": 0,
               "n_sign_changes_unsaturated": 0,
-              "status": "no crossing in grid (below)",
+              "n_unsaturated_crossings": 0,
+              "saturated": false,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
               "value": null
             },
             "9,13": {
               "bracket": null,
+              "bracket_max_p_l_shot": null,
               "ci95": null,
               "d1": 9,
               "d2": 13,
@@ -1283,10 +1324,12 @@
                   0.006530036790541871
                 ]
               ],
-              "n_no_crossing": 705,
+              "n_no_crossing": 1000,
               "n_sign_changes": 0,
               "n_sign_changes_unsaturated": 0,
-              "status": "no crossing in grid (below)",
+              "n_unsaturated_crossings": 0,
+              "saturated": false,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
               "value": null
             }
           },
@@ -1350,6 +1393,7 @@
                 0.049,
                 0.05
               ],
+              "bracket_max_p_l_shot": 0.07136270128396113,
               "ci95": [
                 0.04750370275383848,
                 0.05032040835442577
@@ -1437,6 +1481,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.0493573369972405
             },
@@ -1445,6 +1491,7 @@
                 0.05,
                 0.051
               ],
+              "bracket_max_p_l_shot": 0.08425216732598266,
               "ci95": [
                 0.049925145025324316,
                 0.05239105732239107
@@ -1532,6 +1579,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.05075627483372189
             }
@@ -1563,6 +1612,7 @@
           "gap_collapse_minus_913_pp": -0.07340627291412827,
           "n_points": 57,
           "ours_minus_wu_pp": -0.05437251662781112,
+          "shift_913_minus_79_pp": 0.1398937836481387,
           "wu": {
             "source": "Sec. III text",
             "text": "5.13%",
@@ -1577,10 +1627,8 @@
                 0.058,
                 0.059
               ],
-              "ci95": [
-                0.04210672152408942,
-                0.05600000000000001
-              ],
+              "bracket_max_p_l_shot": 0.5,
+              "ci95": null,
               "d1": 7,
               "d2": 9,
               "g": [
@@ -1661,21 +1709,21 @@
                   0.008219816992609097
                 ]
               ],
-              "n_no_crossing": 0,
+              "n_no_crossing": 1000,
               "n_sign_changes": 2,
               "n_sign_changes_unsaturated": 0,
-              "status": "crossing",
-              "value": 0.05838584694701644
+              "n_unsaturated_crossings": 0,
+              "saturated": true,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
+              "value": null
             },
             "9,13": {
               "bracket": [
                 0.048,
                 0.049
               ],
-              "ci95": [
-                0.043086572503743946,
-                0.05412907737819008
-              ],
+              "bracket_max_p_l_shot": 0.5,
+              "ci95": null,
               "d1": 9,
               "d2": 13,
               "g": [
@@ -1756,11 +1804,13 @@
                   -0.007788520617573624
                 ]
               ],
-              "n_no_crossing": 0,
+              "n_no_crossing": 1000,
               "n_sign_changes": 5,
               "n_sign_changes_unsaturated": 0,
-              "status": "crossing",
-              "value": 0.04809534164384636
+              "n_unsaturated_crossings": 0,
+              "saturated": true,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
+              "value": null
             }
           },
           "decoder": "wu_blind_mwpm",
@@ -1818,6 +1868,7 @@
                 0.04,
                 0.041
               ],
+              "bracket_max_p_l_shot": 0.04534552201656333,
               "ci95": [
                 0.03588013501080272,
                 0.04109147655411872
@@ -1897,6 +1948,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.0405009472905306
             },
@@ -1905,6 +1958,7 @@
                 0.039,
                 0.04
               ],
+              "bracket_max_p_l_shot": 0.03936638522046619,
               "ci95": [
                 0.038911480445814765,
                 0.04192724882374962
@@ -1984,6 +2038,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 3,
               "n_sign_changes_unsaturated": 3,
+              "n_unsaturated_crossings": 2,
+              "saturated": false,
               "status": "crossing",
               "value": 0.03970840590076937
             }
@@ -2015,6 +2071,7 @@
           "gap_collapse_minus_913_pp": -0.005287604489276343,
           "n_points": 51,
           "ours_minus_wu_pp": 0.1708405900769372,
+          "shift_913_minus_79_pp": -0.0792541389761231,
           "wu": {
             "source": "SI S6",
             "text": "3.80(2)%",
@@ -2029,10 +2086,8 @@
                 0.044,
                 0.045
               ],
-              "ci95": [
-                0.03508630146310851,
-                0.04570206283837085
-              ],
+              "bracket_max_p_l_shot": 0.4993537268418785,
+              "ci95": null,
               "d1": 7,
               "d2": 9,
               "g": [
@@ -2105,21 +2160,21 @@
                   0.018429657207633787
                 ]
               ],
-              "n_no_crossing": 225,
+              "n_no_crossing": 1000,
               "n_sign_changes": 2,
               "n_sign_changes_unsaturated": 0,
-              "status": "crossing",
-              "value": 0.044353875496015466
+              "n_unsaturated_crossings": 0,
+              "saturated": true,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
+              "value": null
             },
             "9,13": {
               "bracket": [
                 0.038,
                 0.039
               ],
-              "ci95": [
-                0.033127340045713785,
-                0.04367940851889941
-              ],
+              "bracket_max_p_l_shot": 0.5,
+              "ci95": null,
               "d1": 9,
               "d2": 13,
               "g": [
@@ -2192,11 +2247,13 @@
                   0.009089004357195951
                 ]
               ],
-              "n_no_crossing": 20,
+              "n_no_crossing": 1000,
               "n_sign_changes": 4,
               "n_sign_changes_unsaturated": 0,
-              "status": "crossing",
-              "value": 0.03900000000000001
+              "n_unsaturated_crossings": 0,
+              "saturated": true,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
+              "value": null
             }
           },
           "decoder": "wu_blind_mwpm",
@@ -2254,6 +2311,7 @@
                 0.024,
                 0.025
               ],
+              "bracket_max_p_l_shot": 0.00969,
               "ci95": [
                 0.02439985444431257,
                 0.027663753726981342
@@ -2325,6 +2383,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 3,
               "n_sign_changes_unsaturated": 3,
+              "n_unsaturated_crossings": 2,
+              "saturated": false,
               "status": "crossing",
               "value": 0.02496466628297815
             },
@@ -2333,6 +2393,7 @@
                 0.026,
                 0.027
               ],
+              "bracket_max_p_l_shot": 0.01763264154603001,
               "ci95": [
                 0.02617065214143581,
                 0.02706587756004378
@@ -2404,6 +2465,8 @@
               "n_no_crossing": 0,
               "n_sign_changes": 1,
               "n_sign_changes_unsaturated": 1,
+              "n_unsaturated_crossings": 1,
+              "saturated": false,
               "status": "crossing",
               "value": 0.026557990307409695
             }
@@ -2435,6 +2498,7 @@
           "gap_collapse_minus_913_pp": -0.0312643864061931,
           "n_points": 45,
           "ours_minus_wu_pp": -0.1942009692590306,
+          "shift_913_minus_79_pp": 0.1593324024431544,
           "wu": {
             "source": "SI S6",
             "text": "2.85(1)%",
@@ -2446,6 +2510,7 @@
           "crossings": {
             "7,9": {
               "bracket": null,
+              "bracket_max_p_l_shot": null,
               "ci95": null,
               "d1": 7,
               "d2": 9,
@@ -2511,14 +2576,17 @@
                   0.07824213820727755
                 ]
               ],
-              "n_no_crossing": 606,
+              "n_no_crossing": 1000,
               "n_sign_changes": 0,
               "n_sign_changes_unsaturated": 0,
-              "status": "no crossing in grid (below)",
+              "n_unsaturated_crossings": 0,
+              "saturated": false,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
               "value": null
             },
             "9,13": {
               "bracket": null,
+              "bracket_max_p_l_shot": null,
               "ci95": null,
               "d1": 9,
               "d2": 13,
@@ -2584,10 +2652,12 @@
                   0.003885176482168906
                 ]
               ],
-              "n_no_crossing": 312,
+              "n_no_crossing": 1000,
               "n_sign_changes": 0,
               "n_sign_changes_unsaturated": 0,
-              "status": "no crossing in grid (below)",
+              "n_unsaturated_crossings": 0,
+              "saturated": false,
+              "status": "no unsaturated crossing in grid; blind threshold below the grid",
               "value": null
             }
           },
@@ -2630,8 +2700,8 @@
   },
   "description": "Wu et al. (2022) validation: per-shot (9,13) and (7,9) crossings, d_min=7 shot collapse fits, comparison with Wu's reported thresholds",
   "generated_by": "scripts/wu_validation.py",
-  "git_describe": "0d941b3",
-  "markdown": "Per-shot pairwise crossings, % (95% bootstrap percentile CI, n_boot = 1000, seed = 0); sc = n_sign_changes, sc_u = n_sign_changes_unsaturated, nx = replicates without a crossing.\n\n| config | R_e | p_m | decoder | (9,13) | bracket | sc / sc_u / nx | (7,9) | bracket | sc / sc_u / nx |\n|---|---|---|---|---|---|---|---|---|---|\n| wu_fig3_re000 | 0.0 | 0.0 | wu_herald_mwpm | 1.049 [1.034, 1.122] | [1.000, 1.050] | 1 / 1 / 0 | 1.095 [1.036, 1.166] | [1.050, 1.100] | 1 / 1 / 0 |\n| wu_fig3b_re050 | 0.5 | 0.0 | wu_herald_mwpm | 1.720 [1.655, 1.866] | [1.660, 1.760] | 1 / 1 / 0 | 1.712 [1.556, 1.779] | [1.660, 1.760] | 1 / 1 / 0 |\n| wu_fig3b_re050 | 0.5 | 0.0 | wu_blind_mwpm | no crossing in grid (below) | \u2014 | 0 / 0 / 1000 | no crossing in grid (below) | \u2014 | 0 / 0 / 1000 |\n| wu_fig3b_re090 | 0.9 | 0.0 | wu_herald_mwpm | 3.481 [3.267, 3.550] | [3.440, 3.580] | 1 / 1 / 0 | 3.372 [3.303, 3.489] | [3.290, 3.440] | 1 / 1 / 0 |\n| wu_fig3b_re090 | 0.9 | 0.0 | wu_blind_mwpm | no crossing in grid (below) | \u2014 | 0 / 0 / 705 | no crossing in grid (below) | \u2014 | 0 / 0 / 999 |\n| wu_fig3_re098 | 0.98 | 0.0 | wu_herald_mwpm | 4.717 [4.486, 4.794] | [4.700, 4.800] | 1 / 1 / 0 | 4.380 [4.169, 4.642] | [4.300, 4.400] | 3 / 3 / 0 |\n| wu_fig3_re098 | 0.98 | 0.0 | wu_blind_mwpm | 3.505 [3.419, 4.600] | [3.500, 3.600] | 6 / 0 / 9 | no crossing in grid (below) | \u2014 | 0 / 0 / 143 |\n| wu_fig3b_re100 | 1.0 | 0.0 | wu_herald_mwpm | 5.076 [4.993, 5.239] | [5.000, 5.100] | 1 / 1 / 0 | 4.936 [4.750, 5.032] | [4.900, 5.000] | 1 / 1 / 0 |\n| wu_fig3b_re100 | 1.0 | 0.0 | wu_blind_mwpm | 4.810 [4.309, 5.413] | [4.800, 4.900] | 5 / 0 / 0 | 5.839 [4.211, 5.600] | [5.800, 5.900] | 2 / 0 / 0 |\n| wu_si_pm005 | 0.98 | 0.005 | wu_herald_mwpm | 3.971 [3.891, 4.193] | [3.900, 4.000] | 3 / 3 / 0 | 4.050 [3.588, 4.109] | [4.000, 4.100] | 1 / 1 / 0 |\n| wu_si_pm005 | 0.98 | 0.005 | wu_blind_mwpm | 3.900 [3.313, 4.368] | [3.800, 3.900] | 4 / 0 / 20 | 4.435 [3.509, 4.570] | [4.400, 4.500] | 2 / 0 / 225 |\n| wu_si_pmp | 0.98 | p | wu_herald_mwpm | 2.656 [2.617, 2.707] | [2.600, 2.700] | 1 / 1 / 0 | 2.496 [2.440, 2.766] | [2.400, 2.500] | 3 / 3 / 0 |\n| wu_si_pmp | 0.98 | p | wu_blind_mwpm | no crossing in grid (below) | \u2014 | 0 / 0 / 312 | no crossing in grid (below) | \u2014 | 0 / 0 / 606 |\n\nfit_threshold(metric = shot, d_min = 7), % (95% bootstrap percentile CI, n_boot = 1000); gap = collapse \u2212 (9,13) pairwise, pp.\n\n| config | decoder | p_th | \u03bd | \u03c7\u00b2/dof | converged | resolved | reason | gap (pp) |\n|---|---|---|---|---|---|---|---|---|\n| wu_fig3_re000 | wu_herald_mwpm | 1.091 [1.077, 1.107] | 1.189 | 1.580 | True | True | ok | 0.042 |\n| wu_fig3b_re050 | wu_herald_mwpm | 1.720 [1.701, 1.738] | 1.079 | 1.241 | True | True | ok | 0.000 |\n| wu_fig3b_re050 | wu_blind_mwpm | 1.460 [1.460, 1.460] | 0.553 | 9.027 | False | False | bound_pin | \u2014 |\n| wu_fig3b_re090 | wu_herald_mwpm | 3.393 [3.362, 3.427] | 1.175 | 2.296 | True | True | ok | -0.088 |\n| wu_fig3b_re090 | wu_blind_mwpm | \u2014 | \u2014 | \u2014 | False | False | insufficient_data | \u2014 |\n| wu_fig3_re098 | wu_herald_mwpm | 4.608 [4.568, 4.649] | 1.251 | 4.304 | True | True | ok | -0.109 |\n| wu_fig3_re098 | wu_blind_mwpm | \u2014 | \u2014 | \u2014 | False | False | insufficient_data | \u2014 |\n| wu_fig3b_re100 | wu_herald_mwpm | 5.002 [4.979, 5.026] | 0.969 | 1.387 | True | True | ok | -0.073 |\n| wu_fig3b_re100 | wu_blind_mwpm | \u2014 | \u2014 | \u2014 | False | False | insufficient_data | \u2014 |\n| wu_si_pm005 | wu_herald_mwpm | 3.966 [3.934, 4.000] | 1.262 | 3.627 | True | True | ok | -0.005 |\n| wu_si_pm005 | wu_blind_mwpm | \u2014 | \u2014 | \u2014 | False | False | insufficient_data | \u2014 |\n| wu_si_pmp | wu_herald_mwpm | 2.625 [2.611, 2.638] | 0.945 | 8.539 | True | True | ok | -0.031 |\n| wu_si_pmp | wu_blind_mwpm | 2.200 [2.200, 2.900] | 4.099 | 24.886 | False | False | bound_pin | \u2014 |\n\nComparison with Wu et al. (wu_herald_mwpm, (9,13) per-shot crossing).\n\n| config | ours, % [95% CI] | Wu et al. | source | ours \u2212 Wu (pp) | Wu inside CI | edge rule |\n|---|---|---|---|---|---|---|\n| wu_fig3_re000 | 1.049 [1.034, 1.122] | 0.937(4)% | Fig. 3a | 0.112 | False | none |\n| wu_fig3b_re050 | 1.720 [1.655, 1.866] | not tabulated | not tabulated | \u2014 | \u2014 | none |\n| wu_fig3b_re090 | 3.481 [3.267, 3.550] | not tabulated | not tabulated | \u2014 | \u2014 | none |\n| wu_fig3_re098 | 4.717 [4.486, 4.794] | 4.15(2)% | Fig. 3a | 0.567 | False | none |\n| wu_fig3b_re100 | 5.076 [4.993, 5.239] | 5.13% | Sec. III text | -0.054 | True | none |\n| wu_si_pm005 | 3.971 [3.891, 4.193] | 3.80(2)% | SI S6 | 0.171 | False | none |\n| wu_si_pmp | 2.656 [2.617, 2.707] | 2.85(1)% | SI S6 | -0.194 | False | none |",
+  "git_describe": "cebcb23",
+  "markdown": "Per-shot pairwise crossings, % (95% bootstrap percentile CI, n_boot = 1000, seed = 0); sc = n_sign_changes, sc_u = n_sign_changes_unsaturated, nx = replicates without a crossing.\n\n| config | R_e | p_m | decoder | (9,13) | bracket | sc / sc_u / nx | (7,9) | bracket | sc / sc_u / nx |\n|---|---|---|---|---|---|---|---|---|---|\n| wu_fig3_re000 | 0.0 | 0.0 | wu_herald_mwpm | 1.049 [1.034, 1.122] | [1.000, 1.050] | 1 / 1 / 0 | 1.095 [1.036, 1.166] | [1.050, 1.100] | 1 / 1 / 0 |\n| wu_fig3b_re050 | 0.5 | 0.0 | wu_herald_mwpm | 1.720 [1.655, 1.866] | [1.660, 1.760] | 1 / 1 / 0 | 1.712 [1.556, 1.779] | [1.660, 1.760] | 1 / 1 / 0 |\n| wu_fig3b_re050 | 0.5 | 0.0 | wu_blind_mwpm | no unsaturated crossing in grid; blind threshold below the grid | \u2014 | 0 / 0 / 1000 | no unsaturated crossing in grid; blind threshold below the grid | \u2014 | 0 / 0 / 1000 |\n| wu_fig3b_re090 | 0.9 | 0.0 | wu_herald_mwpm | 3.481 [3.267, 3.550] | [3.440, 3.580] | 1 / 1 / 0 | 3.372 [3.303, 3.489] | [3.290, 3.440] | 1 / 1 / 0 |\n| wu_fig3b_re090 | 0.9 | 0.0 | wu_blind_mwpm | no unsaturated crossing in grid; blind threshold below the grid | \u2014 | 0 / 0 / 1000 | no unsaturated crossing in grid; blind threshold below the grid | \u2014 | 0 / 0 / 1000 |\n| wu_fig3_re098 | 0.98 | 0.0 | wu_herald_mwpm | 4.717 [4.486, 4.794] | [4.700, 4.800] | 1 / 1 / 0 | 4.380 [4.169, 4.642] | [4.300, 4.400] | 3 / 3 / 0 |\n| wu_fig3_re098 | 0.98 | 0.0 | wu_blind_mwpm | no unsaturated crossing in grid; blind threshold below the grid | [3.500, 3.600] | 6 / 0 / 1000 | no unsaturated crossing in grid; blind threshold below the grid | \u2014 | 0 / 0 / 1000 |\n| wu_fig3b_re100 | 1.0 | 0.0 | wu_herald_mwpm | 5.076 [4.993, 5.239] | [5.000, 5.100] | 1 / 1 / 0 | 4.936 [4.750, 5.032] | [4.900, 5.000] | 1 / 1 / 0 |\n| wu_fig3b_re100 | 1.0 | 0.0 | wu_blind_mwpm | no unsaturated crossing in grid; blind threshold below the grid | [4.800, 4.900] | 5 / 0 / 1000 | no unsaturated crossing in grid; blind threshold below the grid | [5.800, 5.900] | 2 / 0 / 1000 |\n| wu_si_pm005 | 0.98 | 0.005 | wu_herald_mwpm | 3.971 [3.891, 4.193] | [3.900, 4.000] | 3 / 3 / 0 | 4.050 [3.588, 4.109] | [4.000, 4.100] | 1 / 1 / 0 |\n| wu_si_pm005 | 0.98 | 0.005 | wu_blind_mwpm | no unsaturated crossing in grid; blind threshold below the grid | [3.800, 3.900] | 4 / 0 / 1000 | no unsaturated crossing in grid; blind threshold below the grid | [4.400, 4.500] | 2 / 0 / 1000 |\n| wu_si_pmp | 0.98 | p | wu_herald_mwpm | 2.656 [2.617, 2.707] | [2.600, 2.700] | 1 / 1 / 0 | 2.496 [2.440, 2.766] | [2.400, 2.500] | 3 / 3 / 0 |\n| wu_si_pmp | 0.98 | p | wu_blind_mwpm | no unsaturated crossing in grid; blind threshold below the grid | \u2014 | 0 / 0 / 1000 | no unsaturated crossing in grid; blind threshold below the grid | \u2014 | 0 / 0 / 1000 |\n\nfit_threshold(metric = shot, d_min = 7), % (95% bootstrap percentile CI, n_boot = 1000); gap = collapse \u2212 (9,13) pairwise, pp.\n\n| config | decoder | p_th | \u03bd | \u03c7\u00b2/dof | converged | resolved | reason | gap (pp) |\n|---|---|---|---|---|---|---|---|---|\n| wu_fig3_re000 | wu_herald_mwpm | 1.091 [1.077, 1.107] | 1.189 | 1.580 | True | True | ok | 0.042 |\n| wu_fig3b_re050 | wu_herald_mwpm | 1.720 [1.701, 1.738] | 1.079 | 1.241 | True | True | ok | 0.000 |\n| wu_fig3b_re050 | wu_blind_mwpm | 1.460 [1.460, 1.460] | 0.553 | 9.027 | False | False | bound_pin | \u2014 |\n| wu_fig3b_re090 | wu_herald_mwpm | 3.393 [3.362, 3.427] | 1.175 | 2.296 | True | True | ok | -0.088 |\n| wu_fig3b_re090 | wu_blind_mwpm | \u2014 | \u2014 | \u2014 | False | False | insufficient_data | \u2014 |\n| wu_fig3_re098 | wu_herald_mwpm | 4.608 [4.568, 4.649] | 1.251 | 4.304 | True | True | ok | -0.109 |\n| wu_fig3_re098 | wu_blind_mwpm | \u2014 | \u2014 | \u2014 | False | False | insufficient_data | \u2014 |\n| wu_fig3b_re100 | wu_herald_mwpm | 5.002 [4.979, 5.026] | 0.969 | 1.387 | True | True | ok | -0.073 |\n| wu_fig3b_re100 | wu_blind_mwpm | \u2014 | \u2014 | \u2014 | False | False | insufficient_data | \u2014 |\n| wu_si_pm005 | wu_herald_mwpm | 3.966 [3.934, 4.000] | 1.262 | 3.627 | True | True | ok | -0.005 |\n| wu_si_pm005 | wu_blind_mwpm | \u2014 | \u2014 | \u2014 | False | False | insufficient_data | \u2014 |\n| wu_si_pmp | wu_herald_mwpm | 2.625 [2.611, 2.638] | 0.945 | 8.539 | True | True | ok | -0.031 |\n| wu_si_pmp | wu_blind_mwpm | 2.200 [2.200, 2.900] | 4.099 | 24.886 | False | False | bound_pin | \u2014 |\n\nComparison with Wu et al. (wu_herald_mwpm, (9,13) per-shot crossing).\n\n| config | ours, % [95% CI] | Wu et al. | source | ours \u2212 Wu (pp) | Wu inside CI | edge rule |\n|---|---|---|---|---|---|---|\n| wu_fig3_re000 | 1.049 [1.034, 1.122] | 0.937(4)% | Fig. 3a | 0.112 | False | none |\n| wu_fig3b_re050 | 1.720 [1.655, 1.866] | not tabulated | not tabulated | \u2014 | \u2014 | none |\n| wu_fig3b_re090 | 3.481 [3.267, 3.550] | not tabulated | not tabulated | \u2014 | \u2014 | none |\n| wu_fig3_re098 | 4.717 [4.486, 4.794] | 4.15(2)% | Fig. 3a | 0.567 | False | none |\n| wu_fig3b_re100 | 5.076 [4.993, 5.239] | 5.13% | Sec. III text | -0.054 | True | none |\n| wu_si_pm005 | 3.971 [3.891, 4.193] | 3.80(2)% | SI S6 | 0.171 | False | none |\n| wu_si_pmp | 2.656 [2.617, 2.707] | 2.85(1)% | SI S6 | -0.194 | False | none |\n\nHerald saturation diagnostics: sc_u = n_sign_changes_unsaturated; max P_L = largest per-shot P_L at the two distances and two bracket points.\n\n| config | (9,13) sc_u | (9,13) max P_L | (7,9) sc_u | (7,9) max P_L |\n|---|---|---|---|---|\n| wu_fig3_re000 | 1 | 0.028 | 1 | 0.035 |\n| wu_fig3b_re050 | 1 | 0.040 | 1 | 0.039 |\n| wu_fig3b_re090 | 1 | 0.056 | 1 | 0.045 |\n| wu_fig3_re098 | 1 | 0.087 | 3 | 0.048 |\n| wu_fig3b_re100 | 1 | 0.084 | 1 | 0.071 |\n| wu_si_pm005 | 3 | 0.039 | 1 | 0.045 |\n| wu_si_pmp | 1 | 0.018 | 3 | 0.010 |\n\nHerald finite-size window: shift = (9,13) \u2212 (7,9) per-shot crossing, pp.\n\n| config | (7,9), % [95% CI] | (9,13), % [95% CI] | shift (pp) |\n|---|---|---|---|\n| wu_fig3_re000 | 1.095 [1.036, 1.166] | 1.049 [1.034, 1.122] | -0.046 |\n| wu_fig3b_re050 | 1.712 [1.556, 1.779] | 1.720 [1.655, 1.866] | 0.008 |\n| wu_fig3b_re090 | 3.372 [3.303, 3.489] | 3.481 [3.267, 3.550] | 0.109 |\n| wu_fig3_re098 | 4.380 [4.169, 4.642] | 4.717 [4.486, 4.794] | 0.336 |\n| wu_fig3b_re100 | 4.936 [4.750, 5.032] | 5.076 [4.993, 5.239] | 0.140 |\n| wu_si_pm005 | 4.050 [3.588, 4.109] | 3.971 [3.891, 4.193] | -0.079 |\n| wu_si_pmp | 2.496 [2.440, 2.766] | 2.656 [2.617, 2.707] | 0.159 |",
   "parameters": {
     "ci_percentiles": [
       2.5,
