@@ -8,6 +8,9 @@ v0.1 means the README at commit `da47e3a`.
 
 ### Changed claims
 
+Every CI in this changelog is a bootstrap 95% percentile interval that covers binomial noise only; a pairwise-crossing CI excludes interpolation error inside the bracket.
+CI endpoints can move in the second decimal with the NumPy version ([METHODS.md](docs/METHODS.md#numpy-dependent-ci-endpoints)).
+
 - The headline threshold is now the per-shot (7,11) pairwise crossing, `P_L` after `T = d` rounds (`scripts/headline_results.py`).
   v0.1 quoted the per-round `d ≥ 7` collapse fit, which is now a secondary column (item 1).
 - The thresholds and the herald − blind difference are computed on the densified sweeps (`extra_p_shot`, commits `6337619` and `090c341`).
@@ -21,7 +24,7 @@ v0.1 means the README at commit `da47e3a`.
   Its blind error counts now run from 52 to 6290, not 3016 to 6290 (C075).
 - CI endpoints print to two decimals, with a footnote that they can move in the second decimal with the NumPy version (C017, K025).
 - The comparison with Wu et al. now uses the `wu2022` convention and the (9,13) per-shot herald crossing (`docs/VALIDATION.md`).
-  v0.1 compared a repo-model `d ≥ 7` collapse fit with Wu's (11,15) crossing (C036, item 13).
+  v0.1 compared a repo-model `d ≥ 7` collapse fit with Wu's reported thresholds, of which the Fig. 3a values come from Wu's (11,15) crossing (C036, item 13).
 
 ### Withdrawn claims
 
@@ -33,7 +36,7 @@ v0.1 means the README at commit `da47e3a`.
   It is replaced by herald − blind of the per-shot (7,11) crossings: 0.49 pp [0.40, 0.60] at `r_e = 0.5`.
 - "the r_e = 0.5 dagger footnote" (C003, C004, C021–C026, K008, K032–K039, A005, A006, A008; item 3).
   The footnote explained the per-round `r_e = 0.5` blind CI upper endpoint, 2.154%, with a 30-seed probe that was never committed.
-  On the dense data that endpoint is 1.80% (`results/headline.json`).
+  On the dense data that endpoint is 1.80%, which coincides with the grid point `p = 0.018` (`results/headline.json`).
 - "the r_e = 0.98 threshold is not resolved" (K015, K031, K050, K136, K138, K139; item 15).
   It holds for the per-round fit only; the per-shot fit resolves both decoders at `r_e = 0.98`.
 - "an unexplained sign problem" (C039–C042, K066–K070, K075).
@@ -48,7 +51,8 @@ v0.1 means the README at commit `da47e3a`.
 - "follows Wu et al." (K080).
   The repo convention differs from Wu's model (see the previous entry); the `wu2022` convention follows it.
 - "each assumption is systematically optimistic" (K120).
-  The unbiased-erasure assumption is pessimistic relative to the biased erasure of Sahay et al., and the direction of the others was not measured.
+  Sahay et al. report a higher threshold under Z-biased erasure than under unbiased erasure for the XZZX code; this was not measured for the model here.
+  The direction of the effect of each assumption on the results here was not measured.
 - "models dual-rail superconducting cavities" (K003).
   The committed sweeps convert only two-qubit-gate errors, and no dual-rail-specific noise is modelled.
 - "group: per-round paired-separation diagnostics" (C011–C014, C077, C078).

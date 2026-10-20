@@ -3,6 +3,7 @@
 This repository simulates a distance-`d` rotated surface-code Z memory in which a fraction `r_e` of each two-qubit gate's error probability `p` becomes heralded erasure.
 A herald-conditioned matching decoder sets the edges of each heralded erasure to weight 0, and a blind decoder ignores the heralds.
 At `r_e = 0.98` the per-shot `d = 7` and `d = 11` curves cross at 3.84% [3.60, 4.00] for herald and 1.19% [1.15, 1.23] for blind (bootstrap 95% CI, `scripts/headline_results.py`).
+The CIs cover binomial noise only, not interpolation error inside the bracket, and their endpoints can move in the second decimal with the NumPy version ([Thresholds](#thresholds)).
 
 ## Results
 
@@ -31,10 +32,12 @@ CI endpoints can move in the second decimal with the NumPy version.
 The per-shot collapse fit [[9]](#references) over `d ∈ {7, 9, 11}` ([method](docs/METHODS.md#collapse-fit)) lies below the pairwise crossing in all six conditions, by 0.004 to 0.025 percentage points (pp).
 We report the gap as a systematic difference between two estimators, not as an error of either one.
 
-At `r_e = 0.5` the blind (7,11) estimate, 1.10% [1.03, 1.14], sits at the lower edge of its bracket [1.10, 1.18], and its CI extends below the bracket.
-The blind (9,11) crossing is 1.03% [1.02, 1.19] (`results/headline.json`).
+In all six rows of the table the (7,11) CI extends past its bracket at one end or both.
+At `r_e = 0.5` the blind (7,11) estimate, 1.10% [1.03, 1.14], sits at the lower edge of its bracket [1.10, 1.18].
+The blind (9,11) crossing is 1.03% [1.02, 1.19], with bracket [1.00, 1.03] (`results/headline.json`).
+The `r_e = 0.5` blind (9,11) curves have 3 unsaturated sign changes, and only the first crossing is reported.
 The `r_e = 0.5` blind value should be quoted only with its CI.
-Its per-round CI upper endpoint, 1.80%, coincides with the sweep grid point `p = 0.018`.
+The `r_e = 0.5` blind per-round CI upper endpoint, 1.80%, coincides with the sweep grid point `p = 0.018`.
 
 At `r_e = 0.98` the per-shot collapse fit resolves both thresholds, and the per-round fit resolves neither (`bound_pin`, `unresolved_ci`; [criteria](docs/METHODS.md#collapse-fit)).
 This is an observation about two fits; it makes no claim about which metric is correct.
@@ -93,7 +96,10 @@ Ratios and `Λ_d` ([Λ](docs/METHODS.md#lambda)) are per round.
 | 1.00 | 0.98 | 9 | 23 | 3,543 | > 103× † | — | 1.44 |
 | 1.00 | 0.98 | 11 | 3 | 3,016 | > 339× † | — | — |
 
-100,000 shots per cell, seed 0; error counts are out of 100,000 shots. † fewer than 50 herald errors: >= 95% one-sided lower confidence bound, not a point ratio. Λ_d = per-round p_L(d) / p_L(d+2); — below 50 errors at d or d+2.
+100,000 shots per cell, seed 0; error counts are out of 100,000 shots.
+stim's seeded sampling reproduces these counts only on the same machine and stim version.
+† Fewer than 50 herald errors: a ≥ 95% one-sided lower confidence bound, not a point ratio.
+Λ_d = per-round p_L(d) / p_L(d+2); — means fewer than 50 errors at d or d+2.
 
 CI endpoints can move in the second decimal with the NumPy version.
 <!-- END:ablation -->
@@ -115,7 +121,7 @@ At `p = 0.5%` and `r_e = 0.5` the `d = 9` and 11 cells have 42 and 9 herald erro
 No trend is read across the bounds.
 
 For each pair of `p` and `r_e`, the ungated ratios increase with `d`.
-In every cell that reports both, herald `Λ_d` exceeds blind `Λ_d`.
+In every cell that reports both, the herald `Λ_d` point value exceeds the blind one; the ablation gives no CI on `Λ_d`.
 How far the increase continues in the gated cells is bounded from below by this run but not measured by it.
 Measuring it needs more shots per cell, not larger distances.
 
@@ -148,10 +154,10 @@ CI endpoints can move in the second decimal with the NumPy version.
 
 Wu's value lies inside our 95% CI for `R_e = 1` only, and outside it for the four other tabulated configs.
 The `d` pair (9,13) was set by a pre-registered memory rule ([WU_DPAIR_DECISION.md](docs/remediation/WU_DPAIR_DECISION.md)).
-Wu et al. used the (11,15) pair.
+Wu's Fig. 3a values, 0.937% and 4.15%, come from their (11,15) crossing; Wu do not state the pair behind 5.13% or the SI S6 values.
 Wu simulate the planar XZZX code [[10]](#references); we simulate the rotated CSS code.
 Wu state that the XZZX code "performs identically to the standard surface code for the case of unbiased noise".
-Both erasure models here are unbiased, and Wu's `d × d` data-qubit array has the same count as our rotated patch.
+Wu's two-qubit-gate noise, which the `wu2022` convention reproduces, is unbiased, and Wu's `d × d` data-qubit array has the same count as our rotated patch.
 Wu decode with weighted Union-Find, which they note "is optimal for pure erasure errors" [[11]](#references); we use MWPM with heralded edges at weight 0.
 The other differences are in [docs/VALIDATION.md](docs/VALIDATION.md#differences-from-wu-et-al).
 
@@ -193,12 +199,15 @@ Each assumption below differs from hardware, and the size of its effect on the r
 - Erasure is injected after the CX, independently per qubit, with no mid-gate or correlated two-qubit erasure.
   Real leakage happens during the gate and can corrupt both qubits together.
 - An erased qubit is `I/2` for that instant only and works normally from the next tick.
-  A real ¹⁷¹Yb erasure [[7]](#references) leaks the atom out of the qubit subspace until it is re-prepared.
-  A single erasure could then degrade many later rounds, which is not modelled.
+  In ¹⁷¹Yb, Ma et al. [[7]](#references) report that a large fraction of gate errors are decays out of the qubit subspace to the ground state.
+  They propose replacing erased qubits with a movable tweezer.
+  Until such an atom is replaced, a single erasure could degrade many later rounds, which is not modelled.
 - Heralds are instantaneous and 100% reliable, with no false positives.
   Real fluorescence heralding has finite fidelity, false positives and negatives, and a latency the decoder must tolerate.
 - The erasure is unbiased.
-  The Z-biased erasure of Sahay et al. [[8]](#references) would give a further threshold advantage that is not modelled; the advantage here comes from herald-conditioned decoding alone.
+  Sahay et al. [[8]](#references) report a higher threshold under Z-biased erasure than under unbiased erasure for the XZZX code they study.
+  Biased erasure is not modelled here, and its effect on this CSS Z memory under MWPM was not measured.
+  The advantage here comes from herald-conditioned decoding alone.
 - Every threshold is a Z-basis memory threshold under one observable over `logical_z_support(d)`, with only Z-type detectors closing the time boundaries.
   It is not a full X and Z circuit-level, logical-gate or computation threshold.
   Every number in this repository carries the "Z-memory" qualifier.

@@ -12,7 +12,8 @@ block equals :func:`render` exactly. Tables and sources:
   per-shot (7,11) crossings with its 95% CI and the replicates in which either
   crossing is missing or saturated;
 - ``ablation`` (results/ablation.json): each decoder's error count, p_L(blind) /
-  p_L(herald) per (p, r_e, d) and each decoder's per-round Lambda_d;
+  p_L(herald) per (p, r_e, d) and each decoder's per-round Lambda_d, with a
+  footnote that the counts reproduce only on the same machine and stim version;
 - ``wu_validation`` (results/wu_validation.json): the herald (9,13) per-shot
   crossing per config against Wu et al.'s reported value.
 
@@ -140,10 +141,12 @@ def _ablation(doc: dict[str, Any]) -> list[str]:
     lines += [
         "",
         f"{params['shots']:,} shots per cell, seed {params['seed']}; error counts are out of "
-        f"{params['shots']:,} shots. † fewer than "
-        f"{params['min_errors']} herald errors: >= 95% one-sided lower confidence bound, not a "
-        f"point ratio. Λ_d = per-round p_L(d) / p_L(d+2); — below {params['min_errors']} "
-        "errors at d or d+2.",
+        f"{params['shots']:,} shots.",
+        "stim's seeded sampling reproduces these counts only on the same machine and stim version.",
+        f"† Fewer than {params['min_errors']} herald errors: a ≥ 95% one-sided lower confidence "
+        "bound, not a point ratio.",
+        f"Λ_d = per-round p_L(d) / p_L(d+2); — means fewer than {params['min_errors']} errors "
+        "at d or d+2.",
     ]
     return lines
 
