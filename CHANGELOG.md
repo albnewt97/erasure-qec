@@ -22,7 +22,8 @@ CI endpoints can move in the second decimal with the NumPy version ([METHODS.md]
 - `Λ` is labelled per-round at every appearance, and thresholds per-shot (item 16).
 - The ablation now covers `p = 0.5%` as well as `p = 1.0%` (`results/ablation.json`, commit `05f59d1`).
   Its blind error counts now run from 52 to 6290, not 3016 to 6290 (C075).
-- CI endpoints print to two decimals, with a footnote that they can move in the second decimal with the NumPy version (C017, K025).
+- CI endpoints print to two decimals, and each table with bootstrap CIs has a footnote that they can move in the second decimal with the NumPy version (C017, K025).
+  The ablation table has no bootstrap; its footnote states that its error counts reproduce only on the same machine and stim version.
 - The per-round `r_e = 0.98` blind `unresolved_ci` verdict and the cap insensitivity of the per-round fit are re-measured on the dense sweeps (`scripts/per_round_fit_sensitivity.py`, `results/per_round_fit_sensitivity.json`; A010, A020).
   Excluding bound-pinned bootstrap replicates resolves that fit at 21 of 30 seeds, including seed 0; on the pre-dense sweep it was 9 of 30, not including seed 0 ([AUDIT_HISTORY.md](docs/archive/AUDIT_HISTORY.md)).
   Each per-round fit keeps its verdict for caps 0.2 to 0.4.

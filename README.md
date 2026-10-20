@@ -97,11 +97,10 @@ Ratios and `Λ_d` ([Λ](docs/METHODS.md#lambda)) are per round.
 | 1.00 | 0.98 | 11 | 3 | 3,016 | > 339× † | — | — |
 
 100,000 shots per cell, seed 0; error counts are out of 100,000 shots.
-stim's seeded sampling reproduces these counts only on the same machine and stim version.
 † Fewer than 50 herald errors: a ≥ 95% one-sided lower confidence bound, not a point ratio.
 Λ_d = per-round p_L(d) / p_L(d+2); — means fewer than 50 errors at d or d+2.
 
-CI endpoints can move in the second decimal with the NumPy version.
+stim's seeded sampling reproduces these counts only on the same machine and stim version.
 <!-- END:ablation -->
 
 ![Ablation](figures/ablation.png)

@@ -12,16 +12,19 @@ block equals :func:`render` exactly. Tables and sources:
   per-shot (7,11) crossings with its 95% CI and the replicates in which either
   crossing is missing or saturated;
 - ``ablation`` (results/ablation.json): each decoder's error count, p_L(blind) /
-  p_L(herald) per (p, r_e, d) and each decoder's per-round Lambda_d, with a
-  footnote that the counts reproduce only on the same machine and stim version;
+  p_L(herald) per (p, r_e, d) and each decoder's per-round Lambda_d;
 - ``wu_validation`` (results/wu_validation.json): the herald (9,13) per-shot
   crossing per config against Wu et al.'s reported value.
 
 Rates, CI endpoints, brackets and differences print as percentages (or
 percentage points) to 2 decimals; the collapse-minus-pairwise gap prints to 3
-decimals in pp. Every table ends with a footnote line stating that CI endpoints
-can move in the second decimal with the NumPy version. A table whose JSON does
-not exist is not rendered.
+decimals in pp. Every table ends with one footnote line, chosen per table
+(``TABLES``). The tables with bootstrap CIs (thresholds, herald_vs_blind,
+wu_validation) end with :data:`FOOTNOTE`: CI endpoints can move in the second
+decimal with the NumPy version. The ablation table has no bootstrap: its bounds
+are closed-form Wilson limits and its error counts come from stim sampling, so
+it ends with :data:`STIM_FOOTNOTE` instead. A table whose JSON does not exist is
+not rendered.
 
     uv run python scripts/render_readme_tables.py            # every table
     uv run python scripts/render_readme_tables.py thresholds # one table
@@ -38,6 +41,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
 FOOTNOTE = "CI endpoints can move in the second decimal with the NumPy version."
+STIM_FOOTNOTE = (
+    "stim's seeded sampling reproduces these counts only on the same machine and stim version."
+)
 
 
 def _pct(x: float | None) -> str:
@@ -142,7 +148,6 @@ def _ablation(doc: dict[str, Any]) -> list[str]:
         "",
         f"{params['shots']:,} shots per cell, seed {params['seed']}; error counts are out of "
         f"{params['shots']:,} shots.",
-        "stim's seeded sampling reproduces these counts only on the same machine and stim version.",
         f"† Fewer than {params['min_errors']} herald errors: a ≥ 95% one-sided lower confidence "
         "bound, not a point ratio.",
         f"Λ_d = per-round p_L(d) / p_L(d+2); — means fewer than {params['min_errors']} errors "
@@ -169,12 +174,18 @@ def _wu_validation(doc: dict[str, Any]) -> list[str]:
     return lines
 
 
-TABLES: dict[str, tuple[str, Callable[[dict[str, Any]], list[str]]]] = {
-    "thresholds": ("headline.json", _thresholds),
-    "herald_vs_blind": ("headline.json", _herald_vs_blind),
-    "ablation": ("ablation.json", _ablation),
-    "wu_validation": ("wu_validation.json", _wu_validation),
+# name -> (source JSON, renderer, closing footnote line)
+TABLES: dict[str, tuple[str, Callable[[dict[str, Any]], list[str]], str]] = {
+    "thresholds": ("headline.json", _thresholds, FOOTNOTE),
+    "herald_vs_blind": ("headline.json", _herald_vs_blind, FOOTNOTE),
+    "ablation": ("ablation.json", _ablation, STIM_FOOTNOTE),
+    "wu_validation": ("wu_validation.json", _wu_validation, FOOTNOTE),
 }
+
+
+def footnote(name: str) -> str:
+    """The closing footnote line of table ``name``."""
+    return TABLES[name][2]
 
 
 def source(name: str, results_dir: Path = RESULTS) -> Path:
@@ -187,8 +198,8 @@ def render(name: str, results_dir: Path = RESULTS) -> str | None:
     path = source(name, results_dir)
     if not path.exists():
         return None
-    lines = TABLES[name][1](json.loads(path.read_text()))
-    return "\n".join([*lines, "", FOOTNOTE])
+    _, table, footnote = TABLES[name]
+    return "\n".join([*table(json.loads(path.read_text())), "", footnote])
 
 
 def main() -> None:

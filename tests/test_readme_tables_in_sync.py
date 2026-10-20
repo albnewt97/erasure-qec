@@ -53,8 +53,13 @@ def test_readme_table_matches_rendered(name: str) -> None:
     assert block == rendered
 
 
-def test_every_table_ends_with_the_numpy_footnote(tmp_path: Path) -> None:
-    """Rendering works for every table, including ablation from a stub payload."""
+def test_every_table_ends_with_its_footnote(tmp_path: Path) -> None:
+    """Rendering works for every table, including ablation from a stub payload.
+
+    Tables with bootstrap CIs end with the NumPy footnote; the ablation table,
+    whose bounds are closed-form Wilson limits, ends with the stim footnote and
+    does not carry the NumPy one.
+    """
     ablation_table = _load("ablation_table")
     shots = 10_000
     cells = {
@@ -79,7 +84,16 @@ def test_every_table_ends_with_the_numpy_footnote(tmp_path: Path) -> None:
     rows = [line for line in ablation.splitlines() if line.startswith(("| 0.50 |", "| 1.00 |"))]
     assert len(rows) == len(cells)
     assert "> " in ablation and "†" in ablation  # gated cells: lower bound only
-    for name in render_readme_tables.TABLES:
+    expected = {
+        "thresholds": render_readme_tables.FOOTNOTE,
+        "herald_vs_blind": render_readme_tables.FOOTNOTE,
+        "ablation": render_readme_tables.STIM_FOOTNOTE,
+        "wu_validation": render_readme_tables.FOOTNOTE,
+    }
+    assert set(expected) == set(render_readme_tables.TABLES)
+    assert render_readme_tables.FOOTNOTE not in ablation
+    for name, note in expected.items():
+        assert render_readme_tables.footnote(name) == note
         table = render_readme_tables.render(name, tmp_path)
         if table is not None:
-            assert table.endswith("\n\n" + render_readme_tables.FOOTNOTE)
+            assert table.endswith("\n\n" + note)
