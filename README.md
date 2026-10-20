@@ -112,6 +112,7 @@ It ignores the positive correlation from decoding identical shots, which only ma
 At single-digit counts the Wilson "95%" is a nominal approximation with no guaranteed coverage.
 
 At `p = 1.0%` and `r_e = 0.98` the `d = 9` cell has 23 herald errors (3,543 blind) and the `d = 11` cell has 3 (3,016 blind).
+The `d = 9` bound > 103× is also below the 50-error gate; it rests on 23 herald errors, and the `d = 11` cell rests on 3.
 **The `d = 11` bound > 339× rests on 3 herald errors and is weak evidence.**
 It reads as "herald errors were too rare to measure at `d = 11`", not as "suppression is 339×".
 At `p = 0.5%` and `r_e = 0.98` the `d = 7`, 9 and 11 cells have 9, 1 and 0 herald errors (301, 117 and 52 blind).
