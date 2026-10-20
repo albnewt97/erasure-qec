@@ -6,7 +6,13 @@ from collections.abc import Callable
 
 import pytest
 
-from erasure_qec.analysis.crossing import bootstrap_pairwise_crossing, pairwise_crossing
+from erasure_qec.analysis.crossing import (
+    HEADLINE_PAIR,
+    bootstrap_crossing_difference,
+    bootstrap_pairwise_crossing,
+    headline_crossing,
+    pairwise_crossing,
+)
 from erasure_qec.analysis.statistics import SweepPoint, metric_value
 
 TRUE_CROSSING = 0.01
@@ -222,6 +228,31 @@ def test_bootstrap_ci_brackets_point_estimate() -> None:
     assert lo <= est.value <= hi
 
 
+def test_unsaturated_sign_changes_ignore_noisy_saturated_tail() -> None:
+    """Sign flips among points at P ~ 1/2 count in n_sign_changes but not in
+    n_sign_changes_unsaturated, and do not move the reported crossing.
+
+    The base curves have g < 0 below p = 0.01, g == 0 exactly at 0.01 (counted
+    non-negative) and g > 0 above it: one sign change under both counters. The
+    tail adds p = 0.022 .. 0.028 where both curves sit near P = 0.495 (above the
+    0.4 saturation cap) and g alternates - + - +.
+    """
+    base = _synthetic_points()
+    tail = []
+    for i, (e5, e7) in enumerate([(495000, 494000), (495000, 496000)] * 2):
+        p = round(0.022 + 0.002 * i, 3)
+        tail.append(SweepPoint("herald_mwpm", 5, 5, p, 0.0, SHOTS, e5))
+        tail.append(SweepPoint("herald_mwpm", 7, 7, p, 0.0, SHOTS, e7))
+
+    clean = pairwise_crossing(base, 5, 7, metric="shot")
+    noisy = pairwise_crossing(base + tail, 5, 7, metric="shot")
+    assert clean.n_sign_changes == 1
+    assert clean.n_sign_changes_unsaturated == 1
+    assert noisy.n_sign_changes == 5  # + -> - -> + -> - -> + across the tail
+    assert noisy.n_sign_changes_unsaturated == 1
+    assert (noisy.value, noisy.bracket) == (clean.value, clean.bracket)
+
+
 # --- saturation cap ---------------------------------------------------------------
 
 # Both curves sit in the saturated tail (P_L_shot 0.44 .. 0.49) and cross between
@@ -263,3 +294,56 @@ def test_unsaturated_crossing_is_unchanged_by_the_cap() -> None:
         assert capped == plain
         assert not capped[0].saturated
         assert capped[0].bracket_max_p_l_shot < CAP
+
+
+# --- headline estimator and the difference of two conditions ----------------------
+
+
+def test_headline_crossing_is_the_capped_7_11_shot_crossing() -> None:
+    pts = _synthetic_points()
+    assert HEADLINE_PAIR == (7, 11)
+    expected = bootstrap_pairwise_crossing(
+        pts, 7, 11, metric="shot", n_boot=100, seed=3, saturation_cap=CAP
+    )
+    assert headline_crossing(pts, n_boot=100, seed=3) == expected
+
+
+def _scaled(points: list[SweepPoint], factor: float, decoder: str) -> list[SweepPoint]:
+    """The same error counts at p * factor: every crossing moves by exactly ``factor``."""
+    return [
+        SweepPoint(decoder, pt.d, pt.rounds, pt.p * factor, pt.r_e, pt.shots, pt.errors)
+        for pt in points
+    ]
+
+
+def test_crossing_difference_of_identical_conditions_is_zero() -> None:
+    pts = _synthetic_points()
+    value, (lo, hi), n_missing = bootstrap_crossing_difference(
+        pts, _scaled(pts, 1.0, "blind_mwpm"), 7, 11, metric="shot", n_boot=200
+    )
+    assert value == 0.0
+    assert n_missing == 0
+    assert lo < 0.0 < hi
+
+
+def test_crossing_difference_recovers_a_known_shift() -> None:
+    """Scaling p by 1.2 moves the (ln p)-interpolated crossing by exactly 1.2x."""
+    a = _synthetic_points()
+    b = _scaled(a, 1.2, "blind_mwpm")
+    xa = pairwise_crossing(a, 7, 11, metric="shot").value
+    value, (lo, hi), n_missing = bootstrap_crossing_difference(
+        a, b, 7, 11, metric="shot", n_boot=200, seed=1
+    )
+    assert value == pytest.approx(-0.2 * xa, rel=1e-9)
+    assert n_missing == 0
+    assert lo <= value <= hi
+
+
+def test_crossing_difference_counts_saturated_replicates_as_missing() -> None:
+    sat = _pair_points(5, 7, _SATURATED_E1, _SATURATED_E2)
+    value, ci, n_missing = bootstrap_crossing_difference(
+        sat, sat, 5, 7, metric="shot", n_boot=50, saturation_cap=CAP
+    )
+    assert math.isnan(value)
+    assert n_missing == 50
+    assert all(math.isnan(x) for x in ci)

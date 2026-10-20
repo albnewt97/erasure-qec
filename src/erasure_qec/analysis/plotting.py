@@ -1,26 +1,34 @@
-"""Deterministic figure generation from sweep CSVs (PLAN.md §10).
+"""Deterministic figure generation from sweep CSVs (docs/archive/PLAN_v1.md §10).
 
 Every figure is byte-reproducible: the Agg backend is forced, a fixed rcParams
 block pins fonts/sizes, all bootstrap CIs use a fixed seed, and PNG metadata
 (the ``Software``/``Creation Time`` chunks matplotlib writes by default) is
-stripped. Regenerating from the same CSVs yields identical bytes — the M8 gate.
+stripped. Regenerating from the same inputs yields identical bytes — the M8 gate.
 
 Figures (§10):
-  (i)  threshold panels — per-round ``p_L`` vs ``p``, one curve per ``d``, one
-       panel per ``r_e``, the fitted ``p_th`` marked with its CI band;
-  (ii) a data-collapse inset inside each panel (``p_L`` vs the scaling variable);
-  (iii) the Lambda factor ``p_L(d)/p_L(d+2)`` vs ``p``;
-  (iv) the herald_mwpm vs blind_mwpm ablation on identical tasks;
-  (v)  the hook-regression figure — ``shortest_graphlike_error`` length for the
+  (i)  threshold panels — the logical failure probability after ``T = d``
+       rounds (per-shot ``P_L_shot``) vs ``p``, one panel per ``r_e``, one curve
+       per ``(decoder, d)`` (herald solid, blind dashed), each decoder's
+       headline per-shot (7,11) crossing
+       (:func:`~erasure_qec.analysis.crossing.headline_crossing`) marked with
+       its 95% bootstrap CI band; no mark where that crossing is missing or
+       saturated;
+  (ii) the per-round Lambda factor ``p_L(d)/p_L(d+2)`` vs ``p``;
+  (iii) the herald_mwpm vs blind_mwpm suppression ratio at fixed ``p``, from
+       ``results/ablation.json`` (``scripts/ablation_table.py``); skipped when
+       that file does not exist;
+  (iv) the hook-regression figure — ``shortest_graphlike_error`` length for the
        correct vs broken CX schedule vs ``d`` (computed directly from the M3
        fixtures; no Monte Carlo, no CSV).
 
 All CSV-fed figures degrade gracefully on partial sweeps: missing conditions,
-too few points to fit, or a single ``p`` all render what data exists rather
-than crashing.
+too few points for a crossing, or a single ``p`` all render what data exists
+rather than crashing.
 """
 
 import argparse
+import json
+import math
 from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from pathlib import Path
@@ -39,15 +47,15 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+from erasure_qec.analysis.crossing import HEADLINE_PAIR, headline_crossing
 from erasure_qec.analysis.statistics import (
     SweepPoint,
     available_conditions,
     group_curves,
     lambda_factor,
     load_sweep,
-    per_round_estimate,
+    metric_estimate,
 )
-from erasure_qec.analysis.threshold_fit import FitResult, fit_threshold
 
 BOOTSTRAP_SEED = 0
 _PNG_METADATA = {"Software": None, "Creation Time": None}
@@ -88,131 +96,107 @@ def _save(fig: Figure, path: Path) -> Path:
     return path
 
 
-def _plot_curves_on(ax: Axes, points: Sequence[SweepPoint]) -> list[int]:
-    """Plot per-round ``p_L`` vs ``p`` curves (one per d) with Wilson CIs."""
+_DECODER_STYLE = {"herald_mwpm": ("-", "o", "crimson"), "blind_mwpm": ("--", "x", "0.25")}
+_THRESHOLD_YLABEL = "logical failure probability after T = d rounds"
+
+
+def _plot_shot_curves_on(ax: Axes, points: Sequence[SweepPoint], all_d: Sequence[int]) -> None:
+    """Per-shot ``P_L_shot`` vs ``p`` with Wilson CIs, one curve per ``d``.
+
+    Points with zero observed errors are not drawn (``P_L_shot = 0`` has no
+    place on the log axis); the crossing estimator skips them as well.
+    """
+    linestyle, marker, _ = _DECODER_STYLE.get(points[0].decoder, ("-", "o", "k"))
+    short = points[0].decoder.removesuffix("_mwpm")
     curves = group_curves(points, points[0].decoder, points[0].r_e)
-    all_d = sorted(curves)
-    for d in all_d:
-        pts = curves[d]
+    for d in sorted(curves):
+        pts = [pt for pt in curves[d] if pt.errors > 0]
+        if not pts:
+            continue
         ps = np.array([pt.p for pt in pts])
-        est = [per_round_estimate(pt) for pt in pts]
-        y = np.array([e.value for e in est])
-        lo = np.array([e.low for e in est])
-        hi = np.array([e.high for e in est])
+        est = [metric_estimate(pt, "shot") for pt in pts]
         color = _color_for_distance(d, all_d)
-        ax.plot(ps, y, marker="o", color=color, label=f"d={d}")
-        ax.fill_between(ps, lo, hi, color=color, alpha=0.2, linewidth=0)
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    return all_d
-
-
-# Smallest-distance cutoff for the asymptotic threshold fit: dropping small d
-# (which carry the largest finite-size corrections) gives the asymptotic p_th.
-_ASYMPTOTIC_D_MIN = 7
-
-
-def _choose_threshold_fit(
-    cond_points: Sequence[SweepPoint], *, window_factor: float, seed: int
-) -> FitResult:
-    """Fit with ``d >= 7`` when >= 3 such distances exist; else fall back to all d."""
-    n_large = len({pt.d for pt in cond_points if pt.d >= _ASYMPTOTIC_D_MIN})
-    if n_large >= 3:
-        return fit_threshold(
-            cond_points, window_factor=window_factor, seed=seed, d_min=_ASYMPTOTIC_D_MIN
+        ax.plot(
+            ps,
+            [e.value for e in est],
+            linestyle=linestyle,
+            marker=marker,
+            color=color,
+            label=f"d={d} {short}",
         )
-    return fit_threshold(cond_points, window_factor=window_factor, seed=seed)
-
-
-def _mark_threshold(ax: Axes, fit: FitResult) -> None:
-    # Gate on `resolved`, not `converged`: a fit that converges but whose CI is
-    # wider than its own threshold (r_e=0.98 blind) must not be drawn as a line.
-    if not fit.resolved:
-        ax.text(
-            0.03,
-            0.03,
-            f"no fit:\n{fit.message.splitlines()[0]}",
-            transform=ax.transAxes,
-            fontsize=6,
-            va="bottom",
-            ha="left",
-            color="0.4",
+        ax.fill_between(
+            ps, [e.low for e in est], [e.high for e in est], color=color, alpha=0.15, linewidth=0
         )
-        return
-    ax.axvline(fit.p_th, color="crimson", linestyle="--", linewidth=1.0)
-    lo, hi = fit.p_th_ci
-    has_ci = np.isfinite(lo) and np.isfinite(hi) and hi > lo
+
+
+def _mark_headline_crossing(ax: Axes, points: Sequence[SweepPoint], *, seed: int) -> str:
+    """Mark the headline (7,11) crossing of one decoder; return its annotation line."""
+    est, (lo, hi), _ = headline_crossing(points, seed=seed)
+    d1, d2 = HEADLINE_PAIR
+    name = points[0].decoder.removesuffix("_mwpm")
+    if est.saturated:
+        return f"{name} ({d1},{d2}): saturated, not a threshold"
+    if not math.isfinite(est.value):
+        return f"{name} ({d1},{d2}): no crossing on the grid"
+    linestyle, _, color = _DECODER_STYLE.get(points[0].decoder, ("-", "o", "k"))
+    ax.axvline(est.value, color=color, linestyle=linestyle, linewidth=1.0)
+    has_ci = math.isfinite(lo) and math.isfinite(hi) and hi > lo
     if has_ci:
-        # Asymmetric 95% bootstrap percentile band (the p_th distribution is
-        # skewed, so this is the honest interval, not p_th +/- one std).
-        ax.axvspan(lo, hi, color="crimson", alpha=0.12)
-    scope = f"$d\\geq{fit.d_min}$ fit" if fit.d_min is not None else "all-$d$ fit"
-    # One decimal on the CI endpoints, two on p_th. p_th is RNG-free (curve_fit
-    # on fixed data) and exact; the bootstrap percentile endpoints drift with the
-    # seed and the NumPy build by more than 0.01 percentage points, so a second
-    # decimal here would be false precision. Same convention as README.md and
-    # docs/AUDIT.md "Reproducibility and environment sensitivity".
-    ci_line = f"\n95% CI [{lo * 100:.1f}, {hi * 100:.1f}]" if has_ci else ""
-    ax.text(
-        0.97,
-        0.03,
-        f"{scope}\n$p_{{th}}={fit.p_th * 100:.2f}\\%${ci_line}\n$\\nu={fit.nu:.2f}$",
-        transform=ax.transAxes,
-        fontsize=6.5,
-        va="bottom",
-        ha="right",
-        color="crimson",
-    )
-
-
-def _add_collapse_inset(ax: Axes, fit: FitResult) -> None:
-    if not fit.resolved:
-        return
-    inset = ax.inset_axes((0.60, 0.60, 0.38, 0.38))
-    x = fit.scaling_x()
-    inset.scatter(x, fit.used_p_l, s=6, c="0.3", zorder=3)
-    grid = np.linspace(float(x.min()), float(x.max()), 100)
-    inset.plot(grid, fit.collapse_curve(grid), color="crimson", linewidth=1.0)
-    inset.set_title("collapse", fontsize=6)
-    inset.set_xlabel(r"$(p-p_{th})\,d^{1/\nu}$", fontsize=6)
-    inset.tick_params(labelsize=5)
+        ax.axvspan(lo, hi, color=color, alpha=0.12)
+    ci = f" [{lo * 100:.2f}, {hi * 100:.2f}]" if has_ci else ""
+    return f"{name} ({d1},{d2}): {est.value * 100:.2f}%{ci}"
 
 
 def figure_threshold_panels(
     points: Sequence[SweepPoint],
     out_path: Path,
     *,
-    decoder: str = "herald_mwpm",
-    window_factor: float = 1.5,
+    decoders: Sequence[str] = ("herald_mwpm", "blind_mwpm"),
     seed: int = BOOTSTRAP_SEED,
 ) -> Path | None:
-    """(i)+(ii): one panel per r_e for ``decoder``, each with a collapse inset.
+    """(i): per-shot failure probability vs ``p``, one panel per ``r_e``.
 
-    ``window_factor`` matches ``fit_threshold``'s default so the panel
-    annotations equal the thresholds quoted in the README.
+    Each panel overlays ``decoders`` (herald solid, blind dashed) and marks each
+    decoder's headline per-shot (7,11) crossing with its 95% bootstrap CI band
+    (binomial noise only); the annotation in the panel corner gives the value or
+    why there is none.
     """
-    conditions = [(dec, re) for dec, re in available_conditions(points) if dec == decoder]
-    if not conditions:
+    r_es = sorted({pt.r_e for pt in points if pt.decoder in decoders})
+    if not r_es:
         return None
+    all_d = sorted({pt.d for pt in points if pt.decoder in decoders})
     with _styled():
         fig, axes = plt.subplots(
-            1,
-            len(conditions),
-            figsize=(4.2 * len(conditions), 3.6),
-            squeeze=False,
-            layout="constrained",
+            1, len(r_es), figsize=(4.4 * len(r_es), 3.8), squeeze=False, layout="constrained"
         )
-        for ax, (dec, r_e) in zip(axes[0], conditions, strict=True):
-            cond_points = [pt for pt in points if pt.decoder == dec and pt.r_e == r_e]
-            _plot_curves_on(ax, cond_points)
-            fit = _choose_threshold_fit(cond_points, window_factor=window_factor, seed=seed)
-            _mark_threshold(ax, fit)
-            _add_collapse_inset(ax, fit)
-            ax.set_title(f"{dec}, $r_e={r_e:g}$")
+        for ax, r_e in zip(axes[0], r_es, strict=True):
+            notes = []
+            for dec in decoders:
+                cond = [pt for pt in points if pt.decoder == dec and pt.r_e == r_e]
+                if not cond:
+                    continue
+                _plot_shot_curves_on(ax, cond, all_d)
+                notes.append(_mark_headline_crossing(ax, cond, seed=seed))
+            ax.text(
+                0.97,
+                0.03,
+                "per-shot crossing, % [95% CI]\n" + "\n".join(notes),
+                transform=ax.transAxes,
+                fontsize=6,
+                va="bottom",
+                ha="right",
+                color="0.2",
+            )
+            ax.set_xscale("log")
+            ax.set_yscale("log")
+            ax.set_title(f"$r_e={r_e:g}$")
             ax.set_xlabel("physical error rate $p$")
-            ax.set_ylabel("per-round logical error rate $p_L$")
-            ax.legend(loc="upper left", fontsize=7)
-        fig.suptitle("Threshold scaling (per-round $p_L$ vs $p$)", fontsize=11)
+            ax.set_ylabel(_THRESHOLD_YLABEL)
+            ax.legend(loc="upper left", fontsize=5.5, ncol=2)
+        fig.suptitle(
+            "Threshold (herald solid, blind dashed; lines: per-shot (7,11) crossing)",
+            fontsize=10,
+        )
         return _save(fig, out_path)
 
 
@@ -291,7 +275,7 @@ def figure_lambda(
         ax.axhline(1.0, color="0.6", linewidth=0.8, linestyle=":")
         ax.set_xscale("log")
         ax.set_xlabel("physical error rate $p$")
-        ax.set_ylabel(r"$\Lambda = p_L(d)/p_L(d{+}2)$")
+        ax.set_ylabel(r"per-round $\Lambda = p_L(d)/p_L(d{+}2)$")
         ax.set_title(f"Distance suppression factor ({decoder})")
         note = f"points require $\\geq {_LAMBDA_MIN_ERRORS}$ logical errors in both $d$"
         if n_conditioned:
@@ -313,45 +297,59 @@ def figure_lambda(
         return _save(fig, out_path)
 
 
-def figure_ablation(
-    points: Sequence[SweepPoint],
-    out_path: Path,
-    *,
-    seed: int = BOOTSTRAP_SEED,
-) -> Path | None:
-    """(iv): herald_mwpm vs blind_mwpm on identical tasks (per-round p_L vs p)."""
-    decoders = sorted({pt.decoder for pt in points})
-    if "herald_mwpm" not in decoders or "blind_mwpm" not in decoders:
+def figure_ablation(ablation_json: Path, out_path: Path) -> Path | None:
+    """(iii): ``p_L(blind) / p_L(herald)`` vs ``d`` from ``results/ablation.json``.
+
+    One line per ``(r_e, p)``. Cells at or above the 50-herald-error gate show
+    the point ratio (filled markers); gated cells show the >= 95% one-sided
+    lower confidence bound ``ratio_lb`` (open up-triangles), never a point
+    ratio. Returns ``None`` when ``ablation_json`` does not exist.
+    """
+    if not ablation_json.exists():
         return None
-    r_es = sorted({pt.r_e for pt in points if pt.r_e > 0.0}) or sorted({pt.r_e for pt in points})
-    r_e = r_es[-1]
-    curves_h = group_curves(points, "herald_mwpm", r_e)
-    curves_b = group_curves(points, "blind_mwpm", r_e)
-    shared_d = sorted(set(curves_h) & set(curves_b))
-    if not shared_d:
+    doc = json.loads(ablation_json.read_text())
+    cells = doc["cells"]
+    if not cells:
         return None
+    r_es = sorted({c["r_e"] for c in cells})
+    p_values = sorted({c["p"] for c in cells})
+    shots = doc["parameters"]["shots"]
     with _styled():
         fig, ax = plt.subplots(figsize=(5.2, 3.9), layout="constrained")
-        for d in shared_d:
-            color = _color_for_distance(d, shared_d)
-            for pts, style, lab in ((curves_h[d], "-", "herald"), (curves_b[d], "--", "blind")):
-                ps = np.array([pt.p for pt in pts])
-                y = np.array([per_round_estimate(pt).value for pt in pts])
-                ax.plot(
-                    ps,
-                    y,
-                    linestyle=style,
-                    marker="o" if style == "-" else "x",
-                    color=color,
-                    label=f"d={d} {lab}",
-                )
-        ax.set_xscale("log")
+        for k, r_e in enumerate(r_es):
+            color = matplotlib.colormaps["viridis"](0.15 + 0.7 * k / max(len(r_es) - 1, 1))
+            for p, style in zip(p_values, ("-", "--", ":", "-."), strict=False):
+                row = sorted((c for c in cells if c["r_e"] == r_e and c["p"] == p), key=_by_d)
+                ds = [c["d"] for c in row]
+                ys = [c["ratio_lb"] if c["gated"] else c["ratio"] for c in row]
+                ax.plot(ds, ys, linestyle=style, color=color, label=f"$r_e={r_e:g}$, p={p:.1%}")
+                for c in row:
+                    y = c["ratio_lb"] if c["gated"] else c["ratio"]
+                    if c["gated"]:
+                        ax.plot(c["d"], y, marker="^", markerfacecolor="none", color=color)
+                    else:
+                        ax.plot(c["d"], y, marker="o", color=color)
         ax.set_yscale("log")
-        ax.set_xlabel("physical error rate $p$")
-        ax.set_ylabel("per-round logical error rate $p_L$")
-        ax.set_title(f"Herald-aware vs blind ablation ($r_e={r_e:g}$)")
-        ax.legend(fontsize=6.5, ncol=2)
+        ax.set_xticks(sorted({c["d"] for c in cells}))
+        ax.set_xlabel("code distance $d$")
+        ax.set_ylabel(r"per-round $p_L(\mathrm{blind}) / p_L(\mathrm{herald})$")
+        ax.set_title(f"Herald-aware vs blind on identical shots ({shots:,} per cell)")
+        ax.text(
+            0.02,
+            0.98,
+            "open triangles: < 50 herald errors; >= 95% one-sided lower bound",
+            transform=ax.transAxes,
+            fontsize=6.5,
+            va="top",
+            ha="left",
+            color="0.4",
+        )
+        ax.legend(fontsize=6.5, loc="lower right")
         return _save(fig, out_path)
+
+
+def _by_d(cell: dict[str, float]) -> float:
+    return cell["d"]
 
 
 def figure_hook_regression(out_path: Path, *, distances: Sequence[int] = (3, 5, 7)) -> Path:
@@ -398,12 +396,15 @@ def render_all(
     *,
     config_names: Sequence[str] = ("baseline_pauli", "erasure_r50", "erasure_r98"),
     seed: int = BOOTSTRAP_SEED,
+    ablation_json: str | Path | None = None,
 ) -> list[Path]:
     """Regenerate every figure from the CSVs found under ``data_dir``.
 
     Reads ``<name>.csv`` (and any ``<name>_lambda.csv``) for each config name,
     pooling all points so the threshold panels show every available r_e. The
-    hook-regression figure needs no CSV. Returns the written figure paths.
+    ablation figure is drawn from ``ablation_json`` and skipped (no file
+    written) when it is ``None`` or does not exist. The hook-regression figure
+    needs no input. Returns the written figure paths.
     """
     data = Path(data_dir)
     figures = Path(figures_dir)
@@ -419,7 +420,6 @@ def render_all(
                 figure_threshold_panels(points, figures / "threshold_panels.png", seed=seed),
             ),
             ("lambda_vs_p.png", figure_lambda(points, figures / "lambda_vs_p.png", seed=seed)),
-            ("ablation.png", figure_ablation(points, figures / "ablation.png", seed=seed)),
         ]
         for name, result in csv_figures:
             if result is not None:
@@ -428,6 +428,13 @@ def render_all(
                 print(f"skipped {name}: insufficient data")
     else:
         print(f"no sweep CSVs found under {data}; only the hook figure will render")
+    ablation = None
+    if ablation_json is not None:
+        ablation = figure_ablation(Path(ablation_json), figures / "ablation.png")
+    if ablation is not None:
+        written.append(ablation)
+    else:
+        print(f"skipped ablation.png: no ablation results at {ablation_json}")
     written.append(figure_hook_regression(figures / "hook_regression.png"))
     return written
 
@@ -436,9 +443,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     parser.add_argument("--figures-dir", type=Path, default=Path("figures"))
+    parser.add_argument("--ablation-json", type=Path, default=Path("results/ablation.json"))
     parser.add_argument("--seed", type=int, default=BOOTSTRAP_SEED)
     args = parser.parse_args()
-    paths = render_all(args.data_dir, args.figures_dir, seed=args.seed)
+    paths = render_all(
+        args.data_dir, args.figures_dir, seed=args.seed, ablation_json=args.ablation_json
+    )
     for p in paths:
         print(f"wrote {p}")
 

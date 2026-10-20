@@ -1,9 +1,9 @@
 # Wu et al. (2022) validation config wu_fig3b_re050 (convention wu2022).
 # Wu reference: Fig. 3b, "not tabulated" (R_e = 0.5, p_m = 0).
-# d-pair (9,13) with d = 7 cross-check: docs/remediation/WU_DPAIR_DECISION.md.
+# d-pair (9,13) with d = 7 cross-check: docs/archive/remediation/WU_DPAIR_DECISION.md.
 # Grid: round(c * f, 4), f = 0.800 .. 1.250 step 0.045, c = 0.02194620108673982, the per-shot
 # (5,7) crossing of the coarse scan (herald decoder, 3000 shots per point;
-# docs/remediation/baseline_outputs/wu_coarse_scan.txt, scripts/wu_coarse_scan.py).
+# docs/archive/remediation/baseline_outputs/wu_coarse_scan.txt, scripts/wu_coarse_scan.py).
 # Edge rule applied (P5b, lower end): the (9,13) per-shot herald curves do not
 # cross on p_values and ln P_L(13) - ln P_L(9) >= 0 at the lowest p.
 # extra_p_edge = round(c * f, 4), f = 0.755, 0.710, 0.665.

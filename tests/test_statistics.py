@@ -1,4 +1,4 @@
-"""Unit tests for per-round conversion and CIs (PLAN.md §10)."""
+"""Unit tests for per-round conversion and CIs (docs/archive/PLAN_v1.md §10)."""
 
 import math
 from typing import cast

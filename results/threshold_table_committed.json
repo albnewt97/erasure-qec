@@ -67,6 +67,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.010167258227922792
             },
             {
@@ -83,6 +84,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.009602630701988846
             },
             {
@@ -99,6 +101,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.010102257396519024
             },
             {
@@ -115,6 +118,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 2,
+              "n_sign_changes_unsaturated": 2,
               "value": 0.009823042728342364
             },
             {
@@ -131,6 +135,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 3,
               "value": 0.014886816175006765
             },
             {
@@ -147,6 +152,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 2,
               "value": 0.015259260236696428
             },
             {
@@ -163,6 +169,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 2,
               "value": 0.012430231865044177
             },
             {
@@ -179,6 +186,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.01479986869562518
             }
           ],
@@ -249,6 +257,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 2,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.009662041713733024
             },
             {
@@ -265,6 +274,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.010166861492712124
             },
             {
@@ -281,6 +291,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.009552233670239423
             },
             {
@@ -297,6 +308,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.009836740441840788
             },
             {
@@ -313,6 +325,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 2,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.01860643266680784
             },
             {
@@ -329,6 +342,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 4,
+              "n_sign_changes_unsaturated": 3,
               "value": 0.014636362495191667
             },
             {
@@ -345,6 +359,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 3,
               "value": 0.012393311752187457
             },
             {
@@ -361,6 +376,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.013501779909066371
             }
           ],
@@ -436,6 +452,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.01094560302151844
             },
             {
@@ -452,6 +469,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.011436169106330623
             },
             {
@@ -468,6 +486,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.012253916995347416
             },
             {
@@ -484,6 +503,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.011810468498229237
             },
             {
@@ -500,6 +520,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.020453980804103992
             },
             {
@@ -516,6 +537,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 2,
               "value": 0.015189366898872323
             },
             {
@@ -532,6 +554,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.015213983828291271
             },
             {
@@ -548,6 +571,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.015209953382824286
             }
           ],
@@ -618,6 +642,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.0165353473457948
             },
             {
@@ -634,6 +659,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.01530100242735951
             },
             {
@@ -650,6 +676,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.01589033137792944
             },
             {
@@ -666,6 +693,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.015710391139740935
             },
             {
@@ -682,6 +710,7 @@
               "metric": "round",
               "n_no_crossing": 4,
               "n_sign_changes": 2,
+              "n_sign_changes_unsaturated": 2,
               "value": 0.0262245169527495
             },
             {
@@ -698,6 +727,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.024326502795046508
             },
             {
@@ -714,6 +744,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 5,
+              "n_sign_changes_unsaturated": 2,
               "value": 0.021319447462273138
             },
             {
@@ -730,6 +761,7 @@
               "metric": "round",
               "n_no_crossing": 1,
               "n_sign_changes": 5,
+              "n_sign_changes_unsaturated": 3,
               "value": 0.021873811109260923
             }
           ],
@@ -805,6 +837,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 7,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.013867084334467789
             },
             {
@@ -821,6 +854,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 9,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.011593373177530031
             },
             {
@@ -837,6 +871,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 8,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.012999728116864416
             },
             {
@@ -853,6 +888,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 8,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.012284536233048348
             },
             {
@@ -869,6 +905,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 11,
+              "n_sign_changes_unsaturated": 2,
               "value": 0.022415056499225955
             },
             {
@@ -885,6 +922,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 11,
+              "n_sign_changes_unsaturated": 3,
               "value": 0.016454936394425346
             },
             {
@@ -901,6 +939,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 8,
+              "n_sign_changes_unsaturated": 2,
               "value": 0.017141907949045833
             },
             {
@@ -917,6 +956,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 8,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.016898853201259105
             }
           ],
@@ -987,6 +1027,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.03884127960309564
             },
             {
@@ -1003,6 +1044,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 7,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.04048539777601744
             },
             {
@@ -1019,6 +1061,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 6,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.03780774172876251
             },
             {
@@ -1035,6 +1078,7 @@
               "metric": "shot",
               "n_no_crossing": 0,
               "n_sign_changes": 4,
+              "n_sign_changes_unsaturated": 1,
               "value": 0.038701879900675126
             },
             {
@@ -1051,6 +1095,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 5,
+              "n_sign_changes_unsaturated": 2,
               "value": 0.05470685403772816
             },
             {
@@ -1067,6 +1112,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 9,
+              "n_sign_changes_unsaturated": 3,
               "value": 0.05080790817264038
             },
             {
@@ -1083,6 +1129,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 8,
+              "n_sign_changes_unsaturated": 4,
               "value": 0.047588959502757426
             },
             {
@@ -1099,6 +1146,7 @@
               "metric": "round",
               "n_no_crossing": 0,
               "n_sign_changes": 8,
+              "n_sign_changes_unsaturated": 4,
               "value": 0.04913335997993355
             }
           ],
@@ -1110,7 +1158,7 @@
   },
   "description": "pairwise crossings and d_min=7 collapse fits, metric shot and round",
   "generated_by": "scripts/threshold_table.py",
-  "git_describe": "3f56afe",
+  "git_describe": "34f710b",
   "parameters": {
     "ci_percentiles": [
       2.5,

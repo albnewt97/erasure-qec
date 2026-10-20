@@ -1,6 +1,6 @@
 # Wu et al. (2022) validation config wu_fig3_re000 (convention wu2022).
 # Wu reference: 0.937(4)%, Fig. 3a (R_e = 0, p_m = 0).
-# d-pair (9,13) with d = 7 cross-check: docs/remediation/WU_DPAIR_DECISION.md.
+# d-pair (9,13) with d = 7 cross-check: docs/archive/remediation/WU_DPAIR_DECISION.md.
 # Decoders: wu_herald_mwpm only. At R_e = 0 the herald decoder's predictions
 # equal plain PyMatching on the same DEM (T3,
 # tests/test_wu_decoder.py::test_t3_re_zero_herald_equals_plain_pymatching),

@@ -1,4 +1,4 @@
-"""Herald-conditioned MWPM decoder (PLAN.md §8).
+"""Herald-conditioned MWPM decoder (docs/archive/PLAN_v1.md §8).
 
 Compiled ONCE per circuit: the herald-free sub-DEM (``dem_pauli`` from the §6
 partition) becomes the base ``pymatching.Matching``; its edge array

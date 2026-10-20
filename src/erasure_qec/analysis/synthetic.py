@@ -1,4 +1,4 @@
-"""Synthetic sweep generation for figure/analysis fixtures (PLAN.md §10 support).
+"""Synthetic sweep generation for figure/analysis fixtures (docs/archive/PLAN_v1.md §10 support).
 
 Produces deterministic, sinter-format CSVs whose per-round logical rates follow
 a data-collapse ``p_L = A * exp(B * x)`` in the scaling variable

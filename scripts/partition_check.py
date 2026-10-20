@@ -1,4 +1,4 @@
-"""Design-2 DEM partition check on the PLAN.md §7 probe circuits. Not shipped.
+"""Design-2 DEM partition check on the docs/archive/PLAN_v1.md §7 probe circuits. Not shipped.
 
 Usage: uv run python scripts/partition_check.py [A|B|C]
 

@@ -1,9 +1,9 @@
 # Wu et al. (2022) validation config wu_fig3b_re090 (convention wu2022).
 # Wu reference: Fig. 3b, "not tabulated" (R_e = 0.9, p_m = 0).
-# d-pair (9,13) with d = 7 cross-check: docs/remediation/WU_DPAIR_DECISION.md.
+# d-pair (9,13) with d = 7 cross-check: docs/archive/remediation/WU_DPAIR_DECISION.md.
 # Grid: round(c * f, 4), f = 0.800 .. 1.250 step 0.045, c = 0.032103278742631816, the per-shot
 # (5,7) crossing of the coarse scan (herald decoder, 3000 shots per point;
-# docs/remediation/baseline_outputs/wu_coarse_scan.txt, scripts/wu_coarse_scan.py).
+# docs/archive/remediation/baseline_outputs/wu_coarse_scan.txt, scripts/wu_coarse_scan.py).
 # Edge rule (recorded in P5a, applied in P5b): if the (9,13) crossing's bracket
 # touches either end of this grid, append 3 points beyond that end at the same
 # step and collect this config once more.

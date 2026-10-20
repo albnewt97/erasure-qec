@@ -6,6 +6,7 @@ import importlib.util
 import sys
 from pathlib import Path
 
+from erasure_qec.analysis.crossing import pairwise_crossing
 from erasure_qec.analysis.statistics import SweepPoint
 
 _SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "wu_validation.py"
@@ -36,8 +37,13 @@ def test_no_crossing_status() -> None:
 
 
 def test_sign_changes_count_both_directions() -> None:
-    assert wu_validation.sign_changes([-1.0, 0.0, -0.5, 0.5]) == 3
-    assert wu_validation.sign_changes([]) == 0
+    """The script reports CrossingEstimate.n_sign_changes_unsaturated; g = -, 0, -, + gives 3."""
+    d13 = [50, 100, 70, 150]  # d = 9 sits at 100 errors: g < 0, g == 0, g < 0, g > 0
+    points = [pt for p, e in zip(GRID, d13, strict=True) for pt in (_pt(9, p, 100), _pt(13, p, e))]
+    est = pairwise_crossing(points, 9, 13, metric="shot", saturation_cap=0.4)
+    assert est.n_sign_changes_unsaturated == est.n_sign_changes == 3
+    empty = pairwise_crossing([_pt(9, p, 100) for p in GRID], 9, 13, metric="shot")
+    assert empty.n_sign_changes_unsaturated == 0
 
 
 def test_wu_inside_is_closed_and_null_safe() -> None:

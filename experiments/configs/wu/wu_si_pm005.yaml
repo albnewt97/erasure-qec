@@ -1,6 +1,6 @@
 # Wu et al. (2022) validation config wu_si_pm005 (convention wu2022).
 # Wu reference: 3.80(2)%, SI S6 (R_e = 0.98, p_m = 0.005).
-# d-pair (9,13) with d = 7 cross-check: docs/remediation/WU_DPAIR_DECISION.md.
+# d-pair (9,13) with d = 7 cross-check: docs/archive/remediation/WU_DPAIR_DECISION.md.
 # Edge rule (recorded in P5a, applied in P5b): if the (9,13) crossing's bracket
 # touches either end of this grid, append 3 points beyond that end at the same
 # step and collect this config once more.

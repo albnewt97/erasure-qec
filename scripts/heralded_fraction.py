@@ -8,7 +8,7 @@ Two columns are printed. "corrected" is the current definition, which excludes
 the no-op herald branches (HERALDED_ERASE heralds on its identity branch too, so
 the DEM carries mechanisms that flip a herald detector and nothing else) from
 both numerator and denominator. "legacy" counted them in both, inflating the
-fraction; it is kept only to reproduce the pre-correction docs/AUDIT.md numbers.
+fraction; it is kept only to reproduce the pre-correction docs/archive/AUDIT_HISTORY.md numbers.
 Run:
 
     uv run python scripts/heralded_fraction.py                 # standard table

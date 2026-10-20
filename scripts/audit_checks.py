@@ -9,7 +9,7 @@ only measures. Run:
 NOTE: the "EXPECTED" column is the *pre-fix* audit baseline. The Phase-1 fixes
 (commits 6b6b87d noise, 0ce6ff5 fit) have since landed, so on HEAD several rows
 now differ from EXPECTED **by design** — that difference is the evidence the
-fixes took effect. See docs/AUDIT.md "Resolution (Phase 1)" for the post-fix
+fixes took effect. See docs/archive/AUDIT_HISTORY.md "Resolution (Phase 1)" for the post-fix
 values. To reproduce the original findings, run this against the pre-fix
 commit.
 """
@@ -60,10 +60,10 @@ def _herald_detectors(dem: stim.DetectorErrorModel) -> set[int]:
 def _fit_diagnostics(csv: str, decoder: str, d_min: int | None) -> dict[str, float]:
     """Run the fit and recompute chi^2/dof, window max P_L_shot, and bound-pinning."""
     points = [p for p in load_sweep(csv) if p.decoder == decoder]
-    fit = fit_threshold(points, d_min=d_min)
+    fit = fit_threshold(points, d_min=d_min, metric="round")
     filtered = [p for p in points if d_min is None or p.d >= d_min]
-    center = estimate_crossing(filtered)
-    used: list[SweepPoint] = _select_window(filtered, center, 1.5)
+    center = estimate_crossing(filtered, metric="round")
+    used: list[SweepPoint] = _select_window(filtered, center, 1.5, metric="round")
     out: dict[str, float] = {
         "p_th": fit.p_th,
         "nu": fit.nu,

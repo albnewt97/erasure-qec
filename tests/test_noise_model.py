@@ -1,4 +1,4 @@
-"""Noise model + herald detector checks (PLAN.md §5, §7.1 probe, M4 gate)."""
+"""Noise model + herald detector checks (docs/archive/PLAN_v1.md §5, §7.1 probe, M4 gate)."""
 
 import pytest
 import stim
@@ -132,7 +132,7 @@ def test_channel_rates_formula() -> None:
     assert rates.depolarize2 == 0.02 * (1 - 0.9)
     # Expected herald rate changed from p*r_e/2 to (2/3)*p*r_e: the old rate let
     # the per-gate non-identity budget shrink with r_e because it ignored that
-    # an erasure is a non-identity error only 3/4 of the time (see docs/AUDIT.md
+    # an erasure is a non-identity error only 3/4 of the time (see docs/archive/AUDIT_HISTORY.md
     # and channel_rates docstring). q solves 2*q*(3/4) = p*r_e.
     assert rates.herald == 0.02 * 0.9 / (2 * 0.75)
     assert rates.meas_flip == 0.01

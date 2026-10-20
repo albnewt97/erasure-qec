@@ -1,6 +1,6 @@
 # Threshold sweep, half-converted budget: r_e = 0.5 of the two-qubit error
 # budget becomes heralded erasure, the rest stays unheralded depolarizing.
-# Rounds are always T = d (PLAN.md §9). herald_mwpm vs blind_mwpm on
+# Rounds are always T = d (docs/archive/PLAN_v1.md §9). herald_mwpm vs blind_mwpm on
 # identical shots is the §10 ablation.
 name: erasure_r50
 r_e: 0.5
@@ -8,15 +8,27 @@ distances: [3, 5, 7, 9, 11]
 p_log10_min: -3.0
 p_log10_max: -1.0
 p_points: 13
-# Additive fit-resolution band bracketing the MEASURED r_e=0.5 crossing (~2.2%,
-# from the d>=7 collapse fit). The 13-point log grid lands only ~1-3 points in
-# the fit window, leaving nu under-constrained; these dense linear points
-# straddle the crossing so the finite-size scaling fit resolves nu. Merged with
-# the log grid (sorted, de-duped); existing log points stay collected (resume).
+# Additive fit-resolution band: linearly spaced p-points placed around the
+# herald per-round d >= 7 collapse-fit crossing to add points to the fit window.
+# Merged with the log grid (sorted, de-duped); existing log points stay
+# collected (resume).
+# Measured thresholds: results/headline.json (scripts/headline_results.py).
 extra_p: [0.018, 0.020, 0.022, 0.024, 0.026]
 max_shots: 100000
 max_errors: 1000
 decoders: [herald_mwpm, blind_mwpm]
 
-# Fixed sub-threshold p for the Lambda scan (below the r_e=0.5 threshold).
+# Fixed p for the Lambda scan (experiments/collect_lambda_scan.py).
 lambda_p: 0.015
+
+# Per-shot densification band, added 2026-10-14 (pre-registered rule, integer
+# units of 1e-4). Source: results/threshold_table_committed.json
+# (sha256 5079307a87b73baf5142a7f0f4971e4f6799b51af0c082939af28fd4925ae443).
+# For each decoder, c = its per-shot (7,11) pairwise crossing in that file;
+#   u = round(c * f * 10_000) for f in (0.80, 0.87, 0.93, 1.00, 1.07, 1.15, 1.25).
+# Union over decoders; drop u if |u - e| <= 2 for any e = round(p * 10_000)
+# over the resolved p_values (log grid + extra_p); sort ascending; drop u within
+# 2 of the last kept one; extra_p_shot = kept u / 10_000. Merged into the p grid
+# like extra_p (union, sorted, de-duplicated).
+extra_p_shot: [0.0094, 0.0103, 0.0110, 0.0118, 0.0126, 0.0136, 0.0157, 0.0168,
+               0.0196]

@@ -9,21 +9,22 @@ share a strong_id). For each config and decoder (wu_herald_mwpm, wu_blind_mwpm):
   (ln p, g); 95% percentile CI of an independent-binomial parametric bootstrap,
   n_boot = 1000, seed = 0; binomial noise only, interpolation error inside the
   bracket not included), with the bracket, n_sign_changes,
-  n_sign_changes_unsaturated (sign changes between adjacent usable p at which
-  P_L_shot < SATURATION_CAP = 0.4 at both distances, the cap of
-  :mod:`erasure_qec.analysis.threshold_fit`) and the number of bootstrap
-  replicates without a crossing. Saturated-crossing rule (added after the P5b
-  blind rows were inspected; every row and pair): a crossing whose bracket has
-  P_L_shot >= SATURATION_CAP at either distance at either bracket point is
-  reported as "saturated, not a threshold" with no value, and bootstrap
-  replicates whose crossing is saturated count as no-crossing. Where the point
+  n_sign_changes_unsaturated (CrossingEstimate.n_sign_changes_unsaturated: sign
+  changes between adjacent usable p at which P_L_shot < SATURATION_CAP = 0.4 at
+  both distances, the cap of :mod:`erasure_qec.analysis.threshold_fit`) and the
+  number of bootstrap replicates without a crossing. Saturated-crossing rule
+  (added after the P5b blind rows were inspected; every row and pair): a
+  crossing whose bracket has P_L_shot >= SATURATION_CAP at either distance at
+  either bracket point is reported as "saturated, not a threshold" with no
+  value, and bootstrap replicates whose crossing is saturated count as
+  no-crossing. Where the point
   estimate has no crossing the status is "no crossing in grid (below)"
   (g >= 0 at the first usable p) or "(above)" (g < 0 at every usable p). A
   wu_blind_mwpm pair with no unsaturated crossing anywhere on its grid is
   reported as BLIND_BELOW. No off-grid value or CI is given;
 - fit_threshold(metric="shot", d_min=7, window_factor=1.5, n_boot=1000,
   seed=0) and the gap (collapse - (9,13) pairwise) in percentage points;
-- for wu_herald_mwpm: the edge-rule check of docs/remediation/WU_DPAIR_DECISION.md
+- for wu_herald_mwpm: the edge-rule check of docs/archive/remediation/WU_DPAIR_DECISION.md
   on the config's full grid (p_values plus extra_p_edge), Wu's reference value,
   ours - Wu in pp and whether Wu's value lies inside our (9,13) 95% CI.
 
@@ -168,12 +169,6 @@ def usable_g(points: list[SweepPoint], d1: int, d2: int) -> list[tuple[float, fl
     return out
 
 
-def sign_changes(gs: list[float]) -> int:
-    """Changes of sign class (g < 0 vs g >= 0) between adjacent entries."""
-    nonneg = [g >= 0.0 for g in gs]
-    return sum(a != b for a, b in zip(nonneg, nonneg[1:], strict=False))
-
-
 def no_crossing_status(gs: list[float]) -> str:
     """Status when the curves have no g < 0 -> g >= 0 change on the grid."""
     if not gs:
@@ -236,7 +231,7 @@ def crossing_entry(points: list[SweepPoint], d1: int, d2: int, decoder: str) -> 
         "saturated": est.saturated,
         "n_unsaturated_crossings": n_unsat,
         "n_sign_changes": est.n_sign_changes,
-        "n_sign_changes_unsaturated": sign_changes([x[1] for x in g if x[2]]),
+        "n_sign_changes_unsaturated": est.n_sign_changes_unsaturated,
         "n_no_crossing": n_no,
         "g": [[p, gv] for p, gv, _ in g],
     }

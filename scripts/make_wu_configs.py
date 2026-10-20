@@ -3,10 +3,10 @@
 Fixed grids are ``round(k * step, 4)`` for integer ``k`` in ``[k_lo, k_hi]``.
 The R_e = 0.5 and 0.9 grids are ``round(c * f, 4)`` for f in ``GRID_FACTORS``,
 with ``c`` the per-shot (5,7) crossing printed by scripts/wu_coarse_scan.py
-(recorded in docs/remediation/baseline_outputs/wu_coarse_scan.txt); the script
+(recorded in docs/archive/remediation/baseline_outputs/wu_coarse_scan.txt); the script
 asserts that those two grids equal the ones printed there. Asserts the point
 count of every grid. A config that the edge rule extended (see
-docs/remediation/WU_DPAIR_DECISION.md) also gets ``extra_p_edge``, the
+docs/archive/remediation/WU_DPAIR_DECISION.md) also gets ``extra_p_edge``, the
 3 points beyond the touched end; the collection loader merges it into the grid.
 Run:
 
@@ -22,8 +22,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "experiments" / "configs" / "wu"
-SCAN_OUTPUT = ROOT / "docs" / "remediation" / "baseline_outputs" / "wu_coarse_scan.txt"
-DECISION = "docs/remediation/WU_DPAIR_DECISION.md"
+SCAN_OUTPUT = ROOT / "docs" / "archive" / "remediation" / "baseline_outputs" / "wu_coarse_scan.txt"
+DECISION = "docs/archive/remediation/WU_DPAIR_DECISION.md"
 
 DISTANCES = (7, 9, 13)
 MAX_SHOTS = 100_000
@@ -85,7 +85,7 @@ def _scan_grids() -> dict[float, tuple[float, ...]]:
 SCAN_NOTE = (
     "Grid: round(c * f, 4), f = 0.800 .. 1.250 step 0.045, c = {c!r}, the per-shot\n"
     "(5,7) crossing of the coarse scan (herald decoder, 3000 shots per point;\n"
-    "docs/remediation/baseline_outputs/wu_coarse_scan.txt, scripts/wu_coarse_scan.py)."
+    "docs/archive/remediation/baseline_outputs/wu_coarse_scan.txt, scripts/wu_coarse_scan.py)."
 )
 
 SPECS: tuple[WuConfigSpec, ...] = (

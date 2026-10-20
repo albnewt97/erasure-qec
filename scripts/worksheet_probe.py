@@ -1,4 +1,4 @@
-"""Dev tool for the PLAN.md §7 hand-verification worksheet. Not shipped.
+"""Dev tool for the docs/archive/PLAN_v1.md §7 hand-verification worksheet. Not shipped.
 
 This script writes **scratch** diagrams to ``figures/dev/`` (gitignored). The
 canonical, committed copies referenced by ``docs/dem_worksheet.md`` live in

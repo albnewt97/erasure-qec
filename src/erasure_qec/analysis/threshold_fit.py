@@ -1,14 +1,15 @@
-"""Finite-size scaling threshold fit (PLAN.md §10).
+"""Finite-size scaling threshold fit (docs/archive/PLAN_v1.md §10).
 
-Near the threshold the per-round logical rate collapses onto a universal curve
-of the single scaling variable ``x = (p - p_th) * d^(1/nu)``. We fit the
-quadratic ansatz
+Near the threshold the logical rate of the fitted ``metric`` (per-shot
+``P_L_shot`` by default, per-round ``p_L`` with ``metric="round"``; see below)
+collapses onto a universal curve of the single scaling variable
+``x = (p - p_th) * d^(1/nu)``. We fit the quadratic ansatz
 
     p_L(p, d) = A + B x + C x^2
 
 for the five parameters ``(p_th, nu, A, B, C)`` by weighted least squares
 (``scipy.optimize.curve_fit``), with per-point weights from the Wilson
-half-width of the per-round rate.
+half-width of that rate.
 
 Data-window selection rule
 --------------------------
@@ -19,7 +20,7 @@ of an initial crossing estimate ``p_center``:
     p_center / window_factor  <=  p  <=  p_center * window_factor
 
 ``p_center`` is estimated data-drivenly by :func:`estimate_crossing` as the p
-that minimizes the spread of per-round ``p_L`` across code distances (curves
+that minimizes the spread of the metric across code distances (curves
 for different d intersect at threshold). ``window_factor`` defaults to 1.5 and
 is configurable; widen it when the sweep is coarse, narrow it when the ansatz
 starts to bend. The exact window and the points used are recorded on the
@@ -38,7 +39,7 @@ earlier bootstrap refit an *unweighted* model from the point estimate on a
 *frozen* window and dropped failures, all of which biased the CI narrow. The
 default ``n_boot`` is 1000: at 200 the percentile endpoints (5th/195th order
 statistics) were noticeably noisy (e.g. the r_e=0.5 herald CI's upper endpoint
-moved 2.64% -> 2.76% going 200 -> 1000, then held at 2000); see docs/AUDIT.md.
+moved 2.64% -> 2.76% going 200 -> 1000, then held at 2000); see docs/archive/AUDIT_HISTORY.md.
 
 To compare two decoders' thresholds, :func:`bootstrap_threshold_difference`
 bootstraps ``Delta = p_th(blind) - p_th(herald)`` directly -- the valid
@@ -46,11 +47,12 @@ significance test, since overlapping marginal CIs do not imply a
 non-significant difference.
 
 Every function here takes a keyword ``metric`` selecting the fitted quantity.
-``metric="shot"`` fits the block failure probability ``P_L_shot`` of the whole
-``T = d``-round experiment, which is the quantity the finite-size scaling of
-Wang-Harrington-Preskill and of Wu et al. is applied to. ``metric="round"``
-(the default) fits the per-round rate ``p_L`` and is kept for continuity with
-earlier results. At ``T = d`` the per-round crossing of two distances never
+``metric="shot"`` (the default of :func:`fit_threshold`,
+:func:`estimate_crossing` and :func:`bootstrap_threshold_difference`) fits the
+block failure probability ``P_L_shot`` of the whole ``T = d``-round experiment,
+which is the quantity the finite-size scaling of Wang-Harrington-Preskill and
+of Wu et al. is applied to. ``metric="round"`` fits the per-round rate ``p_L``
+and is reported as a secondary quantity. At ``T = d`` the per-round crossing of two distances never
 lies below their per-shot crossing
 (``tests/test_crossing.py::test_round_negative_wherever_shot_nonpositive``).
 Which of the two is closer to the asymptotic threshold at finite ``d`` is not
@@ -94,6 +96,9 @@ _MIN_DOF = 3
 # present so the ordering-inversion guard can reject an above-threshold p.
 # The cap is applied to the value of whichever `metric` is being fitted.
 _SATURATION_CAP = 0.4
+# Public name for the same constant (read by analysis.crossing's unsaturated
+# sign-change diagnostic). An alias, not a second value: change neither.
+SATURATION_CAP = _SATURATION_CAP
 
 # nu optimiser bounds; a fit landing on either is unconstrained, not converged.
 _NU_BOUNDS = (0.5, 6.0)
@@ -104,11 +109,10 @@ _CI_PERCENTILES = (2.5, 97.5)
 # Resolution guard: a fit that CONVERGES (optimiser returned a usable fit, no
 # bound-pinning) still does not *resolve* a threshold if its 95% bootstrap CI is
 # too wide relative to the point estimate -- rel width = (ci_hi - ci_lo) / p_th.
-# Chosen from the committed fits, not by taste: every fit the README quotes as a
-# result has rel width <= 0.49 (r_e=0.5 blind), while the r_e=0.98 blind
-# non-result sits at ~3.0 -- a ~6x gap, so the constant is not delicate and 1.0
-# rejects only that fit (verified in docs/AUDIT.md). 1.0 has a plain meaning:
-# the 95% CI is at least as wide as the threshold value itself.
+# The committed fits' widths are the rel_ci_width fields of results/headline.json
+# (quoted in docs/METHODS.md#collapse-fit); 1.0 rejects only the per-round
+# r_e=0.98 blind fit there. 1.0 has a plain meaning: the 95% CI is at least as
+# wide as the threshold value itself.
 _MAX_REL_CI_WIDTH = 1.0
 
 # Structured reason codes on FitResult -- coarser than the free-text `message`,
@@ -206,7 +210,7 @@ def _ordering_inverted(pl_by_d: dict[int, float]) -> bool:
     return upper > lower * (1.0 + _INVERSION_TOL)
 
 
-def estimate_crossing(points: Sequence[SweepPoint], *, metric: Metric = "round") -> float:
+def estimate_crossing(points: Sequence[SweepPoint], *, metric: Metric = "shot") -> float:
     """Estimate the threshold crossing as the p where the ``metric`` curves coincide.
 
     At threshold the per-round ``p_L`` becomes distance-independent, so the
@@ -232,7 +236,7 @@ def estimate_crossing(points: Sequence[SweepPoint], *, metric: Metric = "round")
        measures spread on the scale of the curves themselves.
 
     Falls back to the geometric-mean p when no p survives as a candidate. The
-    description above is for the default per-round metric; with
+    description above is written for ``metric="round"``; with the default
     ``metric="shot"`` every step acts on ``P_L_shot`` instead.
     """
     by_p: dict[float, dict[int, float]] = {}
@@ -276,7 +280,7 @@ def fit_threshold(
     n_boot: int = 1000,
     seed: int = 0,
     d_min: int | None = None,
-    metric: Metric = "round",
+    metric: Metric = "shot",
 ) -> FitResult:
     """Fit the finite-size scaling ansatz to ``points`` (one decoder/r_e).
 
@@ -286,8 +290,8 @@ def fit_threshold(
             (largest finite-size corrections) gives the asymptotic threshold;
             the effective crossing drifts upward when small-d curves are
             included (§10).
-        metric: the fitted quantity, ``"round"`` (per-round ``p_L``, default)
-            or ``"shot"`` (``P_L_shot``); see the module docstring. It is used
+        metric: the fitted quantity, ``"shot"`` (``P_L_shot``, default) or
+            ``"round"`` (per-round ``p_L``); see the module docstring. It is used
             by the crossing estimate, the saturation cut, the fit values and
             the Wilson weights, in the point fit and in every bootstrap
             replicate.
@@ -554,22 +558,14 @@ def _bootstrap_pipeline(
     consistent by adding a pin check here is a change to a published estimator,
     not a bookkeeping fix.
 
-    Measured on ``data/erasure_r98.csv``, r_e = 0.98 blind, ``d_min=7``,
-    ``window_factor=1.5``, ``n_boot=1000``, seeds 0-29 (Python 3.14.6 /
-    NumPy 2.5.1 / SciPy 1.18.0):
-
-    - pins RETAINED (today): ``rel_ci_width`` 2.43-4.26, ``resolved`` 0 of 30.
-    - pins EXCLUDED: ``rel_ci_width`` 0.39-1.36 -- straddling the 1.0
-      :data:`_MAX_REL_CI_WIDTH` guard -- ``resolved`` 9 of 30.
-    - the verdict FLIPS at 9 of 30 seeds; bound-pinned replicates are a steady
-      18.2-23.2% (mean 20.6%) at every seed, so this is not a tail effect.
-
-    **The trap:** at ``seed=0`` -- the seed this repo declares everywhere -- the
-    pins-excluded ``rel_ci_width`` is 1.02, marginally ABOVE the 1.0 guard, so
-    the verdict does NOT flip there. Testing seed 0 alone will show no change and
-    will NOT reveal that roughly a third of other seeds now resolve a threshold
-    the repo reports as unresolved. Any change here must be checked across seeds.
-    See docs/AUDIT.md "The bootstrap pin asymmetry is load-bearing".
+    On the committed dense sweep the per-round r_e = 0.98 blind ``unresolved_ci``
+    verdict depends on this retention: scripts/per_round_fit_sensitivity.py
+    measures, at seeds 0-29, how often the verdict changes when pinned
+    replicates are excluded (results/per_round_fit_sensitivity.json, quoted in
+    docs/METHODS.md#collapse-fit). The answer is seed-dependent, so any change
+    here must be checked across seeds, not at seed 0 alone. The pre-dense
+    measurement is in docs/archive/AUDIT_HISTORY.md "The bootstrap pin asymmetry
+    is load-bearing".
     """
     rng = np.random.default_rng(seed)
     shots = np.array([pt.shots for pt in points])
@@ -599,14 +595,14 @@ def _bootstrap_pipeline(
 # (both-correct, herald-wrong-only, blind-wrong-only, both-wrong). This is the
 # shot-level information a *paired* difference bootstrap needs -- and which the
 # committed sweep CSVs do NOT record (they store only marginal (shots, errors)
-# per decoder). See docs/AUDIT.md "Paired-decoder separation".
+# per decoder). See docs/archive/AUDIT_HISTORY.md "Paired-decoder separation".
 _JointCounts = Mapping[tuple[float, int], tuple[int, int, int, int]]
 
 
 @dataclass(frozen=True)
 class ReplicateFailure:
     """Why one bootstrap replicate was discarded (for the missing-at-random and
-    guard-breakdown diagnostics in docs/AUDIT.md).
+    guard-breakdown diagnostics in docs/archive/AUDIT_HISTORY.md).
 
     ``herald_p_th`` / ``blind_p_th`` are the raw fitted ``p_th`` of each decoder
     on the resample: ``nan`` where the fit was rejected before producing a value
@@ -719,7 +715,7 @@ def bootstrap_threshold_difference(
     seed: int = 0,
     n_boot: int = 1000,
     decoders: tuple[str, str] = ("herald_mwpm", "blind_mwpm"),
-    metric: Metric = "round",
+    metric: Metric = "shot",
 ) -> ThresholdDifference:
     """Bootstrap ``delta = p_th(blind) - p_th(herald)`` and test it against 0.
 
@@ -739,7 +735,7 @@ def bootstrap_threshold_difference(
     resampled independently) and the resulting CI is **conservative** -- it does
     not exploit any correlation. The committed sweeps are sampled independently
     per decoder (differing shot counts) and record only marginal errors, so real
-    data uses the unpaired path; see docs/AUDIT.md. The returned ``correlation``
+    data uses the unpaired path; see docs/archive/AUDIT_HISTORY.md. The returned ``correlation``
     quantifies how much pairing bought: near 0 means it bought nothing.
     """
     paired = joint_counts is not None

@@ -1,4 +1,4 @@
-"""Regenerate committed synthetic sweep fixtures (PLAN.md §10 support).
+"""Regenerate committed synthetic sweep fixtures (docs/archive/PLAN_v1.md §10 support).
 
 Writes deterministic, ansatz-exact sinter CSVs to ``tests/fixtures/synthetic_*``
 for the three r_e regimes, plus one adversarial fixture. These drive the

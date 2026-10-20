@@ -1,6 +1,6 @@
 """Phase-4 deliverable: the herald-vs-blind threshold-difference statistic.
 
-Emits the numbers docs/AUDIT.md "Paired-decoder separation" reports:
+Emits the numbers docs/archive/AUDIT_HISTORY.md "Paired-decoder separation" reports:
 
 1. Whether the sweeps are genuinely paired (evidence: shared shot counts).
 2. Before/after marginal p_th CIs at the old (200) and new (1000) n_boot.
@@ -17,7 +17,7 @@ is not seed-fragile.  `--full-stability` replaces that section with the full
 ten-seed table -- marginal CI spreads, `rel_ci_width`, `n_paired_failed`, the
 tipping point, the herald/blind correlation, and the r_e = 0.98 blind upper
 endpoint with its grid-pin check.  Those are the quantities quoted in the
-docs/AUDIT.md "Reproducibility and environment sensitivity" seed-spread column;
+docs/archive/AUDIT_HISTORY.md "Reproducibility and environment sensitivity" seed-spread column;
 running the ten-seed table costs ~24 s per seed, which is why it is opt-in.
 """
 
@@ -47,7 +47,7 @@ SWEEPS = [
     (0.98, "data/erasure_r98.csv"),
 ]
 D_MIN = 7
-_FULL_SEEDS = 10  # the seed range docs/AUDIT.md's seed-spread column quotes
+_FULL_SEEDS = 10  # the seed range docs/archive/AUDIT_HISTORY.md's seed-spread column quotes
 
 
 def _split(csv: str) -> tuple[list[SweepPoint], list[SweepPoint]]:
@@ -86,8 +86,8 @@ def _marginal_ci_before_after() -> None:
     for r_e, csv in SWEEPS:
         h, b = _split(csv)
         for dec, pts in (("herald", h), ("blind", b)):
-            f200 = fit_threshold(pts, d_min=D_MIN, n_boot=200, seed=0)
-            f1000 = fit_threshold(pts, d_min=D_MIN, n_boot=1000, seed=0)
+            f200 = fit_threshold(pts, d_min=D_MIN, n_boot=200, seed=0, metric="round")
+            f1000 = fit_threshold(pts, d_min=D_MIN, n_boot=1000, seed=0, metric="round")
             # Gate the quoted p_th on `resolved`, not `converged`: r_e=0.98 blind
             # converges but its CI is wider than p_th, so it is not a threshold.
             if not f1000.resolved:
@@ -104,7 +104,7 @@ def _delta_all() -> None:
     print("== 3+4. Delta = p_th(blind) - p_th(herald), 95% CI, n_boot=1000 ==")
     for r_e, csv in SWEEPS:
         h, b = _split(csv)
-        r = bootstrap_threshold_difference(h, b, d_min=D_MIN, n_boot=1000, seed=0)
+        r = bootstrap_threshold_difference(h, b, d_min=D_MIN, n_boot=1000, seed=0, metric="round")
         tag = " (CONTROL: must include 0)" if r_e == 0.0 else ""
         if not r.converged:
             print(f"  r_e={r_e}: NON-RESULT ({r.message}){tag}")
@@ -123,7 +123,9 @@ def _seed_stability(n_seeds: int = 5) -> None:
     h, b = _split("data/erasure_r50.csv")
     los, his = [], []
     for seed in range(n_seeds):
-        r = bootstrap_threshold_difference(h, b, d_min=D_MIN, n_boot=1000, seed=seed)
+        r = bootstrap_threshold_difference(
+            h, b, d_min=D_MIN, n_boot=1000, seed=seed, metric="round"
+        )
         los.append(r.delta_ci[0])
         his.append(r.delta_ci[1])
         print(
@@ -140,14 +142,14 @@ def _seed_stability(n_seeds: int = 5) -> None:
 
 
 def _full_stability_table() -> None:
-    """The ten-seed table behind docs/AUDIT.md's "seed spread" column.
+    """The ten-seed table behind docs/archive/AUDIT_HISTORY.md's "seed spread" column.
 
     Recomputes every seed-dependent quantity that section quotes, so a reviewer
     can check each one rather than taking it on trust.  ~24 s per seed.
     """
     seeds = range(_FULL_SEEDS)
     print(f"== 5. FULL seed-stability table (seeds 0-{_FULL_SEEDS - 1}, n_boot=1000) ==")
-    print("   Reproduces the 'seed spread' column of docs/AUDIT.md")
+    print("   Reproduces the 'seed spread' column of docs/archive/AUDIT_HISTORY.md")
     print("   'Reproducibility and environment sensitivity'.\n")
 
     h0, b0 = _split("data/baseline_pauli.csv")
@@ -166,7 +168,7 @@ def _full_stability_table() -> None:
     rel98: list[float] = []
     for seed in seeds:
         for name, pts in marginals:
-            f = fit_threshold(pts, d_min=D_MIN, n_boot=1000, seed=seed)
+            f = fit_threshold(pts, d_min=D_MIN, n_boot=1000, seed=seed, metric="round")
             los[name].append(f.p_th_ci[0])
             his[name].append(f.p_th_ci[1])
             if name == "r_e=0.98 blind":
@@ -177,14 +179,18 @@ def _full_stability_table() -> None:
     d0: dict[str, list[float]] = {k: [] for k in ("lo", "hi")}
     excl5: list[bool] = []
     for seed in seeds:
-        r = bootstrap_threshold_difference(h5, b5, d_min=D_MIN, n_boot=1000, seed=seed)
+        r = bootstrap_threshold_difference(
+            h5, b5, d_min=D_MIN, n_boot=1000, seed=seed, metric="round"
+        )
         d5["lo"].append(r.delta_ci[0])
         d5["hi"].append(r.delta_ci[1])
         d5["failed"].append(r.n_paired_failed)
         d5["tip"].append(tipping_point_discards(r))
         d5["corr"].append(r.correlation)
         excl5.append(r.excludes_zero)
-        c = bootstrap_threshold_difference(h0, b0, d_min=D_MIN, n_boot=1000, seed=seed)
+        c = bootstrap_threshold_difference(
+            h0, b0, d_min=D_MIN, n_boot=1000, seed=seed, metric="round"
+        )
         d0["lo"].append(c.delta_ci[0])
         d0["hi"].append(c.delta_ci[1])
 
@@ -250,7 +256,7 @@ def _discard_diagnostics() -> None:
     print("== 6. Discarded-replicate diagnostics (conditioning on convergence) ==")
     for r_e, csv in [(0.0, "data/baseline_pauli.csv"), (0.5, "data/erasure_r50.csv")]:
         h, b = _split(csv)
-        r = bootstrap_threshold_difference(h, b, d_min=D_MIN, n_boot=1000, seed=0)
+        r = bootstrap_threshold_difference(h, b, d_min=D_MIN, n_boot=1000, seed=0, metric="round")
         if not r.converged:
             print(f"  r_e={r_e}: {r.message}")
             continue

@@ -1,4 +1,4 @@
-"""Lambda-factor scan collection driver (PLAN.md §1, §10).
+"""Lambda-factor scan collection driver (docs/archive/PLAN_v1.md §1, §10).
 
 Holds the physical error rate fixed at the config's sub-threshold ``lambda_p``
 and sweeps the code distance, so ``Lambda = p_L(d) / p_L(d+2)`` can be read off

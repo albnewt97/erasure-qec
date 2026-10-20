@@ -1,0 +1,5 @@
+# Archive
+
+The files in this directory are the historical record of the project up to commit `da47e3a`. They are the original build plan (`PLAN_v1.md`, formerly `PLAN.md`), the audit log of fixes and statistical probes (`AUDIT_HISTORY.md`, formerly `docs/AUDIT.md`) and the development log (`DEVLOG.md`, formerly `docs/DEVLOG.md`). All three were superseded by v0.2.0, and the numbers in them are not current results: several were measured with the per-round metric on the pre-dense sweeps, and some were later withdrawn (see `CHANGELOG.md`). Current results, methods and validation are in `README.md`, `docs/METHODS.md` and `docs/VALIDATION.md`. Source docstrings still cite `PLAN_v1.md` section numbers as design references.
+
+`remediation/` holds the v0.2.0 remediation records, which are provenance rather than user documentation. They are the claim and caveat ledgers (`CLAIM_LEDGER.md`, `CAVEAT_LEDGER.md`), the carried-forward items (`P7_CARRY_FORWARD.md`), the Wu distance-pair decision (`WU_DPAIR_DECISION.md`) and recorded script outputs (`baseline_outputs/`). `CHANGELOG.md` cites their IDs.

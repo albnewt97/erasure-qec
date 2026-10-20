@@ -1,0 +1,1203 @@
+{
+  "data": {
+    "data/baseline_pauli.csv": {
+      "conditions": [
+        {
+          "decoder": "blind_mwpm",
+          "fits": [
+            {
+              "chi2_dof": 1.725360829502477,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "ok",
+              "metric": "shot",
+              "n_boot_failed": 0,
+              "n_points": 36,
+              "nu": 1.3241637386303793,
+              "p_center": 0.01,
+              "p_th": 0.009768332906958246,
+              "p_th_ci95": [
+                0.009575095340220167,
+                0.00998811054865804
+              ],
+              "reason": "ok",
+              "rel_ci_width": 0.04228103325017435,
+              "resolved": true
+            },
+            {
+              "chi2_dof": 1.5835365931404037,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "ok",
+              "metric": "round",
+              "n_boot_failed": 2,
+              "n_points": 33,
+              "nu": 2.14144738182064,
+              "p_center": 0.01467799267622069,
+              "p_th": 0.014389428271286826,
+              "p_th_ci95": [
+                0.013648291161890355,
+                0.01580520897614033
+              ],
+              "reason": "ok",
+              "rel_ci_width": 0.14989600514941684,
+              "resolved": true
+            }
+          ],
+          "pairwise": [
+            {
+              "bracket": [
+                0.0105,
+                0.011
+              ],
+              "ci95": [
+                0.009694155232908529,
+                0.010923256017554304
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.010712382834825781
+            },
+            {
+              "bracket": [
+                0.0091,
+                0.01
+              ],
+              "ci95": [
+                0.009026336593891921,
+                0.01060546569168827
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 5,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.009624107115328776
+            },
+            {
+              "bracket": [
+                0.01,
+                0.0105
+              ],
+              "ci95": [
+                0.00899486895028018,
+                0.010337534243922884
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.010046530685062031
+            },
+            {
+              "bracket": [
+                0.0091,
+                0.01
+              ],
+              "ci95": [
+                0.00946102790474675,
+                0.010184391196741875
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 2,
+              "n_sign_changes_unsaturated": 2,
+              "value": 0.009812300140583468
+            },
+            {
+              "bracket": [
+                0.01467799267622069,
+                0.015
+              ],
+              "ci95": [
+                0.012982925386506172,
+                0.019500276257654187
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.014886816175006765
+            },
+            {
+              "bracket": [
+                0.015,
+                0.017
+              ],
+              "ci95": [
+                0.012294644452223556,
+                0.01704035886375991
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 2,
+              "value": 0.015259260236696428
+            },
+            {
+              "bracket": [
+                0.0123,
+                0.013
+              ],
+              "ci95": [
+                0.011137537794088074,
+                0.01475341056635726
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 2,
+              "value": 0.012564782951176376
+            },
+            {
+              "bracket": [
+                0.01467799267622069,
+                0.015
+              ],
+              "ci95": [
+                0.012894231832077765,
+                0.015534192190747812
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.01479986869562518
+            }
+          ],
+          "r_e": 0.0
+        },
+        {
+          "decoder": "herald_mwpm",
+          "fits": [
+            {
+              "chi2_dof": 1.168671372390383,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "ok",
+              "metric": "shot",
+              "n_boot_failed": 0,
+              "n_points": 33,
+              "nu": 1.2282641957431986,
+              "p_center": 0.0105,
+              "p_th": 0.00962450645677787,
+              "p_th_ci95": [
+                0.009433687341250803,
+                0.009823500484563909
+              ],
+              "reason": "ok",
+              "rel_ci_width": 0.040502143674971215,
+              "resolved": true
+            },
+            {
+              "chi2_dof": 0.921816305197208,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "ok",
+              "metric": "round",
+              "n_boot_failed": 11,
+              "n_points": 33,
+              "nu": 1.4267003135016545,
+              "p_center": 0.015,
+              "p_th": 0.013726361957285348,
+              "p_th_ci95": [
+                0.013311287642924281,
+                0.014569197231096025
+              ],
+              "reason": "ok",
+              "rel_ci_width": 0.09164187802173618,
+              "resolved": true
+            }
+          ],
+          "pairwise": [
+            {
+              "bracket": [
+                0.0091,
+                0.01
+              ],
+              "ci95": [
+                0.009097791108273122,
+                0.010255884621559849
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 2,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.009721265914288997
+            },
+            {
+              "bracket": [
+                0.01,
+                0.0105
+              ],
+              "ci95": [
+                0.008973998193489529,
+                0.01065419686538692
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.01019765830543978
+            },
+            {
+              "bracket": [
+                0.0091,
+                0.01
+              ],
+              "ci95": [
+                0.008399696088283257,
+                0.010771770389388039
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.00954297164231863
+            },
+            {
+              "bracket": [
+                0.0091,
+                0.01
+              ],
+              "ci95": [
+                0.009253802697465046,
+                0.010521965090124668
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.0098017109746019
+            },
+            {
+              "bracket": [
+                0.017,
+                0.019
+              ],
+              "ci95": [
+                0.014616568319527602,
+                0.020606540198897547
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 2,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.01860643266680784
+            },
+            {
+              "bracket": [
+                0.0113,
+                0.0123
+              ],
+              "ci95": [
+                0.011619220474781896,
+                0.015914321054423388
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 6,
+              "n_sign_changes_unsaturated": 5,
+              "value": 0.01229763707893819
+            },
+            {
+              "bracket": [
+                0.0123,
+                0.013
+              ],
+              "ci95": [
+                0.012359068582021038,
+                0.013341217619031212
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.012706302192253497
+            },
+            {
+              "bracket": [
+                0.013,
+                0.01467799267622069
+              ],
+              "ci95": [
+                0.012608903012454504,
+                0.01473417034781882
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.013501779909066371
+            }
+          ],
+          "r_e": 0.0
+        }
+      ],
+      "sha256": "15f5ee8d0ebbdf43d05be555bcb97ca923cbaec22cd51ae75e12620781cd42d6"
+    },
+    "data/erasure_r50.csv": {
+      "conditions": [
+        {
+          "decoder": "blind_mwpm",
+          "fits": [
+            {
+              "chi2_dof": 1.0975082743832327,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "ok",
+              "metric": "shot",
+              "n_boot_failed": 0,
+              "n_points": 27,
+              "nu": 1.085094588304614,
+              "p_center": 0.011,
+              "p_th": 0.010865946303859345,
+              "p_th_ci95": [
+                0.010653635696919546,
+                0.011086585923989369
+              ],
+              "reason": "ok",
+              "rel_ci_width": 0.03984468678223159,
+              "resolved": true
+            },
+            {
+              "chi2_dof": 1.0424975876900926,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "ok",
+              "metric": "round",
+              "n_boot_failed": 1,
+              "n_points": 42,
+              "nu": 1.4481673815135716,
+              "p_center": 0.01467799267622069,
+              "p_th": 0.014773782488734576,
+              "p_th_ci95": [
+                0.014403240606631182,
+                0.018000000000000002
+              ],
+              "reason": "ok",
+              "rel_ci_width": 0.24345555351931367,
+              "resolved": true
+            }
+          ],
+          "pairwise": [
+            {
+              "bracket": [
+                0.0103,
+                0.011
+              ],
+              "ci95": [
+                0.00993442344101819,
+                0.010984452455365007
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.010598525181169893
+            },
+            {
+              "bracket": [
+                0.0103,
+                0.011
+              ],
+              "ci95": [
+                0.009383004728885343,
+                0.011271254261378028
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.01076817145091692
+            },
+            {
+              "bracket": [
+                0.01,
+                0.0103
+              ],
+              "ci95": [
+                0.010157574474672155,
+                0.011912549038670216
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 5,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.010277837517161622
+            },
+            {
+              "bracket": [
+                0.011,
+                0.0118
+              ],
+              "ci95": [
+                0.010275021966411965,
+                0.011362004933807113
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.011036193020384737
+            },
+            {
+              "bracket": [
+                0.0157,
+                0.0168
+              ],
+              "ci95": [
+                0.014464804258866794,
+                0.02139446890416376
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.016687910001630585
+            },
+            {
+              "bracket": [
+                0.01467799267622069,
+                0.0157
+              ],
+              "ci95": [
+                0.013433901777527802,
+                0.01822474851107742
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 5,
+              "n_sign_changes_unsaturated": 4,
+              "value": 0.0149658171753518
+            },
+            {
+              "bracket": [
+                0.01467799267622069,
+                0.0157
+              ],
+              "ci95": [
+                0.012524629052733554,
+                0.0154905824891433
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.014929560927594362
+            },
+            {
+              "bracket": [
+                0.01467799267622069,
+                0.0157
+              ],
+              "ci95": [
+                0.014374412973528013,
+                0.015386160799263004
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.014934649421613556
+            }
+          ],
+          "r_e": 0.5
+        },
+        {
+          "decoder": "herald_mwpm",
+          "fits": [
+            {
+              "chi2_dof": 1.9456241455619219,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "ok",
+              "metric": "shot",
+              "n_boot_failed": 0,
+              "n_points": 36,
+              "nu": 1.3747273759546035,
+              "p_center": 0.0157,
+              "p_th": 0.01572221278730475,
+              "p_th_ci95": [
+                0.01535721789837502,
+                0.016047031405321672
+              ],
+              "reason": "ok",
+              "rel_ci_width": 0.04387509037555182,
+              "resolved": true
+            },
+            {
+              "chi2_dof": 0.5828289006606047,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "ok",
+              "metric": "round",
+              "n_boot_failed": 1,
+              "n_points": 27,
+              "nu": 1.9275892260063352,
+              "p_center": 0.024,
+              "p_th": 0.023296826933509342,
+              "p_th_ci95": [
+                0.02212319240005229,
+                0.027322947531741613
+              ],
+              "reason": "ok",
+              "rel_ci_width": 0.22319585180118143,
+              "resolved": true
+            }
+          ],
+          "pairwise": [
+            {
+              "bracket": [
+                0.0157,
+                0.0168
+              ],
+              "ci95": [
+                0.015289030361697535,
+                0.017501190243442245
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.01643306899710193
+            },
+            {
+              "bracket": [
+                0.01467799267622069,
+                0.0157
+              ],
+              "ci95": [
+                0.014336432267283742,
+                0.016832505209905462
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.015566213702682375
+            },
+            {
+              "bracket": [
+                0.0157,
+                0.0168
+              ],
+              "ci95": [
+                0.014649716659811777,
+                0.017296747951421606
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.016543716899180088
+            },
+            {
+              "bracket": [
+                0.0157,
+                0.0168
+              ],
+              "ci95": [
+                0.01497588666969615,
+                0.01689624356300912
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 3,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.015972403048289164
+            },
+            {
+              "bracket": [
+                0.026,
+                0.03162277660168379
+              ],
+              "ci95": [
+                0.021951429725100568,
+                0.03189562065582378
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "round",
+              "n_no_crossing": 1,
+              "n_sign_changes": 2,
+              "n_sign_changes_unsaturated": 2,
+              "value": 0.0262245169527495
+            },
+            {
+              "bracket": [
+                0.024,
+                0.026
+              ],
+              "ci95": [
+                0.020805993166225438,
+                0.026436751650797397
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 1,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.024326502795046508
+            },
+            {
+              "bracket": [
+                0.02,
+                0.021544346900318832
+              ],
+              "ci95": [
+                0.017801704933957913,
+                0.024352143239052413
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 5,
+              "n_sign_changes_unsaturated": 2,
+              "value": 0.021319447462273138
+            },
+            {
+              "bracket": [
+                0.021544346900318832,
+                0.022
+              ],
+              "ci95": [
+                0.021002085170363005,
+                0.02542235352543062
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 1,
+              "n_sign_changes": 5,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.021873811109260923
+            }
+          ],
+          "r_e": 0.5
+        }
+      ],
+      "sha256": "0670f13df8c44bd80e6e44afd1e332852ae4031b079d0cdac391c110b9b46820"
+    },
+    "data/erasure_r98.csv": {
+      "conditions": [
+        {
+          "decoder": "blind_mwpm",
+          "fits": [
+            {
+              "chi2_dof": 1.21435912007263,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "ok",
+              "metric": "shot",
+              "n_boot_failed": 0,
+              "n_points": 24,
+              "nu": 1.085468375269769,
+              "p_center": 0.0123,
+              "p_th": 0.011818212805575318,
+              "p_th_ci95": [
+                0.011579991827975814,
+                0.012064610434815699
+              ],
+              "reason": "ok",
+              "rel_ci_width": 0.04100608229116189,
+              "resolved": true
+            },
+            {
+              "chi2_dof": 0.9103702546189659,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "converged but not resolved: relative CI width 2.37 >= guard 1.0",
+              "metric": "round",
+              "n_boot_failed": 0,
+              "n_points": 27,
+              "nu": 1.7357436080247508,
+              "p_center": 0.01467799267622069,
+              "p_th": 0.016719547576298604,
+              "p_th_ci95": [
+                0.015399999999999999,
+                0.0550000000000513
+              ],
+              "reason": "unresolved_ci",
+              "rel_ci_width": 2.3684851410804746,
+              "resolved": false
+            }
+          ],
+          "pairwise": [
+            {
+              "bracket": [
+                0.0114,
+                0.0123
+              ],
+              "ci95": [
+                0.011295754509580425,
+                0.013544427039285975
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 9,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.0121113126061493
+            },
+            {
+              "bracket": [
+                0.0114,
+                0.0123
+              ],
+              "ci95": [
+                0.01054451305489626,
+                0.012812256536227848
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 11,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.012057272201497406
+            },
+            {
+              "bracket": [
+                0.0114,
+                0.0123
+              ],
+              "ci95": [
+                0.011192054990139186,
+                0.012565071526449204
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 10,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.011753116294729008
+            },
+            {
+              "bracket": [
+                0.0114,
+                0.0123
+              ],
+              "ci95": [
+                0.011527354421021123,
+                0.012318084314422387
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 10,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.011913750790652215
+            },
+            {
+              "bracket": [
+                0.021544346900318832,
+                0.03
+              ],
+              "ci95": [
+                0.019666623707458645,
+                0.02528354348612448
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 13,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.022415056499225955
+            },
+            {
+              "bracket": [
+                0.0154,
+                0.021544346900318832
+              ],
+              "ci95": [
+                0.014525980339780996,
+                0.02361903154593961
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 13,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.017393819322879735
+            },
+            {
+              "bracket": [
+                0.0131,
+                0.0141
+              ],
+              "ci95": [
+                0.013395545216291972,
+                0.020497710438437275
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 12,
+              "n_sign_changes_unsaturated": 5,
+              "value": 0.013983965192274938
+            },
+            {
+              "bracket": [
+                0.0154,
+                0.021544346900318832
+              ],
+              "ci95": [
+                0.01588914331333796,
+                0.01928410617025973
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 10,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.017467947456652037
+            }
+          ],
+          "r_e": 0.98
+        },
+        {
+          "decoder": "herald_mwpm",
+          "fits": [
+            {
+              "chi2_dof": 1.3940935448284246,
+              "converged": true,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "ok",
+              "metric": "shot",
+              "n_boot_failed": 0,
+              "n_points": 36,
+              "nu": 1.3596875747223116,
+              "p_center": 0.04,
+              "p_th": 0.03828748282597016,
+              "p_th_ci95": [
+                0.03738759163249898,
+                0.039396841095037875
+              ],
+              "reason": "ok",
+              "rel_ci_width": 0.05247797228330802,
+              "resolved": true
+            },
+            {
+              "chi2_dof": 0.6719845054354153,
+              "converged": false,
+              "distances": [
+                7,
+                9,
+                11
+              ],
+              "message": "not converged: nu at upper bound pinned at optimiser bound",
+              "metric": "round",
+              "n_boot_failed": 0,
+              "n_points": 48,
+              "nu": 5.999999998510385,
+              "p_center": 0.058,
+              "p_th": 0.07935523430492626,
+              "p_th_ci95": [
+                0.051998831465951245,
+                0.08052967436275323
+              ],
+              "reason": "bound_pin",
+              "rel_ci_width": 0.35953321978952085,
+              "resolved": false
+            }
+          ],
+          "pairwise": [
+            {
+              "bracket": [
+                0.0387,
+                0.04
+              ],
+              "ci95": [
+                0.0348191305413463,
+                0.042412640728986845
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 5,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.03949358780351139
+            },
+            {
+              "bracket": [
+                0.036,
+                0.0387
+              ],
+              "ci95": [
+                0.03584603861021646,
+                0.0393809102721137
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 9,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.03742817465444478
+            },
+            {
+              "bracket": [
+                0.0387,
+                0.04
+              ],
+              "ci95": [
+                0.03525031059786666,
+                0.039923982426010765
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 6,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.03931953086013337
+            },
+            {
+              "bracket": [
+                0.036,
+                0.0387
+              ],
+              "ci95": [
+                0.03599839380378387,
+                0.03996825765974542
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "shot",
+              "n_no_crossing": 0,
+              "n_sign_changes": 4,
+              "n_sign_changes_unsaturated": 1,
+              "value": 0.03844410971655698
+            },
+            {
+              "bracket": [
+                0.052,
+                0.055
+              ],
+              "ci95": [
+                0.0461097070128724,
+                0.06269786443259025
+              ],
+              "d1": 5,
+              "d2": 7,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 5,
+              "n_sign_changes_unsaturated": 2,
+              "value": 0.05470685403772816
+            },
+            {
+              "bracket": [
+                0.05,
+                0.052
+              ],
+              "ci95": [
+                0.04458929975534171,
+                0.05815528664088984
+              ],
+              "d1": 7,
+              "d2": 9,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 9,
+              "n_sign_changes_unsaturated": 3,
+              "value": 0.05080790817264038
+            },
+            {
+              "bracket": [
+                0.046415888336127774,
+                0.0484
+              ],
+              "ci95": [
+                0.03991631236532617,
+                0.048223992083534506
+              ],
+              "d1": 9,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 8,
+              "n_sign_changes_unsaturated": 4,
+              "value": 0.046765457643531495
+            },
+            {
+              "bracket": [
+                0.046415888336127774,
+                0.0484
+              ],
+              "ci95": [
+                0.046223724319439594,
+                0.051544322604762695
+              ],
+              "d1": 7,
+              "d2": 11,
+              "metric": "round",
+              "n_no_crossing": 0,
+              "n_sign_changes": 8,
+              "n_sign_changes_unsaturated": 4,
+              "value": 0.047305169056930677
+            }
+          ],
+          "r_e": 0.98
+        }
+      ],
+      "sha256": "faa4e7b94e0d34489e01783fa3820e87825229fde073aacbf89ecd5512f7d9b0"
+    }
+  },
+  "description": "pairwise crossings and d_min=7 collapse fits, metric shot and round",
+  "generated_by": "scripts/threshold_table.py",
+  "git_describe": "090c341",
+  "parameters": {
+    "ci_percentiles": [
+      2.5,
+      97.5
+    ],
+    "crossing_rule": "first g<0 -> g>=0, g = ln m(d2) - ln m(d1), linear in (ln p, g); points with zero metric value at either distance skipped",
+    "d_min": 7,
+    "metrics": [
+      "shot",
+      "round"
+    ],
+    "n_boot": 1000,
+    "pairs": [
+      [
+        5,
+        7
+      ],
+      [
+        7,
+        9
+      ],
+      [
+        9,
+        11
+      ],
+      [
+        7,
+        11
+      ]
+    ],
+    "seed": 0,
+    "window_factor": 1.5
+  },
+  "software": {
+    "numpy": "2.5.1",
+    "pymatching": "2.4.0",
+    "python": "3.14.6",
+    "scipy": "1.18.0",
+    "sinter": "1.16.0",
+    "stim": "1.16.0"
+  }
+}

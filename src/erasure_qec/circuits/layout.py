@@ -1,4 +1,4 @@
-"""Pure geometry for the rotated surface code (PLAN.md §2).
+"""Pure geometry for the rotated surface code (docs/archive/PLAN_v1.md §2).
 
 No stim imports here: this module only computes coordinates and adjacency so
 it can be unit tested in isolation from circuit construction.

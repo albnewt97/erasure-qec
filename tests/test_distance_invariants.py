@@ -1,4 +1,4 @@
-"""Distance & hook invariants for the CX schedule (PLAN.md §4).
+"""Distance & hook invariants for the CX schedule (docs/archive/PLAN_v1.md §4).
 
 With a small uniform depolarizing sprinkle, the hook-safe schedule must have
 graphlike distance exactly ``d`` and no undetectable logical error shorter

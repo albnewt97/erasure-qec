@@ -68,7 +68,7 @@ def test_heralded_fraction_below_r_e_gate_only() -> None:
 
 @pytest.mark.slow
 def test_legacy_no_op_counting_reproduces_audit_numbers() -> None:
-    """count_no_op_heralds=True keeps the pre-correction docs/AUDIT.md values
+    """count_no_op_heralds=True keeps the pre-correction docs/archive/AUDIT_HISTORY.md values
     reproducible."""
     assert heralded_fraction(
         NoiseParams(p=0.02, r_e=0.5), d=5, count_no_op_heralds=True

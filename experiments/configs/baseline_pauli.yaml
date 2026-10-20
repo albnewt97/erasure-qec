@@ -1,5 +1,5 @@
 # Threshold sweep, pure-Pauli baseline: no erasure conversion (r_e = 0).
-# Rounds are always T = d (PLAN.md §9). p grid: 13 log-spaced points in
+# Rounds are always T = d (docs/archive/PLAN_v1.md §9). p grid: 13 log-spaced points in
 # [1e-3, 1e-1]. With r_e = 0 no heralds exist, so herald_mwpm and blind_mwpm
 # coincide; both run for CSV uniformity across configs.
 name: baseline_pauli
@@ -8,14 +8,25 @@ distances: [3, 5, 7, 9, 11]
 p_log10_min: -3.0
 p_log10_max: -1.0
 p_points: 13
-# Additive fit-resolution band: linearly spaced p-points straddling the ~1.5%
-# Pauli crossing. The 13-point log grid only lands ~3 points in the fit window,
-# leaving nu under-constrained; these densify the crossing so the finite-size
-# scaling fit resolves nu ~ 1.5. Merged with the log grid (sorted, de-duped).
+# Additive fit-resolution band: linearly spaced p-points placed around the
+# per-round crossing to add points to the collapse-fit window. Merged with the
+# log grid (sorted, de-duped).
+# Measured thresholds: results/headline.json (scripts/headline_results.py).
 extra_p: [0.011, 0.013, 0.015, 0.017, 0.019]
 max_shots: 100000
 max_errors: 1000
 decoders: [herald_mwpm, blind_mwpm]
 
-# Fixed sub-threshold p for the Lambda scan (~0.5%, below the ~1% Pauli threshold).
+# Fixed p for the Lambda scan (experiments/collect_lambda_scan.py).
 lambda_p: 0.005
+
+# Per-shot densification band, added 2026-10-14 (pre-registered rule, integer
+# units of 1e-4). Source: results/threshold_table_committed.json
+# (sha256 5079307a87b73baf5142a7f0f4971e4f6799b51af0c082939af28fd4925ae443).
+# For each decoder, c = its per-shot (7,11) pairwise crossing in that file;
+#   u = round(c * f * 10_000) for f in (0.80, 0.87, 0.93, 1.00, 1.07, 1.15, 1.25).
+# Union over decoders; drop u if |u - e| <= 2 for any e = round(p * 10_000)
+# over the resolved p_values (log grid + extra_p); sort ascending; drop u within
+# 2 of the last kept one; extra_p_shot = kept u / 10_000. Merged into the p grid
+# like extra_p (union, sorted, de-duplicated).
+extra_p_shot: [0.0079, 0.0085, 0.0091, 0.0105, 0.0113, 0.0123]

@@ -1,4 +1,4 @@
-"""DEM -> (Pauli sub-DEM, herald -> conditioned-edge table) partition (PLAN.md §6).
+"""DEM -> (Pauli sub-DEM, herald -> conditioned-edge table) partition (docs/archive/PLAN_v1.md §6).
 
 Input contract
 --------------

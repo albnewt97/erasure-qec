@@ -1,4 +1,4 @@
-"""Herald-conditioned decoder correctness (PLAN.md §8, M6 gate).
+"""Herald-conditioned decoder correctness (docs/archive/PLAN_v1.md §8, M6 gate).
 
 The headline test forces a specific erasure pattern with probability-1 probe
 erasures and shows the herald-aware decoder correcting a pattern the blind
@@ -176,8 +176,8 @@ def test_herald_bits_alone_predict_identity() -> None:
     assert not decoder.decode_batch(shot).any()
 
 
-def test_ablation_herald_beats_blind_on_biased_erasure_circuit() -> None:
-    """Smoke ablation on a real biased-erasure circuit: with r_e=0.9 the herald
+def test_ablation_herald_beats_blind_on_erasure_circuit() -> None:
+    """Smoke ablation on a real (unbiased) erasure circuit: with r_e=0.9 the herald
     information is most of the error budget, so the herald-aware decoder must
     make strictly fewer logical errors than the blind one on identical shots.
 

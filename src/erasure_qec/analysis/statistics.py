@@ -1,10 +1,10 @@
-"""Shot statistics: per-round conversion, CIs, and the Lambda factor (PLAN.md §10).
+"""Shot statistics: per-round conversion, CIs, and the Lambda factor (docs/archive/PLAN_v1.md §10).
 
 Sinter reports a *shot-level* logical error probability ``P_L_shot`` (errors /
 shots over a ``T``-round memory experiment). The physically comparable quantity
 is the *per-round* logical error rate
 
-    p_L = 1/2 * (1 - (1 - 2 * P_L_shot)^(1/T))          [PLAN.md §10]
+    p_L = 1/2 * (1 - (1 - 2 * P_L_shot)^(1/T))          [docs/archive/PLAN_v1.md §10]
 
 which inverts the accumulation ``P_L_shot = 1/2 (1 - (1 - 2 p_L)^T)`` of an
 error that must survive an odd number of the ``T`` rounds. Two fixed points

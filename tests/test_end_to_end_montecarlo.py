@@ -1,4 +1,4 @@
-"""End-to-end Monte-Carlo smoke + throughput (PLAN.md §9/§11, M7 gate).
+"""End-to-end Monte-Carlo smoke + throughput (docs/archive/PLAN_v1.md §9/§11, M7 gate).
 
 Both tests are @slow (excluded from the CI fast lane; run locally with plain
 ``uv run pytest``).
