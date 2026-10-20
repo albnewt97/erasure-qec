@@ -16,3 +16,6 @@ destination document(s).
 11. [P8] scripts/ is outside mypy's scope.
 12. [VALIDATION] The saturated-crossing rule was added after data; it changed no herald value (already documented; keep it).
 13. [README] The Wu validation used d-pair (9,13), set by a memory rule; Wu used (11,15).
+14. [README, P8] Legacy scripts (paired_separation.py and any other script whose recorded output was produced on the pre-dense CSVs) reproduce their baseline_outputs only at commit da47e3a. Move them to scripts/legacy/ with a header naming that commit, or drop them from the README reproduce table. They must not be listed as reproducing current results.
+15. [README, METHODS] At r_e = 0.98 the per-shot collapse fit (d >= 7) resolves both thresholds (herald 3.83%, blind 1.18%); the per-round fit resolves neither (herald bound_pin, blind unresolved_ci). State this as an observation with no claim about which metric is correct (see item 1).
+16. [README, METHODS] Lambda is reported per-round while thresholds are per-shot; label the metric at every appearance.
