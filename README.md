@@ -218,9 +218,15 @@ Future directions (imperfect and delayed heralds, other hardware, logical algori
 
 ## Reproduce
 
-All results and figures are computed from the committed sweeps `data/baseline_pauli.csv`, `data/erasure_r50.csv` and `data/erasure_r98.csv`, and from `data/wu/*.csv`.
+Except the ablation, which samples its own shots, all results and figures are computed from the committed sweeps `data/baseline_pauli.csv`, `data/erasure_r50.csv` and `data/erasure_r98.csv`, and from `data/wu/*.csv`.
 `sinter.collect` takes no seed, so the sweeps cannot be regenerated shot for shot ([docs/METHODS.md](docs/METHODS.md#seeds)).
-Install with `uv sync --group dev` and re-render the README tables with `uv run python scripts/render_readme_tables.py`.
+Install with `uv sync --group dev`.
+`scripts/reproduce.sh` has three tiers, and the first two do not modify the work tree:
+
+- `scripts/reproduce.sh fast` runs the fast tests, renders the README tables and regenerates the figures from committed data, then compares the figures with `figures/`.
+- `scripts/reproduce.sh analysis` runs every analysis script in a throwaway clone of `HEAD` and compares each `results/*.json` it writes with the committed file.
+- `scripts/reproduce.sh collect` prints, without running, every command that samples new shots (the sweeps and the ablation), with its recorded wall time where one exists.
+
 The command for every result, recorded wall times, collection and legacy scripts are in [docs/METHODS.md](docs/METHODS.md#commands-and-wall-times).
 
 ## Layout
