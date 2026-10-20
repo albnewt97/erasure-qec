@@ -5,7 +5,10 @@ The R_e = 0.5 and 0.9 grids are ``round(c * f, 4)`` for f in ``GRID_FACTORS``,
 with ``c`` the per-shot (5,7) crossing printed by scripts/wu_coarse_scan.py
 (recorded in docs/remediation/baseline_outputs/wu_coarse_scan.txt); the script
 asserts that those two grids equal the ones printed there. Asserts the point
-count of every grid. Run:
+count of every grid. A config that the edge rule extended (see
+docs/remediation/WU_DPAIR_DECISION.md) also gets ``extra_p_edge``, the
+3 points beyond the touched end; the collection loader merges it into the grid.
+Run:
 
     uv run python scripts/make_wu_configs.py
 """
@@ -28,6 +31,9 @@ MAX_ERRORS = 1000
 HERALD = ("wu_herald_mwpm",)
 BOTH = ("wu_herald_mwpm", "wu_blind_mwpm")
 GRID_FACTORS = (0.800, 0.845, 0.890, 0.935, 0.980, 1.025, 1.070, 1.115, 1.160, 1.205, 1.250)
+# Edge-rule continuation of GRID_FACTORS (WU_DPAIR_DECISION.md, 2026-10-16).
+EDGE_UPPER_FACTORS = (1.295, 1.340, 1.385)
+EDGE_LOWER_FACTORS = (0.755, 0.710, 0.665)
 
 # Per-shot (5,7) crossings from wu_coarse_scan.txt (repr as printed there).
 C_RE050 = 0.02194620108673982
@@ -51,6 +57,7 @@ class WuConfigSpec:
     decoders: tuple[str, ...]
     reference: str
     notes: tuple[str, ...] = ()
+    edge: tuple[float, ...] = ()  # extra_p_edge; empty unless the edge rule applied
 
 
 def stepped(k_lo: int, k_hi: int, step: float) -> tuple[float, ...]:
@@ -61,6 +68,11 @@ def stepped(k_lo: int, k_hi: int, step: float) -> tuple[float, ...]:
 def scaled(c: float) -> tuple[float, ...]:
     """``round(c * f, 4)`` for f in ``GRID_FACTORS``."""
     return tuple(round(c * f, 4) for f in GRID_FACTORS)
+
+
+def scaled_edge(c: float, factors: tuple[float, ...]) -> tuple[float, ...]:
+    """``round(c * f, 4)`` for f in ``factors`` (an edge-rule extension)."""
+    return tuple(round(c * f, 4) for f in factors)
 
 
 def _scan_grids() -> dict[float, tuple[float, ...]]:
@@ -114,7 +126,13 @@ SPECS: tuple[WuConfigSpec, ...] = (
         scaled(C_RE050),
         BOTH,
         'Wu reference: Fig. 3b, "not tabulated" (R_e = 0.5, p_m = 0).',
-        (SCAN_NOTE.format(c=C_RE050),),
+        (
+            SCAN_NOTE.format(c=C_RE050),
+            "Edge rule applied (P5b, lower end): the (9,13) per-shot herald curves do not\n"
+            "cross on p_values and ln P_L(13) - ln P_L(9) >= 0 at the lowest p.\n"
+            "extra_p_edge = round(c * f, 4), f = 0.755, 0.710, 0.665.",
+        ),
+        scaled_edge(C_RE050, EDGE_LOWER_FACTORS),
     ),
     WuConfigSpec(
         "wu_fig3b_re090",
@@ -182,6 +200,8 @@ def render(spec: WuConfigSpec) -> str:
         f"max_errors: {MAX_ERRORS}",
         f"decoders: [{', '.join(spec.decoders)}]",
     ]
+    if spec.edge:
+        lines.append(f"extra_p_edge: [{', '.join(repr(p) for p in spec.edge)}]")
     return "\n".join(lines) + "\n"
 
 
@@ -195,9 +215,12 @@ def main() -> None:
         n = len(spec.grid)
         assert n == EXPECTED_COUNTS[spec.name], (spec.name, n)
         assert len(set(spec.grid)) == n and list(spec.grid) == sorted(spec.grid), spec.name
+        assert len(spec.edge) in (0, 3) and not set(spec.edge) & set(spec.grid), spec.name
         path = OUT_DIR / f"{spec.name}.yaml"
         path.write_text(render(spec), encoding="utf-8")
         print(f"{spec.name}: {n} points {list(spec.grid)}")
+        if spec.edge:
+            print(f"{spec.name}: extra_p_edge {list(spec.edge)}")
 
 
 if __name__ == "__main__":
