@@ -24,7 +24,6 @@ import subprocess
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TypeVar
 
 import numpy as np
 import pymatching
@@ -45,8 +44,6 @@ POINTS: list[tuple[int, float, float]] = [
 ]
 REPO_POINT = (15, 0.04, 0.98)
 SEED = 2026
-
-T = TypeVar("T")
 
 
 @dataclass
@@ -76,7 +73,7 @@ COLUMNS = (
 )
 
 
-def _timed(fn: Callable[[], T]) -> tuple[T, float]:
+def _timed[T](fn: Callable[[], T]) -> tuple[T, float]:
     t0 = time.perf_counter()
     out = fn()
     return out, time.perf_counter() - t0
