@@ -42,12 +42,14 @@ Each two-qubit gate has exactly one outcome.
 With probability `p_p = p·(1 − R_e)` it takes a Pauli uniform over the 15 non-identity two-qubit Paulis.
 With probability `p_e = p·R_e` both qubits are erased: one herald fires and each qubit is left in `I/2`.
 Otherwise nothing happens.
-Ancilla preparation and measurement flip with probability `p_m`, which acts on ancillas only.
+Ancilla preparation and measurement take `X_ERROR(p_m)`, which acts on ancillas only.
+Wu et al. model this error as a Pauli error after a perfect preparation or before a perfect measurement, and do not give its type.
 There is no idle noise and no single-qubit gate noise.
-Data-qubit preparation is noiseless and the final data readout is perfect; Wu et al. do not fix either.
+The final data readout is perfect, as in Wu et al. (Sec. VII.A).
+Data-qubit preparation is noiseless; Wu et al. do not specify it.
 
 The sampling circuit makes Pauli and erasure exclusive with one `CORRELATED_ERROR` / `ELSE_CORRELATED_ERROR` chain per gate.
-Its herald is a flag qubit measured once per gate pair.
+Its herald is a flag qubit measured once per two-qubit gate.
 The decoding circuit has the same detector layout.
 In it each erasure location is four independent tagged generators `X_ERROR` and `Z_ERROR` on each qubit, each at `p_e / 2`.
 The decoding circuit treats Pauli and erasure as independent channels, which is an approximation of order `p_p·p_e`.
@@ -114,7 +116,9 @@ The `Λ` notation is not from that paper; the citation supports the suppression 
 `lambda_factor` bootstraps `Λ` with binomial resampling at both distances.
 It excludes replicates whose `d + 2` draw has zero errors rather than propagating `+∞`, and counts them as `n_boot_dropped`.
 The exclusion can only lower the upper CI endpoint.
-The `lambda_p` values in `experiments/configs/erasure_r50.yaml` (1.5%) and `erasure_r98.yaml` (2.5%) lie above the per-shot blind (7,11) thresholds in `results/headline.json` (1.10% [1.03, 1.14] at `r_e = 0.5`, 1.19% [1.15, 1.23] at `r_e = 0.98`), and no committed result uses `experiments/collect_lambda_scan.py` output, since no `data/*_lambda.csv` is committed and every `Λ` here comes from the threshold sweeps or `results/ablation.json`.
+The `lambda_p` values in `experiments/configs/erasure_r50.yaml` (1.5%) and `erasure_r98.yaml` (2.5%) lie above the per-shot blind (7,11) thresholds in `results/headline.json`.
+Those thresholds are 1.10% [1.03, 1.14] at `r_e = 0.5` and 1.19% [1.15, 1.23] at `r_e = 0.98`.
+No committed result uses `experiments/collect_lambda_scan.py` output: no `data/*_lambda.csv` is committed, and every `Λ` here comes from the threshold sweeps or `results/ablation.json`.
 
 ## Crossing estimator
 
@@ -165,7 +169,8 @@ It uses only points with `p_center/1.5 ≤ p ≤ 1.5·p_center` and `m < 0.4`, w
 The 0.4 cap acts on the fitted metric.
 For the per-round fit a near-crossing point at `d = 11`, `T = 11` can have `P_L ≈ 0.45` and still enter the window.
 A fit needs at least 3 degrees of freedom, so at least 8 points, and at least 2 distances.
-`ν` is bounded to [0.5, 6]; a fit landing on a bound is reported as not converged (`bound_pin`).
+`ν` is bounded to [0.5, 6].
+A fit with `ν` at a bound, or with `p_th` at an edge of its fit window, is reported as not converged (`bound_pin`).
 
 A fit is quoted as a threshold only when the code marks it `resolved`.
 `resolved` means converged and a 95% CI narrower than `p_th` itself (relative width below 1.0).
@@ -177,15 +182,24 @@ This is an observation; it does not say which metric is correct.
 
 The fit's bootstrap re-runs the whole pipeline per replicate: resampling, `estimate_crossing`, window selection and the weighted fit.
 It keeps replicates whose fit pins at a bound, while `bootstrap_threshold_difference` discards them.
-The per-round `r_e = 0.98` blind verdict `unresolved_ci` rests on that retention.
+`scripts/per_round_fit_sensitivity.py` (`results/per_round_fit_sensitivity.json`) measured this retention for the per-round `r_e = 0.98` blind fit at seeds 0–29, with `n_boot = 1000`.
+At each seed 228 to 273 of the 1000 replicates pin.
+With pinned replicates kept, the relative width is 2.06 to 3.27, and the fit is resolved at 0 of 30 seeds.
+With them excluded, the relative width is 0.18 to 1.30, and the fit is resolved at 21 of 30 seeds, including seed 0 (0.27).
+The published `unresolved_ci` verdict therefore rests on that retention.
 `ν` is weakly constrained by three distances, so `p_th` is better determined than `ν`.
 Every fit reports `χ²/dof` in `results/headline.json`, so a poor fit is visible.
-For caps in {0.2, 0.25, 0.3, 0.4} the per-round fit result was insensitive to the cap, as measured at `da47e3a`.
+The same script refits every per-round fit with the saturation cap at 0.2, 0.25, 0.3 and 0.4 (seed 0).
+Each fit keeps its `reason` and `resolved` value at every cap.
+The point `p_th` is unchanged at every cap except in the `bound_pin` `r_e = 0.98` herald fit, which is not quoted.
+The largest CI endpoint change is the `r_e = 0.98` blind upper endpoint, 5.00% at cap 0.2 and 5.50% at cap 0.4.
 
 ## Densification and edge rules
 
 The repo-convention grid is 13 log-spaced points in [1e-3, 1e-1] (`experiments/configs/*.yaml`).
-`extra_p` adds linearly spaced points around the per-round crossings.
+`extra_p` adds bands of points around earlier per-round crossing estimates.
+The `r_e = 0` and 0.5 bands are evenly spaced.
+The `r_e = 0.98` bands are unevenly spaced and were placed from an extrapolation and from sweeps under earlier noise models (`experiments/configs/erasure_r98.yaml`).
 `extra_p_shot` adds points around the per-shot crossings by a rule fixed before the dense data were collected.
 For each decoder, with `c` its per-shot (7,11) crossing in `results/threshold_table_committed.json`, the candidates are `round(c·f·10⁴)/10⁴`.
 The factors are `f ∈ {0.80, 0.87, 0.93, 1.00, 1.07, 1.15, 1.25}`.
@@ -247,6 +261,7 @@ Wall times are given only where a run was recorded; the machine is an Apple M2 w
 | pairwise crossings and fits, both metrics | `uv run python scripts/threshold_table.py --out results/threshold_table_dense.json` | not timed |
 | ablation | `uv run python scripts/ablation_table.py` | not timed |
 | heralded fraction | `uv run python scripts/heralded_fraction.py` | not timed |
+| per-round fit sensitivity (cap, pin retention) | `uv run python scripts/per_round_fit_sensitivity.py` | not timed |
 | Wu validation table, JSON, figure | `uv run python scripts/wu_validation.py` | 29 s ([VALIDATION.md](VALIDATION.md#reproduce)) |
 | figures | `uv run python -m erasure_qec.analysis.plotting --data-dir data --figures-dir figures --ablation-json results/ablation.json` | not timed |
 | README tables | `uv run python scripts/render_readme_tables.py` | not timed |
