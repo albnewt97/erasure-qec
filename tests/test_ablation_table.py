@@ -11,6 +11,7 @@ larger than both the superseded expression and the point ratio.
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -109,3 +110,63 @@ def test_ablation_cell_end_to_end_respects_the_invariants() -> None:
     old = _superseded_bound(int(cell["h_err"]), int(cell["b_err"]), 2_000, 3)
     assert cell["ratio_lb"] <= old <= cell["ratio"]
     assert cell["ratio_lb"] < cell["ratio"]
+
+
+def test_lambda_is_gated_at_both_distances() -> None:
+    assert ablation_table.lambda_d(49, 500, 100_000, 5) is None
+    assert ablation_table.lambda_d(500, 49, 100_000, 5) is None
+    lam = ablation_table.lambda_d(500, 50, 100_000, 5)
+    expected = per_round_p_l(500 / 100_000, 5) / per_round_p_l(50 / 100_000, 7)
+    assert lam == pytest.approx(expected)
+    assert lam is not None and lam > 1.0
+
+
+def _stub_cells(shots: int) -> dict[tuple[float, float, int], dict[str, float]]:
+    """Cells built from counts (no decoding): herald errors fall with d, one cell at 0."""
+    counts = {3: (900, 2000), 5: (300, 1500), 7: (60, 1200), 9: (10, 1000), 11: (0, 800)}
+    return {
+        (p, r_e, d): {"h_err": h, "b_err": b, **ablation_table.ratio_and_bound(h, b, shots, d)}
+        for p in (0.005, 0.010)
+        for r_e in ablation_table.R_ES
+        for d, (h, b) in counts.items()
+    }
+
+
+def test_cell_rows_carry_each_decoders_lambda() -> None:
+    shots = 100_000
+    rows = {
+        (r["p"], r["r_e"], r["d"]): r for r in ablation_table.cell_rows(_stub_cells(shots), shots)
+    }
+    assert len(rows) == 2 * len(ablation_table.R_ES) * len(ablation_table.DISTANCES)
+    r3 = rows[(0.005, 0.5, 3)]
+    assert r3["lambda_pair"] == [3, 5]
+    assert r3["lambda_herald"] == ablation_table.lambda_d(900, 300, shots, 3)
+    assert r3["lambda_blind"] == ablation_table.lambda_d(2000, 1500, shots, 3)
+    assert rows[(0.005, 0.5, 7)]["lambda_herald"] is None  # herald d = 9 has 10 errors
+    assert rows[(0.005, 0.5, 7)]["lambda_blind"] is not None
+    r11 = rows[(0.010, 0.98, 11)]
+    assert r11["lambda_pair"] is None and r11["lambda_herald"] is None
+    assert r11["gated"] and r11["ratio"] is None  # h_err = 0: infinite ratio -> null
+
+
+def test_payload_is_strict_json_with_provenance() -> None:
+    shots = 100_000
+    doc = ablation_table.payload(_stub_cells(shots), (0.005, 0.010), shots, "abc1234")
+    text = json.dumps(doc, allow_nan=False)
+    back = json.loads(text)
+    assert back["git_describe"] == "abc1234"
+    assert back["parameters"]["p_values"] == [0.005, 0.010]
+    assert back["parameters"]["seed"] == ablation_table.SEED == 0
+    assert back["parameters"]["shots"] == shots
+    assert set(back["software"]) >= {"stim", "pymatching", "numpy"}
+
+
+def test_printed_table_covers_each_p(capsys: pytest.CaptureFixture[str]) -> None:
+    shots = 100_000
+    cells = _stub_cells(shots)
+    for p in (0.005, 0.010):
+        ablation_table._print_table(cells, p, shots)
+    out = capsys.readouterr().out
+    assert "at p=0.5%" in out and "at p=1.0%" in out
+    assert "> " in out  # gated cells print a lower bound, not a point ratio
+    assert "d=3->5:" in out
