@@ -23,11 +23,15 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
+import numpy.typing as npt
 
 from erasure_qec.analysis.statistics import Metric, SweepPoint, metric_value
 from erasure_qec.analysis.threshold_fit import SATURATION_CAP
 
 _CI_PERCENTILES = (2.5, 97.5)
+# The headline threshold estimator: the per-shot crossing of these two distances,
+# with saturation_cap = SATURATION_CAP (see headline_crossing).
+HEADLINE_PAIR = (7, 11)
 
 
 @dataclass(frozen=True)
@@ -202,30 +206,116 @@ def bootstrap_pairwise_crossing(
     """
     c1, c2 = _validated_curves(points, d1, d2)
     estimate = _crossing_from_curves(c1, c2, d1, d2, metric, saturation_cap)
-
-    ordered = sorted([*c1.values(), *c2.values()], key=lambda pt: (pt.d, pt.p))
-    shots = np.array([pt.shots for pt in ordered], dtype=np.int64)
-    rates = np.array([pt.p_l_shot for pt in ordered], dtype=float)
+    ordered, shots, rates = _resampling_inputs(c1, c2)
 
     rng = np.random.default_rng(seed)
     values: list[float] = []
     n_no_crossing = 0
     for _ in range(n_boot):
-        drawn = rng.binomial(shots, rates)
-        r1: dict[float, SweepPoint] = {}
-        r2: dict[float, SweepPoint] = {}
-        for pt, e in zip(ordered, drawn, strict=True):
-            target = r1 if pt.d == d1 else r2
-            target[pt.p] = SweepPoint(pt.decoder, pt.d, pt.rounds, pt.p, pt.r_e, pt.shots, int(e))
+        r1, r2 = _resampled_curves(ordered, rng.binomial(shots, rates), d1)
         rep = _crossing_from_curves(r1, r2, d1, d2, metric, saturation_cap)
         if math.isnan(rep.value):
             n_no_crossing += 1
         else:
             values.append(rep.value)
+    return estimate, _percentile_ci(values), n_no_crossing
 
-    if values:
-        lo_pct, hi_pct = _CI_PERCENTILES
-        ci = (float(np.percentile(values, lo_pct)), float(np.percentile(values, hi_pct)))
-    else:
-        ci = (float("nan"), float("nan"))
-    return estimate, ci, n_no_crossing
+
+def headline_crossing(
+    points: Sequence[SweepPoint], *, n_boot: int = 1000, seed: int = 0
+) -> tuple[CrossingEstimate, tuple[float, float], int]:
+    """The headline per-shot threshold estimate of one ``(decoder, r_e)`` condition.
+
+    :func:`bootstrap_pairwise_crossing` of the :data:`HEADLINE_PAIR` curves with
+    ``metric="shot"`` and ``saturation_cap`` =
+    :data:`~erasure_qec.analysis.threshold_fit.SATURATION_CAP`: a crossing whose
+    bracket reaches ``P_L_shot >= 0.4`` is "saturated, not a threshold" and has
+    no value. Same return value as :func:`bootstrap_pairwise_crossing`.
+    """
+    d1, d2 = HEADLINE_PAIR
+    return bootstrap_pairwise_crossing(
+        points, d1, d2, metric="shot", n_boot=n_boot, seed=seed, saturation_cap=SATURATION_CAP
+    )
+
+
+def bootstrap_crossing_difference(
+    points_a: Sequence[SweepPoint],
+    points_b: Sequence[SweepPoint],
+    d1: int,
+    d2: int,
+    *,
+    metric: Metric,
+    n_boot: int = 1000,
+    seed: int = 0,
+    saturation_cap: float | None = None,
+) -> tuple[float, tuple[float, float], int]:
+    """``crossing(a) - crossing(b)`` of two conditions, with a bootstrap 95% CI.
+
+    ``points_a`` and ``points_b`` are each one ``(decoder, r_e)`` condition (as
+    in :func:`pairwise_crossing`), sampled independently of each other. The
+    point value is the difference of the two :func:`pairwise_crossing` values
+    (NaN if either has no crossing or is saturated). Each replicate resamples
+    ``errors ~ Binomial(shots, errors / shots)`` for every point of ``a`` and
+    then of ``b`` (each in ``(d, p)`` order) from one
+    ``numpy.random.default_rng(seed)`` stream, so the two conditions are
+    resampled independently; a replicate in which either crossing is missing
+    or saturated is counted in ``n_missing`` and not used. The CI is the
+    2.5th/97.5th percentile of the remaining differences, ``(nan, nan)`` if
+    none remain. Binomial noise only: interpolation error inside either
+    bracket is not included, and no correlation between ``a`` and ``b`` is
+    assumed or used.
+
+    Returns ``(difference, ci, n_missing)``.
+    """
+    a1, a2 = _validated_curves(points_a, d1, d2)
+    b1, b2 = _validated_curves(points_b, d1, d2)
+    value = (
+        _crossing_from_curves(a1, a2, d1, d2, metric, saturation_cap).value
+        - _crossing_from_curves(b1, b2, d1, d2, metric, saturation_cap).value
+    )
+    inputs_a = _resampling_inputs(a1, a2)
+    inputs_b = _resampling_inputs(b1, b2)
+
+    rng = np.random.default_rng(seed)
+    diffs: list[float] = []
+    n_missing = 0
+    for _ in range(n_boot):
+        reps = []
+        for ordered, shots, rates in (inputs_a, inputs_b):
+            r1, r2 = _resampled_curves(ordered, rng.binomial(shots, rates), d1)
+            reps.append(_crossing_from_curves(r1, r2, d1, d2, metric, saturation_cap).value)
+        if math.isnan(reps[0]) or math.isnan(reps[1]):
+            n_missing += 1
+        else:
+            diffs.append(reps[0] - reps[1])
+    return value, _percentile_ci(diffs), n_missing
+
+
+def _resampling_inputs(
+    c1: dict[float, SweepPoint], c2: dict[float, SweepPoint]
+) -> tuple[list[SweepPoint], npt.NDArray[np.int64], npt.NDArray[np.float64]]:
+    """The points of both curves in ``(d, p)`` order, with their shots and ``P_L_shot``."""
+    ordered = sorted([*c1.values(), *c2.values()], key=lambda pt: (pt.d, pt.p))
+    shots = np.array([pt.shots for pt in ordered], dtype=np.int64)
+    rates = np.array([pt.p_l_shot for pt in ordered], dtype=np.float64)
+    return ordered, shots, rates
+
+
+def _resampled_curves(
+    ordered: Sequence[SweepPoint], drawn: npt.NDArray[np.int64], d1: int
+) -> tuple[dict[float, SweepPoint], dict[float, SweepPoint]]:
+    """``ordered`` with ``errors`` replaced by ``drawn``, split into the d1 and d2 curves."""
+    r1: dict[float, SweepPoint] = {}
+    r2: dict[float, SweepPoint] = {}
+    for pt, e in zip(ordered, drawn, strict=True):
+        target = r1 if pt.d == d1 else r2
+        target[pt.p] = SweepPoint(pt.decoder, pt.d, pt.rounds, pt.p, pt.r_e, pt.shots, int(e))
+    return r1, r2
+
+
+def _percentile_ci(values: Sequence[float]) -> tuple[float, float]:
+    """2.5th/97.5th percentiles of ``values``; ``(nan, nan)`` if empty."""
+    if not values:
+        return (float("nan"), float("nan"))
+    lo_pct, hi_pct = _CI_PERCENTILES
+    return (float(np.percentile(values, lo_pct)), float(np.percentile(values, hi_pct)))
