@@ -119,9 +119,13 @@ def _choose_threshold_fit(
     n_large = len({pt.d for pt in cond_points if pt.d >= _ASYMPTOTIC_D_MIN})
     if n_large >= 3:
         return fit_threshold(
-            cond_points, window_factor=window_factor, seed=seed, d_min=_ASYMPTOTIC_D_MIN
+            cond_points,
+            window_factor=window_factor,
+            seed=seed,
+            d_min=_ASYMPTOTIC_D_MIN,
+            metric="round",
         )
-    return fit_threshold(cond_points, window_factor=window_factor, seed=seed)
+    return fit_threshold(cond_points, window_factor=window_factor, seed=seed, metric="round")
 
 
 def _mark_threshold(ax: Axes, fit: FitResult) -> None:

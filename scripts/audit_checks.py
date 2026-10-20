@@ -60,10 +60,10 @@ def _herald_detectors(dem: stim.DetectorErrorModel) -> set[int]:
 def _fit_diagnostics(csv: str, decoder: str, d_min: int | None) -> dict[str, float]:
     """Run the fit and recompute chi^2/dof, window max P_L_shot, and bound-pinning."""
     points = [p for p in load_sweep(csv) if p.decoder == decoder]
-    fit = fit_threshold(points, d_min=d_min)
+    fit = fit_threshold(points, d_min=d_min, metric="round")
     filtered = [p for p in points if d_min is None or p.d >= d_min]
-    center = estimate_crossing(filtered)
-    used: list[SweepPoint] = _select_window(filtered, center, 1.5)
+    center = estimate_crossing(filtered, metric="round")
+    used: list[SweepPoint] = _select_window(filtered, center, 1.5, metric="round")
     out: dict[str, float] = {
         "p_th": fit.p_th,
         "nu": fit.nu,
