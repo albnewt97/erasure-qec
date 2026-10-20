@@ -1,5 +1,6 @@
-# Threshold sweep, erasure-dominated regime: r_e = 0.98 (erasure (unbiased)
-# hardware limit; threshold expected to slide toward ~4-5%).
+# Threshold sweep, erasure-dominated regime: r_e = 0.98 of the two-qubit error
+# budget becomes heralded erasure (unbiased), the rest stays unheralded
+# depolarizing.
 # Rounds are always T = d (docs/archive/PLAN_v1.md §9). herald_mwpm vs blind_mwpm on
 # identical shots is the §10 ablation.
 name: erasure_r98
@@ -8,23 +9,19 @@ distances: [3, 5, 7, 9, 11]
 p_log10_min: -3.0
 p_log10_max: -1.0
 p_points: 13
-# Additive fit-resolution bands bracketing the r_e=0.98 herald crossing.
-# First band (0.030-0.050) was a prediction extrapolated from the measured
-# r_e=0 (~1.4%) and r_e=0.5 (~2.2%) crossings -- it UNDERSHOT under the old
-# (budget-shrinking) noise model, where the crossing sat in [0.050, 0.068]. The
-# corrected constant-budget model (2/3*p*r_e herald rate) RAISES the erasure
-# rate ~33% at r_e=0.98, shifting the herald crossing higher again, so a third
-# band (0.067-0.085) brackets the fixed-model crossing. All bands are kept (the
-# sweep is resumable; sub-threshold points still trace the curve). blind_mwpm
-# crosses much lower, which the log grid + lower bands already resolve. Merged
-# with the log grid (sorted, de-duped).
+# Additive fit-resolution bands, placed around herald per-round crossing
+# estimates: the first band by extrapolation from the r_e = 0 and 0.5 sweeps,
+# the later bands from sweeps under the pre-fix and the constant-budget noise
+# models. All bands are kept (the sweep is resumable). Merged with the log grid
+# (sorted, de-duped).
+# Measured thresholds: results/headline.json (scripts/headline_results.py).
 extra_p: [0.030, 0.035, 0.040, 0.045, 0.050, 0.052, 0.055, 0.058, 0.061, 0.064,
           0.067, 0.070, 0.073, 0.076, 0.080, 0.085]
 max_shots: 100000
 max_errors: 1000
 decoders: [herald_mwpm, blind_mwpm]
 
-# Fixed sub-threshold p for the Lambda scan (below the ~4-5% r_e=0.98 threshold).
+# Fixed p for the Lambda scan (experiments/collect_lambda_scan.py).
 lambda_p: 0.025
 
 # Per-shot densification band, added 2026-10-14 (pre-registered rule, integer
