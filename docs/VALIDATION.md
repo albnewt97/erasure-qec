@@ -120,4 +120,4 @@ Machine: Apple M2 (4 performance + 4 efficiency cores), 8 GiB RAM, macOS. Softwa
 | G5 check | `uv run python scripts/wu_g5_check.py` | 0.95 s, including uv start-up |
 | table, JSON, figure | `uv run python scripts/wu_validation.py` | 29.5 s, including uv start-up |
 
-The six batch wall times (re050 through pm005) are the start and end timestamps in the message of commit 1e71598. The re000 run and the re050 extension have no committed timing record. The G5-check and table times are one run each under `caffeinate -i`, timed with `time uv run` on 2026-10-20 (source: the message of the commit that added this sentence).
+The six batch wall times (re050 through pm005) are the start and end timestamps in the message of commit 1e71598. The re000 run and the re050 extension have no committed timing record. The G5-check and table times are one run each under `caffeinate -i`, timed with `time uv run` on 2026-10-20 (source: the message of commit `17edff9`).
