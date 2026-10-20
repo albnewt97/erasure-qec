@@ -1,0 +1,897 @@
+{
+  "conditions": [
+    {
+      "collapse_shot_dmin7": {
+        "chi2_dof": 1.725360829502477,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "message": "ok",
+        "metric": "shot",
+        "n_boot_failed": 0,
+        "n_points": 36,
+        "nu": 1.3241637386303793,
+        "p_center": 0.01,
+        "p_th": 0.009768332906958246,
+        "p_th_ci95": [
+          0.009575095340220167,
+          0.00998811054865804
+        ],
+        "reason": "ok",
+        "rel_ci_width": 0.04228103325017435,
+        "resolved": true
+      },
+      "data": "data/baseline_pauli.csv",
+      "decoder": "blind_mwpm",
+      "drift": [
+        {
+          "bracket": [
+            0.0105,
+            0.011
+          ],
+          "bracket_max_p_l_shot": 0.09863977932084086,
+          "ci95": [
+            0.009694155232908529,
+            0.010923256017554304
+          ],
+          "d1": 5,
+          "d2": 7,
+          "n_no_crossing": 0,
+          "n_sign_changes": 1,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.010712382834825781
+        },
+        {
+          "bracket": [
+            0.0091,
+            0.01
+          ],
+          "bracket_max_p_l_shot": 0.07442031652557968,
+          "ci95": [
+            0.009026336593891921,
+            0.01060546569168827
+          ],
+          "d1": 7,
+          "d2": 9,
+          "n_no_crossing": 0,
+          "n_sign_changes": 5,
+          "n_sign_changes_unsaturated": 3,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.009624107115328776
+        },
+        {
+          "bracket": [
+            0.01,
+            0.0105
+          ],
+          "bracket_max_p_l_shot": 0.08971136343936899,
+          "ci95": [
+            0.00899486895028018,
+            0.010337534243922884
+          ],
+          "d1": 9,
+          "d2": 11,
+          "n_no_crossing": 0,
+          "n_sign_changes": 3,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.010046530685062031
+        }
+      ],
+      "gap_collapse_minus_pairwise_pp": -0.004396723362522226,
+      "headline": {
+        "bracket": [
+          0.0091,
+          0.01
+        ],
+        "bracket_max_p_l_shot": 0.07375782112624218,
+        "ci95": [
+          0.00946102790474675,
+          0.010184391196741875
+        ],
+        "d1": 7,
+        "d2": 11,
+        "n_no_crossing": 0,
+        "n_sign_changes": 2,
+        "n_sign_changes_unsaturated": 2,
+        "saturated": false,
+        "status": "crossing",
+        "value": 0.009812300140583468
+      },
+      "per_round_secondary": {
+        "chi2_dof": 1.5835365931404037,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "label": "per-round (secondary)",
+        "message": "ok",
+        "metric": "round",
+        "n_boot_failed": 2,
+        "n_points": 33,
+        "nu": 2.14144738182064,
+        "p_center": 0.01467799267622069,
+        "p_th": 0.014389428271286826,
+        "p_th_ci95": [
+          0.013648291161890355,
+          0.01580520897614033
+        ],
+        "reason": "ok",
+        "rel_ci_width": 0.14989600514941684,
+        "resolved": true
+      },
+      "r_e": 0.0
+    },
+    {
+      "collapse_shot_dmin7": {
+        "chi2_dof": 1.168671372390383,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "message": "ok",
+        "metric": "shot",
+        "n_boot_failed": 0,
+        "n_points": 33,
+        "nu": 1.2282641957431986,
+        "p_center": 0.0105,
+        "p_th": 0.00962450645677787,
+        "p_th_ci95": [
+          0.009433687341250803,
+          0.009823500484563909
+        ],
+        "reason": "ok",
+        "rel_ci_width": 0.040502143674971215,
+        "resolved": true
+      },
+      "data": "data/baseline_pauli.csv",
+      "decoder": "herald_mwpm",
+      "drift": [
+        {
+          "bracket": [
+            0.0091,
+            0.01
+          ],
+          "bracket_max_p_l_shot": 0.07420083510164967,
+          "ci95": [
+            0.009097791108273122,
+            0.010255884621559849
+          ],
+          "d1": 5,
+          "d2": 7,
+          "n_no_crossing": 0,
+          "n_sign_changes": 2,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.009721265914288997
+        },
+        {
+          "bracket": [
+            0.01,
+            0.0105
+          ],
+          "bracket_max_p_l_shot": 0.0875444222934905,
+          "ci95": [
+            0.008973998193489529,
+            0.01065419686538692
+          ],
+          "d1": 7,
+          "d2": 9,
+          "n_no_crossing": 0,
+          "n_sign_changes": 1,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.01019765830543978
+        },
+        {
+          "bracket": [
+            0.0091,
+            0.01
+          ],
+          "bracket_max_p_l_shot": 0.07618697092381303,
+          "ci95": [
+            0.008399696088283257,
+            0.010771770389388039
+          ],
+          "d1": 9,
+          "d2": 11,
+          "n_no_crossing": 0,
+          "n_sign_changes": 1,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.00954297164231863
+        }
+      ],
+      "gap_collapse_minus_pairwise_pp": -0.017720451782403043,
+      "headline": {
+        "bracket": [
+          0.0091,
+          0.01
+        ],
+        "bracket_max_p_l_shot": 0.07618697092381303,
+        "ci95": [
+          0.009253802697465046,
+          0.010521965090124668
+        ],
+        "d1": 7,
+        "d2": 11,
+        "n_no_crossing": 0,
+        "n_sign_changes": 1,
+        "n_sign_changes_unsaturated": 1,
+        "saturated": false,
+        "status": "crossing",
+        "value": 0.0098017109746019
+      },
+      "per_round_secondary": {
+        "chi2_dof": 0.921816305197208,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "label": "per-round (secondary)",
+        "message": "ok",
+        "metric": "round",
+        "n_boot_failed": 11,
+        "n_points": 33,
+        "nu": 1.4267003135016545,
+        "p_center": 0.015,
+        "p_th": 0.013726361957285348,
+        "p_th_ci95": [
+          0.013311287642924281,
+          0.014569197231096025
+        ],
+        "reason": "ok",
+        "rel_ci_width": 0.09164187802173618,
+        "resolved": true
+      },
+      "r_e": 0.0
+    },
+    {
+      "collapse_shot_dmin7": {
+        "chi2_dof": 1.0975082743832327,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "message": "ok",
+        "metric": "shot",
+        "n_boot_failed": 0,
+        "n_points": 27,
+        "nu": 1.085094588304614,
+        "p_center": 0.011,
+        "p_th": 0.010865946303859345,
+        "p_th_ci95": [
+          0.010653635696919546,
+          0.011086585923989369
+        ],
+        "reason": "ok",
+        "rel_ci_width": 0.03984468678223159,
+        "resolved": true
+      },
+      "data": "data/erasure_r50.csv",
+      "decoder": "blind_mwpm",
+      "drift": [
+        {
+          "bracket": [
+            0.0103,
+            0.011
+          ],
+          "bracket_max_p_l_shot": 0.07729112992270887,
+          "ci95": [
+            0.00993442344101819,
+            0.010984452455365007
+          ],
+          "d1": 5,
+          "d2": 7,
+          "n_no_crossing": 0,
+          "n_sign_changes": 1,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.010598525181169893
+        },
+        {
+          "bracket": [
+            0.0103,
+            0.011
+          ],
+          "bracket_max_p_l_shot": 0.08016877637130802,
+          "ci95": [
+            0.009383004728885343,
+            0.011271254261378028
+          ],
+          "d1": 7,
+          "d2": 9,
+          "n_no_crossing": 0,
+          "n_sign_changes": 1,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.01076817145091692
+        },
+        {
+          "bracket": [
+            0.01,
+            0.0103
+          ],
+          "bracket_max_p_l_shot": 0.05695379220632317,
+          "ci95": [
+            0.010157574474672155,
+            0.011912549038670216
+          ],
+          "d1": 9,
+          "d2": 11,
+          "n_no_crossing": 0,
+          "n_sign_changes": 5,
+          "n_sign_changes_unsaturated": 3,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.010277837517161622
+        }
+      ],
+      "gap_collapse_minus_pairwise_pp": -0.017024671652539174,
+      "headline": {
+        "bracket": [
+          0.011,
+          0.0118
+        ],
+        "bracket_max_p_l_shot": 0.10320555502710929,
+        "ci95": [
+          0.010275021966411965,
+          0.011362004933807113
+        ],
+        "d1": 7,
+        "d2": 11,
+        "n_no_crossing": 0,
+        "n_sign_changes": 3,
+        "n_sign_changes_unsaturated": 1,
+        "saturated": false,
+        "status": "crossing",
+        "value": 0.011036193020384737
+      },
+      "per_round_secondary": {
+        "chi2_dof": 1.0424975876900926,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "label": "per-round (secondary)",
+        "message": "ok",
+        "metric": "round",
+        "n_boot_failed": 1,
+        "n_points": 42,
+        "nu": 1.4481673815135716,
+        "p_center": 0.01467799267622069,
+        "p_th": 0.014773782488734576,
+        "p_th_ci95": [
+          0.014403240606631182,
+          0.018000000000000002
+        ],
+        "reason": "ok",
+        "rel_ci_width": 0.24345555351931367,
+        "resolved": true
+      },
+      "r_e": 0.5
+    },
+    {
+      "collapse_shot_dmin7": {
+        "chi2_dof": 1.9456241455619219,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "message": "ok",
+        "metric": "shot",
+        "n_boot_failed": 0,
+        "n_points": 36,
+        "nu": 1.3747273759546035,
+        "p_center": 0.0157,
+        "p_th": 0.01572221278730475,
+        "p_th_ci95": [
+          0.01535721789837502,
+          0.016047031405321672
+        ],
+        "reason": "ok",
+        "rel_ci_width": 0.04387509037555182,
+        "resolved": true
+      },
+      "data": "data/erasure_r50.csv",
+      "decoder": "herald_mwpm",
+      "drift": [
+        {
+          "bracket": [
+            0.0157,
+            0.0168
+          ],
+          "bracket_max_p_l_shot": 0.11978735971647962,
+          "ci95": [
+            0.015289030361697535,
+            0.017501190243442245
+          ],
+          "d1": 5,
+          "d2": 7,
+          "n_no_crossing": 0,
+          "n_sign_changes": 1,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.01643306899710193
+        },
+        {
+          "bracket": [
+            0.01467799267622069,
+            0.0157
+          ],
+          "bracket_max_p_l_shot": 0.10073462815739156,
+          "ci95": [
+            0.014336432267283742,
+            0.016832505209905462
+          ],
+          "d1": 7,
+          "d2": 9,
+          "n_no_crossing": 0,
+          "n_sign_changes": 1,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.015566213702682375
+        },
+        {
+          "bracket": [
+            0.0157,
+            0.0168
+          ],
+          "bracket_max_p_l_shot": 0.127784141529846,
+          "ci95": [
+            0.014649716659811777,
+            0.017296747951421606
+          ],
+          "d1": 9,
+          "d2": 11,
+          "n_no_crossing": 0,
+          "n_sign_changes": 3,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.016543716899180088
+        }
+      ],
+      "gap_collapse_minus_pairwise_pp": -0.025019026098441546,
+      "headline": {
+        "bracket": [
+          0.0157,
+          0.0168
+        ],
+        "bracket_max_p_l_shot": 0.127784141529846,
+        "ci95": [
+          0.01497588666969615,
+          0.01689624356300912
+        ],
+        "d1": 7,
+        "d2": 11,
+        "n_no_crossing": 0,
+        "n_sign_changes": 3,
+        "n_sign_changes_unsaturated": 1,
+        "saturated": false,
+        "status": "crossing",
+        "value": 0.015972403048289164
+      },
+      "per_round_secondary": {
+        "chi2_dof": 0.5828289006606047,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "label": "per-round (secondary)",
+        "message": "ok",
+        "metric": "round",
+        "n_boot_failed": 1,
+        "n_points": 27,
+        "nu": 1.9275892260063352,
+        "p_center": 0.024,
+        "p_th": 0.023296826933509342,
+        "p_th_ci95": [
+          0.02212319240005229,
+          0.027322947531741613
+        ],
+        "reason": "ok",
+        "rel_ci_width": 0.22319585180118143,
+        "resolved": true
+      },
+      "r_e": 0.5
+    },
+    {
+      "collapse_shot_dmin7": {
+        "chi2_dof": 1.21435912007263,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "message": "ok",
+        "metric": "shot",
+        "n_boot_failed": 0,
+        "n_points": 24,
+        "nu": 1.085468375269769,
+        "p_center": 0.0123,
+        "p_th": 0.011818212805575318,
+        "p_th_ci95": [
+          0.011579991827975814,
+          0.012064610434815699
+        ],
+        "reason": "ok",
+        "rel_ci_width": 0.04100608229116189,
+        "resolved": true
+      },
+      "data": "data/erasure_r98.csv",
+      "decoder": "blind_mwpm",
+      "drift": [
+        {
+          "bracket": [
+            0.0114,
+            0.0123
+          ],
+          "bracket_max_p_l_shot": 0.0809648913303081,
+          "ci95": [
+            0.011295754509580425,
+            0.013544427039285975
+          ],
+          "d1": 5,
+          "d2": 7,
+          "n_no_crossing": 0,
+          "n_sign_changes": 9,
+          "n_sign_changes_unsaturated": 3,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.0121113126061493
+        },
+        {
+          "bracket": [
+            0.0114,
+            0.0123
+          ],
+          "bracket_max_p_l_shot": 0.08295517872780829,
+          "ci95": [
+            0.01054451305489626,
+            0.012812256536227848
+          ],
+          "d1": 7,
+          "d2": 9,
+          "n_no_crossing": 0,
+          "n_sign_changes": 11,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.012057272201497406
+        },
+        {
+          "bracket": [
+            0.0114,
+            0.0123
+          ],
+          "bracket_max_p_l_shot": 0.08711103406431481,
+          "ci95": [
+            0.011192054990139186,
+            0.012565071526449204
+          ],
+          "d1": 9,
+          "d2": 11,
+          "n_no_crossing": 0,
+          "n_sign_changes": 10,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.011753116294729008
+        }
+      ],
+      "gap_collapse_minus_pairwise_pp": -0.00955379850768965,
+      "headline": {
+        "bracket": [
+          0.0114,
+          0.0123
+        ],
+        "bracket_max_p_l_shot": 0.08711103406431481,
+        "ci95": [
+          0.011527354421021123,
+          0.012318084314422387
+        ],
+        "d1": 7,
+        "d2": 11,
+        "n_no_crossing": 0,
+        "n_sign_changes": 10,
+        "n_sign_changes_unsaturated": 1,
+        "saturated": false,
+        "status": "crossing",
+        "value": 0.011913750790652215
+      },
+      "per_round_secondary": {
+        "chi2_dof": 0.9103702546189659,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "label": "per-round (secondary)",
+        "message": "converged but not resolved: relative CI width 2.37 >= guard 1.0",
+        "metric": "round",
+        "n_boot_failed": 0,
+        "n_points": 27,
+        "nu": 1.7357436080247508,
+        "p_center": 0.01467799267622069,
+        "p_th": 0.016719547576298604,
+        "p_th_ci95": [
+          0.015399999999999999,
+          0.0550000000000513
+        ],
+        "reason": "unresolved_ci",
+        "rel_ci_width": 2.3684851410804746,
+        "resolved": false
+      },
+      "r_e": 0.98
+    },
+    {
+      "collapse_shot_dmin7": {
+        "chi2_dof": 1.3940935448284246,
+        "converged": true,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "message": "ok",
+        "metric": "shot",
+        "n_boot_failed": 0,
+        "n_points": 36,
+        "nu": 1.3596875747223116,
+        "p_center": 0.04,
+        "p_th": 0.03828748282597016,
+        "p_th_ci95": [
+          0.03738759163249898,
+          0.039396841095037875
+        ],
+        "reason": "ok",
+        "rel_ci_width": 0.05247797228330802,
+        "resolved": true
+      },
+      "data": "data/erasure_r98.csv",
+      "decoder": "herald_mwpm",
+      "drift": [
+        {
+          "bracket": [
+            0.0387,
+            0.04
+          ],
+          "bracket_max_p_l_shot": 0.2735317779565567,
+          "ci95": [
+            0.0348191305413463,
+            0.042412640728986845
+          ],
+          "d1": 5,
+          "d2": 7,
+          "n_no_crossing": 0,
+          "n_sign_changes": 5,
+          "n_sign_changes_unsaturated": 3,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.03949358780351139
+        },
+        {
+          "bracket": [
+            0.036,
+            0.0387
+          ],
+          "bracket_max_p_l_shot": 0.26950925181013674,
+          "ci95": [
+            0.03584603861021646,
+            0.0393809102721137
+          ],
+          "d1": 7,
+          "d2": 9,
+          "n_no_crossing": 0,
+          "n_sign_changes": 9,
+          "n_sign_changes_unsaturated": 3,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.03742817465444478
+        },
+        {
+          "bracket": [
+            0.0387,
+            0.04
+          ],
+          "bracket_max_p_l_shot": 0.28966311546213647,
+          "ci95": [
+            0.03525031059786666,
+            0.039923982426010765
+          ],
+          "d1": 9,
+          "d2": 11,
+          "n_no_crossing": 0,
+          "n_sign_changes": 6,
+          "n_sign_changes_unsaturated": 1,
+          "saturated": false,
+          "status": "crossing",
+          "value": 0.03931953086013337
+        }
+      ],
+      "gap_collapse_minus_pairwise_pp": -0.015662689058681956,
+      "headline": {
+        "bracket": [
+          0.036,
+          0.0387
+        ],
+        "bracket_max_p_l_shot": 0.2537313432835821,
+        "ci95": [
+          0.03599839380378387,
+          0.03996825765974542
+        ],
+        "d1": 7,
+        "d2": 11,
+        "n_no_crossing": 0,
+        "n_sign_changes": 4,
+        "n_sign_changes_unsaturated": 1,
+        "saturated": false,
+        "status": "crossing",
+        "value": 0.03844410971655698
+      },
+      "per_round_secondary": {
+        "chi2_dof": 0.6719845054354153,
+        "converged": false,
+        "distances": [
+          7,
+          9,
+          11
+        ],
+        "label": "per-round (secondary)",
+        "message": "not converged: nu at upper bound pinned at optimiser bound",
+        "metric": "round",
+        "n_boot_failed": 0,
+        "n_points": 48,
+        "nu": 5.999999998510385,
+        "p_center": 0.058,
+        "p_th": 0.07935523430492626,
+        "p_th_ci95": [
+          0.051998831465951245,
+          0.08052967436275323
+        ],
+        "reason": "bound_pin",
+        "rel_ci_width": 0.35953321978952085,
+        "resolved": false
+      },
+      "r_e": 0.98
+    }
+  ],
+  "data_sha256": {
+    "data/baseline_pauli.csv": "15f5ee8d0ebbdf43d05be555bcb97ca923cbaec22cd51ae75e12620781cd42d6",
+    "data/erasure_r50.csv": "0670f13df8c44bd80e6e44afd1e332852ae4031b079d0cdac391c110b9b46820",
+    "data/erasure_r98.csv": "faa4e7b94e0d34489e01783fa3820e87825229fde073aacbf89ecd5512f7d9b0"
+  },
+  "description": "headline per-shot (7,11) crossings with drift context, d_min=7 collapse fits (shot; round as secondary) and the herald-minus-blind difference",
+  "generated_by": "scripts/headline_results.py",
+  "git_describe": "abc9d2e",
+  "herald_minus_blind": [
+    {
+      "ci95": [
+        -0.000641468209553722,
+        0.000741378828747252
+      ],
+      "control": true,
+      "data": "data/baseline_pauli.csv",
+      "fraction_missing_or_saturated": 0.0,
+      "n_boot": 1000,
+      "n_missing_or_saturated": 0,
+      "pair": [
+        7,
+        11
+      ],
+      "r_e": 0.0,
+      "seed": 0,
+      "value": -1.0589165981567117e-05
+    },
+    {
+      "ci95": [
+        0.0039663025013851215,
+        0.00603212811450323
+      ],
+      "control": false,
+      "data": "data/erasure_r50.csv",
+      "fraction_missing_or_saturated": 0.0,
+      "n_boot": 1000,
+      "n_missing_or_saturated": 0,
+      "pair": [
+        7,
+        11
+      ],
+      "r_e": 0.5,
+      "seed": 0,
+      "value": 0.004936210027904427
+    },
+    {
+      "ci95": [
+        0.024303533364023917,
+        0.028024451754123426
+      ],
+      "control": false,
+      "data": "data/erasure_r98.csv",
+      "fraction_missing_or_saturated": 0.0,
+      "n_boot": 1000,
+      "n_missing_or_saturated": 0,
+      "pair": [
+        7,
+        11
+      ],
+      "r_e": 0.98,
+      "seed": 0,
+      "value": 0.026530358925904763
+    }
+  ],
+  "markdown": "Headline: per-shot (7,11) pairwise crossing, % [95% CI] (bootstrap, n_boot = 1000, seed = 0); sc / sc_u = n_sign_changes / n_sign_changes_unsaturated; nx = replicates without a crossing; gap = collapse \u2212 pairwise (pp).\n\n| r_e | decoder | (7,11), % [95% CI] | bracket, % | sc / sc_u | nx | collapse d \u2265 7, % [95% CI] | gap (pp) | per-round (secondary), % [95% CI] |\n|---|---|---|---|---|---|---|---|---|\n| 0 | blind_mwpm | 0.981 [0.946, 1.018] | [0.910, 1.000] | 2 / 2 | 0 | 0.977 [0.958, 0.999] | -0.004 | 1.439 [1.365, 1.581] |\n| 0 | herald_mwpm | 0.980 [0.925, 1.052] | [0.910, 1.000] | 1 / 1 | 0 | 0.962 [0.943, 0.982] | -0.018 | 1.373 [1.331, 1.457] |\n| 0.5 | blind_mwpm | 1.104 [1.028, 1.136] | [1.100, 1.180] | 3 / 1 | 0 | 1.087 [1.065, 1.109] | -0.017 | 1.477 [1.440, 1.800] |\n| 0.5 | herald_mwpm | 1.597 [1.498, 1.690] | [1.570, 1.680] | 3 / 1 | 0 | 1.572 [1.536, 1.605] | -0.025 | 2.330 [2.212, 2.732] |\n| 0.98 | blind_mwpm | 1.191 [1.153, 1.232] | [1.140, 1.230] | 10 / 1 | 0 | 1.182 [1.158, 1.206] | -0.010 | 1.672 [1.540, 5.500] (not resolved: unresolved_ci) |\n| 0.98 | herald_mwpm | 3.844 [3.600, 3.997] | [3.600, 3.870] | 4 / 1 | 0 | 3.829 [3.739, 3.940] | -0.016 | 7.936 [5.200, 8.053] (not resolved: bound_pin) |\n\nDrift context: per-shot pairwise crossings of adjacent distances.\n\n| r_e | decoder | (5,7), % [95% CI] (sc_u) | (7,9), % [95% CI] (sc_u) | (9,11), % [95% CI] (sc_u) |\n|---|---|---|---|---|\n| 0 | blind_mwpm | 1.071 [0.969, 1.092] (1) | 0.962 [0.903, 1.061] (3) | 1.005 [0.899, 1.034] (1) |\n| 0 | herald_mwpm | 0.972 [0.910, 1.026] (1) | 1.020 [0.897, 1.065] (1) | 0.954 [0.840, 1.077] (1) |\n| 0.5 | blind_mwpm | 1.060 [0.993, 1.098] (1) | 1.077 [0.938, 1.127] (1) | 1.028 [1.016, 1.191] (3) |\n| 0.5 | herald_mwpm | 1.643 [1.529, 1.750] (1) | 1.557 [1.434, 1.683] (1) | 1.654 [1.465, 1.730] (1) |\n| 0.98 | blind_mwpm | 1.211 [1.130, 1.354] (3) | 1.206 [1.054, 1.281] (1) | 1.175 [1.119, 1.257] (1) |\n| 0.98 | herald_mwpm | 3.949 [3.482, 4.241] (3) | 3.743 [3.585, 3.938] (3) | 3.932 [3.525, 3.992] (1) |\n\nHerald \u2212 blind, per-shot (7,11) crossing, pp [95% CI] (independent resampling of each decoder, n_boot = 1000, seed = 0); missing = replicates in which either crossing is missing or saturated.\n\n| r_e | herald \u2212 blind (pp) | 95% CI (pp) | missing | note |\n|---|---|---|---|---|\n| 0 | -0.001 | [-0.064, 0.074] | 0/1000 | control (no heralds) |\n| 0.5 | 0.494 | [0.397, 0.603] | 0/1000 |  |\n| 0.98 | 2.653 | [2.430, 2.802] | 0/1000 |  |",
+  "parameters": {
+    "ci_percentiles": [
+      2.5,
+      97.5
+    ],
+    "cross_check": "headline, drift and fit values equal results/threshold_table_dense.json",
+    "crossing_rule": "first g<0 -> g>=0, g = ln P_L_shot(d2) - ln P_L_shot(d1), linear in (ln p, g); points with zero rate at either distance skipped",
+    "d_min": 7,
+    "difference_rule": "herald minus blind; each replicate resamples herald then blind points independently from one default_rng(seed) stream; a replicate with either crossing missing or saturated is counted, not used",
+    "drift_pairs": [
+      [
+        5,
+        7
+      ],
+      [
+        7,
+        9
+      ],
+      [
+        9,
+        11
+      ]
+    ],
+    "headline_pair": [
+      7,
+      11
+    ],
+    "metric": "shot",
+    "n_boot": 1000,
+    "saturated_crossing_rule": "a crossing whose bracket has P_L_shot >= saturation_cap at either distance at either bracket point has no value; saturated bootstrap replicates count as no-crossing",
+    "saturation_cap": 0.4,
+    "seed": 0,
+    "window_factor": 1.5
+  },
+  "software": {
+    "numpy": "2.5.1",
+    "pymatching": "2.4.0",
+    "python": "3.14.6",
+    "scipy": "1.18.0",
+    "sinter": "1.16.0",
+    "stim": "1.16.0"
+  }
+}
