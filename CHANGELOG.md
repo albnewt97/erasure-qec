@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.0 (unreleased)
+## v0.2.0 (2026-10-20)
 
 Claim and caveat IDs (C, Y, K, A) refer to [CLAIM_LEDGER.md](docs/archive/remediation/CLAIM_LEDGER.md) and [CAVEAT_LEDGER.md](docs/archive/remediation/CAVEAT_LEDGER.md).
 Numbered items refer to [P7_CARRY_FORWARD.md](docs/archive/remediation/P7_CARRY_FORWARD.md).
@@ -23,6 +23,9 @@ CI endpoints can move in the second decimal with the NumPy version ([METHODS.md]
 - The ablation now covers `p = 0.5%` as well as `p = 1.0%` (`results/ablation.json`, commit `05f59d1`).
   Its blind error counts now run from 52 to 6290, not 3016 to 6290 (C075).
 - CI endpoints print to two decimals, with a footnote that they can move in the second decimal with the NumPy version (C017, K025).
+- The per-round `r_e = 0.98` blind `unresolved_ci` verdict and the cap insensitivity of the per-round fit are re-measured on the dense sweeps (`scripts/per_round_fit_sensitivity.py`, `results/per_round_fit_sensitivity.json`; A010, A020).
+  Excluding bound-pinned bootstrap replicates resolves that fit at 21 of 30 seeds, including seed 0; on the pre-dense sweep it was 9 of 30, not including seed 0 ([AUDIT_HISTORY.md](docs/archive/AUDIT_HISTORY.md)).
+  Each per-round fit keeps its verdict for caps 0.2 to 0.4.
 - The comparison with Wu et al. now uses the `wu2022` convention and the (9,13) per-shot herald crossing (`docs/VALIDATION.md`).
   v0.1 compared a repo-model `d ≥ 7` collapse fit with Wu's reported thresholds, of which the Fig. 3a values come from Wu's (11,15) crossing (C036, item 13).
 
@@ -68,6 +71,10 @@ CI endpoints can move in the second decimal with the NumPy version ([METHODS.md]
   The decoder throughput numbers came from single runs on one machine, with no committed record of the medians.
 - "group: timings and verification records at da47e3a" (C015, C056 timing, C089–C096, C094).
   These runtimes and the 2026-09-06 byte-identity check have no recorded run at the current commit; the README writes "not timed".
+- "re000 35 s" and "re050 extension 7 min 25 s" (Wu collection wall times).
+  They came from log files that are not committed; `docs/VALIDATION.md` now writes "not timed".
+- "Wu et al. used the (11,15) pair" for every comparison.
+  Wu state the (11,15) pair only for their Fig. 3a values, 0.937% and 4.15%.
 - "group: stale YAML comments" (Y002–Y005, Y007–Y016).
   The threshold values in `experiments/configs/*.yaml` comments are removed and point to `results/headline.json` (commit `2c2677e`).
 
@@ -84,8 +91,14 @@ CI endpoints can move in the second decimal with the NumPy version ([METHODS.md]
 - `test_ablation_herald_beats_blind_on_biased_erasure_circuit` is renamed `test_ablation_herald_beats_blind_on_erasure_circuit` (commit `bf13a56`).
 - ruff now targets Python 3.12, matching `requires-python` (commit `be1e9e0`).
 
+### Added
+
+- `scripts/reproduce.sh` with three tiers: `fast` (fast tests, README tables, figures), `analysis` (every analysis script in a throwaway clone, compared with `results/*.json`) and `collect` (prints the sampling commands).
+- `CITATION.cff`, and package metadata in `pyproject.toml` (author, URLs, classifiers).
+
 ### Archived
 
 - `PLAN.md`, `docs/AUDIT.md` and `docs/DEVLOG.md` moved to [docs/archive/](docs/archive/README.md) as `PLAN_v1.md`, `AUDIT_HISTORY.md` and `DEVLOG.md` (commit `a82af5d`).
   Methods now live in [docs/METHODS.md](docs/METHODS.md) (K006).
+- `docs/remediation/` moved to [docs/archive/remediation/](docs/archive/remediation/CAVEAT_LEDGER.md); the ledgers are provenance, not user documentation.
 - `scripts/paired_separation.py` reproduces its recorded output only at `da47e3a`, and `scripts/audit_checks.py` reproduces the archived audit table (item 14).
