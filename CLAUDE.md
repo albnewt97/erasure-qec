@@ -12,7 +12,7 @@ conventions: the repo's constant non-identity budget (data/*.csv) and wu2022
   from a committed script or results/*.json. README result tables are
   rendered by scripts/render_readme_tables.py; never hand-edit them.
 - Never drop a caveat that qualifies a number that is still published.
-  docs/remediation/CAVEAT_LEDGER.md is the checklist.
+  docs/archive/remediation/CAVEAT_LEDGER.md is the checklist.
 - Report observations before diagnoses. When you propose a mechanism, say
   what result would falsify it. Do not claim a cause you did not test.
 - Do not describe results with evaluative adjectives (robust, honest,

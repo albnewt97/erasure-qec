@@ -153,7 +153,7 @@ CI endpoints can move in the second decimal with the NumPy version.
 ![Wu validation](figures/wu_validation.png)
 
 Wu's value lies inside our 95% CI for `R_e = 1` only, and outside it for the four other tabulated configs.
-The `d` pair (9,13) was set by a pre-registered memory rule ([WU_DPAIR_DECISION.md](docs/remediation/WU_DPAIR_DECISION.md)).
+The `d` pair (9,13) was set by a pre-registered memory rule ([WU_DPAIR_DECISION.md](docs/archive/remediation/WU_DPAIR_DECISION.md)).
 Wu's Fig. 3a values, 0.937% and 4.15%, come from their (11,15) crossing; Wu do not state the pair behind 5.13% or the SI S6 values.
 Wu simulate the planar XZZX code [[10]](#references); we simulate the rotated CSS code.
 Wu state that the XZZX code "performs identically to the standard surface code for the case of unbiased noise".
@@ -237,7 +237,7 @@ scripts/             # analyses that write results/*.json, the README table rend
 results/             # JSON outputs with git describe, software versions and data sha256
 data/                # committed sweeps: *.csv (repo convention), wu/*.csv (wu2022)
 figures/             # committed figures
-docs/                # METHODS.md, VALIDATION.md, FUTURE_WORK.md, dem_worksheet.md, remediation/, archive/
+docs/                # METHODS.md, VALIDATION.md, FUTURE_WORK.md, dem_worksheet.md, archive/ (with remediation/)
 tests/               # pytest suite; fixtures/ holds pinned CSVs
 ```
 

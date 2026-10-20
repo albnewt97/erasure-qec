@@ -13,7 +13,7 @@ The noise model follows Wu et al., Sec. III and Methods, Sec. VII.A (convention 
 
 The circuit is a rotated CSS surface-code Z memory with T = d rounds and d ∈ {7, 9, 13}. Each (d, p) task ran to 100 000 shots or 1000 logical failures, whichever came first. The seven configs (`experiments/configs/wu/*.yaml`) are five at p_m = 0 and two at R_e = 0.98. The five at p_m = 0 are re000 (R_e = 0), re050 (0.5), re090 (0.9), re098 (0.98) and re100 (1.0). The two at R_e = 0.98 are pm005 (p_m = 0.005) and pmp (p_m = p).
 
-The re050 grid was extended once by the pre-registered edge rule ([WU_DPAIR_DECISION.md](remediation/WU_DPAIR_DECISION.md#edge-rule-for-scaled-grids-decided-2026-10-16-before-any-wu-data)). On its 11-point base grid the (9,13) herald curves did not cross. There g = ln P_L(13) − ln P_L(9) was +0.044 at the lowest point, p = 1.76% (the `g` list in the JSON). That is the rule's lower-edge case, so p = 1.46%, 1.56% and 1.66% were added below the grid (commits 0ee7559 and 2668f5e). On the extended grid the bracket is interior, and no other config's herald bracket touches an edge.
+The re050 grid was extended once by the pre-registered edge rule ([WU_DPAIR_DECISION.md](archive/remediation/WU_DPAIR_DECISION.md#edge-rule-for-scaled-grids-decided-2026-10-16-before-any-wu-data)). On its 11-point base grid the (9,13) herald curves did not cross. There g = ln P_L(13) − ln P_L(9) was +0.044 at the lowest point, p = 1.76% (the `g` list in the JSON). That is the rule's lower-edge case, so p = 1.46%, 1.56% and 1.66% were added below the grid (commits 0ee7559 and 2668f5e). On the extended grid the bracket is interior, and no other config's herald bracket touches an edge.
 
 ## How it was decoded
 
@@ -91,7 +91,7 @@ The re000 herald (9,13) crossing, 1.049%, sits at the upper edge of its bracket 
 
 ## Differences from Wu et al.
 
-1. Finite-size window: we use the (9,13) crossing. Wu's Fig. 3a values, 0.937% and 4.15%, come from the (11,15) crossing; Wu do not state the pair behind 5.13% or the SI S6 values. Our pair was set by a pre-registered memory rule ([WU_DPAIR_DECISION.md](remediation/WU_DPAIR_DECISION.md)). The shift from the (7,9) to the (9,13) herald crossing was measured for every config (table after this list). Wu's (11,15) window was not simulated, and no extrapolation to it is made.
+1. Finite-size window: we use the (9,13) crossing. Wu's Fig. 3a values, 0.937% and 4.15%, come from the (11,15) crossing; Wu do not state the pair behind 5.13% or the SI S6 values. Our pair was set by a pre-registered memory rule ([WU_DPAIR_DECISION.md](archive/remediation/WU_DPAIR_DECISION.md)). The shift from the (7,9) to the (9,13) herald crossing was measured for every config (table after this list). Wu's (11,15) window was not simulated, and no extrapolation to it is made.
 2. Decoder: we use MWPM with heralded edges at weight 0, where Wu used weighted Union-Find, which they describe as optimal for pure erasure. Effect not measured.
 3. Code and circuit: we use the rotated CSS surface code with noiseless H gates, where Wu used the planar XZZX code with native CZ/CNOT. Wu state that the two perform identically under unbiased noise. Effect not measured.
 4. Decoder noise model: our sampler is exclusive per gate, as in Wu. Our decoder's model treats Pauli and erasure as independent channels. Effect not measured.

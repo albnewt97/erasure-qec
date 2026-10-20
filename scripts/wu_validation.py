@@ -24,7 +24,7 @@ share a strong_id). For each config and decoder (wu_herald_mwpm, wu_blind_mwpm):
   reported as BLIND_BELOW. No off-grid value or CI is given;
 - fit_threshold(metric="shot", d_min=7, window_factor=1.5, n_boot=1000,
   seed=0) and the gap (collapse - (9,13) pairwise) in percentage points;
-- for wu_herald_mwpm: the edge-rule check of docs/remediation/WU_DPAIR_DECISION.md
+- for wu_herald_mwpm: the edge-rule check of docs/archive/remediation/WU_DPAIR_DECISION.md
   on the config's full grid (p_values plus extra_p_edge), Wu's reference value,
   ours - Wu in pp and whether Wu's value lies inside our (9,13) 95% CI.
 

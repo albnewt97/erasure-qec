@@ -208,7 +208,7 @@ All bands are merged into the grid (union, sorted, de-duplicated).
 
 The `wu2022` grids are either fixed steps or `round(c·f, 4)` with `c` the (5,7) crossing of `scripts/wu_coarse_scan.py`.
 If a (9,13) herald bracket touches a grid end, 3 points are added beyond that end, at most once per config.
-That edge rule was fixed before any Wu data ([WU_DPAIR_DECISION.md](remediation/WU_DPAIR_DECISION.md#edge-rule-for-scaled-grids-decided-2026-10-16-before-any-wu-data)).
+That edge rule was fixed before any Wu data ([WU_DPAIR_DECISION.md](archive/remediation/WU_DPAIR_DECISION.md#edge-rule-for-scaled-grids-decided-2026-10-16-before-any-wu-data)).
 
 ## Statistics gates
 
@@ -231,7 +231,7 @@ The bound is per cell, unpaired, and nominal at small counts, where Wilson cover
 ## Heralded fraction
 
 `scripts/heralded_fraction.py` reports the share of DEM error mass that fires at least one herald.
-It is a deterministic sum over the DEM, at `d = 5` and `p = 0.02` (`docs/remediation/baseline_outputs/heralded_fraction.txt`).
+It is a deterministic sum over the DEM, at `d = 5` and `p = 0.02` (`docs/archive/remediation/baseline_outputs/heralded_fraction.txt`).
 With gate-only conversion it is 0.23 at `r_e = 0.5` and 0.45 at `r_e = 0.98`.
 With `convert_idle` it is 0.32 and 0.63.
 The sum excludes no-op herald branches from numerator and denominator.
@@ -275,7 +275,7 @@ The repo-model sweeps use `uv run python experiments/collect_threshold_sweep.py 
 The Wu sweeps use `experiments/collect_wu.py`; their recorded wall times are in [VALIDATION.md](VALIDATION.md#reproduce).
 
 Two legacy scripts are not part of the current results.
-`scripts/paired_separation.py` reproduces its recorded output (`docs/remediation/baseline_outputs/paired_separation.txt`) only at commit `da47e3a`.
+`scripts/paired_separation.py` reproduces its recorded output (`docs/archive/remediation/baseline_outputs/paired_separation.txt`) only at commit `da47e3a`.
 `scripts/audit_checks.py` reproduces the archived audit table in [archive/AUDIT_HISTORY.md](archive/AUDIT_HISTORY.md), and its expected column is the pre-fix baseline.
 Neither reproduces a number published in README.md.
 

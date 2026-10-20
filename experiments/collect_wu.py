@@ -71,7 +71,7 @@ def load_wu_config(path: str | Path) -> WuConfig:
     """Parse one experiments/configs/wu/*.yaml file; requires ``convention: wu2022``.
 
     The optional ``extra_p_edge`` list (points appended by the edge rule,
-    docs/remediation/WU_DPAIR_DECISION.md) is merged with ``p_values``, sorted
+    docs/archive/remediation/WU_DPAIR_DECISION.md) is merged with ``p_values``, sorted
     and de-duplicated, as ``extra_p`` is in
     :func:`erasure_qec.config.load_experiment_config`.
     """

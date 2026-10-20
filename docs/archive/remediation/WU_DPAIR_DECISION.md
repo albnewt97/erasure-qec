@@ -2,7 +2,7 @@
 
 Written and committed before any Wu data exist (`data/wu/` does not exist at this commit).
 Every number below is printed by `scripts/wu_projection.py`; the full output is
-`docs/remediation/baseline_outputs/wu_projection.txt`.
+`docs/archive/remediation/baseline_outputs/wu_projection.txt`.
 Machine: Apple M2 (4 performance + 4 efficiency cores), 8.0 GiB RAM; stim 1.16.0,
 pymatching 2.4.0, sinter 1.16.0.
 

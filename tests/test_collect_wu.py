@@ -154,7 +154,7 @@ def test_config_dir_holds_exactly_the_seven_configs() -> None:
     assert {p.stem for p in CONFIG_DIR.glob("*.yaml")} == set(EXPECTED_COUNTS)
 
 
-# Edge rule for scaled grids, docs/remediation/WU_DPAIR_DECISION.md (2026-10-16).
+# Edge rule for scaled grids, docs/archive/remediation/WU_DPAIR_DECISION.md (2026-10-16).
 SCALED_C = {"wu_fig3b_re050": 0.021946, "wu_fig3b_re090": 0.032103}
 EDGE_UPPER_F = (1.295, 1.340, 1.385)
 EDGE_LOWER_F = (0.755, 0.710, 0.665)

@@ -134,7 +134,7 @@ A sweep with `convert_idle = True` would model a platform whose erasures occur d
 
 ### A (11,15) Wu run
 
-The Wu validation uses the (9,13) pair, set by a memory rule (docs/remediation/WU_DPAIR_DECISION.md).
+The Wu validation uses the (9,13) pair, set by a memory rule (docs/archive/remediation/WU_DPAIR_DECISION.md).
 The (11,15) pair, which Wu used for their Fig. 3a values, failed that rule on memory for three configs.
 A run on a machine with more memory would remove difference 1 of docs/VALIDATION.md.
 

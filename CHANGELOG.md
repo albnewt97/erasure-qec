@@ -2,8 +2,8 @@
 
 ## v0.2.0 (unreleased)
 
-Claim and caveat IDs (C, Y, K, A) refer to [CLAIM_LEDGER.md](docs/remediation/CLAIM_LEDGER.md) and [CAVEAT_LEDGER.md](docs/remediation/CAVEAT_LEDGER.md).
-Numbered items refer to [P7_CARRY_FORWARD.md](docs/remediation/P7_CARRY_FORWARD.md).
+Claim and caveat IDs (C, Y, K, A) refer to [CLAIM_LEDGER.md](docs/archive/remediation/CLAIM_LEDGER.md) and [CAVEAT_LEDGER.md](docs/archive/remediation/CAVEAT_LEDGER.md).
+Numbered items refer to [P7_CARRY_FORWARD.md](docs/archive/remediation/P7_CARRY_FORWARD.md).
 v0.1 means the README at commit `da47e3a`.
 
 ### Changed claims
