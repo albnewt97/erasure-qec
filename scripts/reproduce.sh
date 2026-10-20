@@ -14,6 +14,7 @@
 #
 # analysis runs HEAD only: uncommitted changes are not included. Each analysis script
 # refuses a dirty work tree, so the clone commits each script's output before the next.
+# analysis tier: <to be filled>
 #
 # collect prints the commands that sample new shots: the sweeps behind data/*.csv and
 # data/wu/*.csv, and the ablation. Collection appends to the committed CSVs; only the

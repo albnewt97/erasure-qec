@@ -47,6 +47,10 @@ Neither modifies the work tree.
 The sweeps cannot be regenerated shot for shot, because `sinter.collect` takes no seed.
 `scripts/reproduce.sh collect` prints the collection commands.
 
+## Known limitations of this release
+
+The machine description quoted with the wall times (Apple M2, 4 performance + 4 efficiency cores, 8 GiB RAM) is not recorded in any results JSON or script.
+
 ## Upgrading from v0.1
 
 v0.1 numbers should not be quoted.
