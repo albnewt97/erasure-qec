@@ -114,6 +114,7 @@ The `Λ` notation is not from that paper; the citation supports the suppression 
 `lambda_factor` bootstraps `Λ` with binomial resampling at both distances.
 It excludes replicates whose `d + 2` draw has zero errors rather than propagating `+∞`, and counts them as `n_boot_dropped`.
 The exclusion can only lower the upper CI endpoint.
+The `lambda_p` values in `experiments/configs/erasure_r50.yaml` (1.5%) and `erasure_r98.yaml` (2.5%) lie above the per-shot blind (7,11) thresholds in `results/headline.json` (1.10% [1.03, 1.14] at `r_e = 0.5`, 1.19% [1.15, 1.23] at `r_e = 0.98`), and no committed result uses `experiments/collect_lambda_scan.py` output, since no `data/*_lambda.csv` is committed and every `Λ` here comes from the threshold sweeps or `results/ablation.json`.
 
 ## Crossing estimator
 
