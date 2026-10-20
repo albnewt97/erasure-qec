@@ -1,5 +1,6 @@
 """Threshold-fit recovery and window rule (PLAN.md §10)."""
 
+import inspect
 import math
 from pathlib import Path
 
@@ -49,7 +50,7 @@ def _quadratic_points(shots: int = 400_000) -> list[SweepPoint]:
 
 def test_recovers_known_p_th_from_ansatz() -> None:
     points = _quadratic_points()
-    result = fit_threshold(points, window_factor=1.4, n_boot=200, seed=0)
+    result = fit_threshold(points, window_factor=1.4, n_boot=200, seed=0, metric="round")
     assert result.converged, result.message
     # p_th recovered within a few bootstrap sigma of the injected value.
     assert abs(result.p_th - TRUE_P_TH) < 3 * result.p_th_err + 1e-4
@@ -58,13 +59,15 @@ def test_recovers_known_p_th_from_ansatz() -> None:
 
 
 def test_crossing_estimate_near_true_threshold() -> None:
-    assert estimate_crossing(_quadratic_points()) == pytest.approx(TRUE_P_TH, rel=0.35)
+    assert estimate_crossing(_quadratic_points(), metric="round") == pytest.approx(
+        TRUE_P_TH, rel=0.35
+    )
 
 
 def test_window_rule_limits_points_and_is_recorded() -> None:
     points = _quadratic_points()
-    narrow = fit_threshold(points, window_factor=1.1, n_boot=50, seed=0)
-    wide = fit_threshold(points, window_factor=1.3, n_boot=50, seed=0)
+    narrow = fit_threshold(points, window_factor=1.1, n_boot=50, seed=0, metric="round")
+    wide = fit_threshold(points, window_factor=1.3, n_boot=50, seed=0, metric="round")
     # A wider window admits at least as many points; the factor is recorded.
     assert wide.n_points >= narrow.n_points
     assert narrow.window_factor == 1.1 and wide.window_factor == 1.3
@@ -72,7 +75,7 @@ def test_window_rule_limits_points_and_is_recorded() -> None:
 
 def test_fit_degrades_gracefully_on_insufficient_data() -> None:
     one_curve = [SweepPoint("herald_mwpm", 3, 3, p, 0.5, 10000, 100) for p in (0.01, 0.02)]
-    result = fit_threshold(one_curve)
+    result = fit_threshold(one_curve, metric="round")
     assert not result.converged
     assert "insufficient" in result.message
 
@@ -93,7 +96,7 @@ def test_fits_synthetic_fixtures(name: str) -> None:
         "synthetic_erasure_r98": 0.045,
     }[name]
     points = [p for p in load_sweep(FIXTURES / f"{name}.csv") if p.decoder == "herald_mwpm"]
-    result = fit_threshold(points, window_factor=1.6, n_boot=60, seed=0)
+    result = fit_threshold(points, window_factor=1.6, n_boot=60, seed=0, metric="round")
     assert result.converged, result.message
     assert result.p_th == pytest.approx(injected, rel=0.15)
 
@@ -113,7 +116,7 @@ def test_fitter_rejects_adversarial_saturated_fixture() -> None:
     for decoder in ("herald_mwpm", "blind_mwpm"):
         sub = [p for p in points if p.decoder == decoder]
         for d_min in (7, None):
-            result = fit_threshold(sub, d_min=d_min)
+            result = fit_threshold(sub, d_min=d_min, metric="round")
             assert not result.converged, (decoder, d_min, result.p_th, result.message)
             assert not result.resolved, (decoder, d_min)
             assert result.reason == expected_reason[d_min], (
@@ -137,7 +140,7 @@ def test_real_r98_herald_not_resolved_via_nu_pinning() -> None:
     point-fit property (n_boot-independent). Pin the *guard* (bound_pin, on nu),
     not just converged=False -- removing nu-pin detection must fail here even if
     some other guard happened to also reject the fit."""
-    result = fit_threshold(_real_r98("herald_mwpm"), d_min=7, n_boot=0)
+    result = fit_threshold(_real_r98("herald_mwpm"), d_min=7, n_boot=0, metric="round")
     assert not result.converged
     assert not result.resolved
     assert result.reason == "bound_pin", (result.reason, result.message)
@@ -151,7 +154,7 @@ def test_real_r98_blind_not_resolved_via_wide_ci() -> None:
     a threshold -- resolved=False via the CI-width guard. Pin the *guard*
     (unresolved_ci) so a refactor that made the CI narrow, or dropped the guard,
     fails here."""
-    result = fit_threshold(_real_r98("blind_mwpm"), d_min=7, n_boot=1000, seed=0)
+    result = fit_threshold(_real_r98("blind_mwpm"), d_min=7, n_boot=1000, seed=0, metric="round")
     assert result.converged  # the optimiser DID return a usable fit ...
     assert not result.resolved  # ... but it does not resolve a threshold
     assert result.reason == "unresolved_ci", (result.reason, result.message)
@@ -206,7 +209,7 @@ def test_dense_grid_recovers_nu_for_both_decoders() -> None:
     window) recovers nu in [1.2, 1.8] for BOTH herald and blind decoders. This
     is why baseline_pauli.yaml adds the dense extra_p band."""
     for decoder, penalty in (("herald_mwpm", 1.0), ("blind_mwpm", 1.15)):
-        result = fit_threshold(_dense_quadratic_sweep(decoder, penalty=penalty))
+        result = fit_threshold(_dense_quadratic_sweep(decoder, penalty=penalty), metric="round")
         assert result.converged, (decoder, result.message)
         assert 1.2 <= result.nu <= 1.8, (decoder, result.nu)
         assert result.p_th == pytest.approx(0.015, abs=0.002), (decoder, result.p_th)
@@ -217,7 +220,7 @@ def test_dense_grid_recovers_nu_for_both_decoders() -> None:
 def test_estimate_crossing_on_real_baseline_is_near_threshold() -> None:
     """estimate_crossing must find the true ~1.5% crossing, NOT the low edge of
     the p-grid where the deep-sub-threshold curves all vanish together."""
-    crossing = estimate_crossing(_real_baseline("herald_mwpm"))
+    crossing = estimate_crossing(_real_baseline("herald_mwpm"), metric="round")
     assert 0.012 <= crossing <= 0.020, crossing
 
 
@@ -232,8 +235,8 @@ def test_default_fit_on_real_baseline_recovers_threshold() -> None:
     distances: it is inflated above the physical value (~2.2 for herald here),
     which is exactly why we report the asymptotic d>=7 fit instead (see
     :func:`test_asymptotic_d_min_fit_on_real_baseline`)."""
-    herald = fit_threshold(_real_baseline("herald_mwpm"))
-    blind = fit_threshold(_real_baseline("blind_mwpm"))
+    herald = fit_threshold(_real_baseline("herald_mwpm"), metric="round")
+    blind = fit_threshold(_real_baseline("blind_mwpm"), metric="round")
 
     assert herald.converged and blind.converged
     # Both all-d effective crossings sit in-band around the ~1.4-1.8% region.
@@ -244,8 +247,8 @@ def test_default_fit_on_real_baseline_recovers_threshold() -> None:
     # and the all-d effective nu is inflated above the asymptotic nu by the
     # finite-size corrections that d_min=7 removes (rather than asserting a
     # magic band on the physically meaningless all-d nu).
-    herald7 = fit_threshold(_real_baseline("herald_mwpm"), d_min=7)
-    blind7 = fit_threshold(_real_baseline("blind_mwpm"), d_min=7)
+    herald7 = fit_threshold(_real_baseline("herald_mwpm"), d_min=7, metric="round")
+    blind7 = fit_threshold(_real_baseline("blind_mwpm"), d_min=7, metric="round")
     assert herald.nu > herald7.nu, (herald.nu, herald7.nu)
     assert abs(herald7.p_th - blind7.p_th) <= herald7.p_th_err + blind7.p_th_err
 
@@ -254,7 +257,7 @@ def test_asymptotic_d_min_fit_on_real_baseline() -> None:
     """Dropping the small distances (largest finite-size corrections) via
     d_min=7 gives the asymptotic threshold ~1.4% with a physical nu, lower than
     the all-d effective crossing (~1.7%, finite-size drift)."""
-    result = fit_threshold(_real_baseline("herald_mwpm"), d_min=7)
+    result = fit_threshold(_real_baseline("herald_mwpm"), d_min=7, metric="round")
     assert result.converged, result.message
     assert result.d_min == 7
     assert result.distances == (7, 9, 11)
@@ -320,7 +323,7 @@ def test_bootstrap_ci_covers_known_p_th_at_nominal_rate() -> None:
     n_converged = 0
     rel_widths: list[float] = []
     for i in range(n_real):
-        fit = fit_threshold(_noisy_realization(rng), n_boot=100, seed=i)
+        fit = fit_threshold(_noisy_realization(rng), n_boot=100, seed=i, metric="round")
         if not fit.converged:
             continue
         n_converged += 1
@@ -346,8 +349,8 @@ def test_estimate_crossing_r50_not_pulled_by_saturated_tail() -> None:
     of the true crossing. The ordering-inversion guard must reject the
     above-threshold region and land the estimate at the transition (~2.6%
     herald, ~2.0% blind under the fixed model)."""
-    herald = estimate_crossing(_real_erasure_r50("herald_mwpm"))
-    blind = estimate_crossing(_real_erasure_r50("blind_mwpm"))
+    herald = estimate_crossing(_real_erasure_r50("herald_mwpm"), metric="round")
+    blind = estimate_crossing(_real_erasure_r50("blind_mwpm"), metric="round")
     assert 0.022 <= herald <= 0.030, herald
     assert 0.016 <= blind <= 0.024, blind
 
@@ -449,6 +452,7 @@ def test_paired_bootstrap_ci_covers_known_delta() -> None:
             joint_counts=realized,  # type: ignore[arg-type]
             n_boot=150,
             seed=i,
+            metric="round",
         )
         if not r.converged:
             continue
@@ -468,9 +472,11 @@ def test_paired_ci_narrower_than_naive_marginal_difference() -> None:
     narrower than the interval you'd get by naively differencing the two
     marginal CIs (whose width is the SUM of the marginal widths)."""
     joint, herald, blind = _paired_synthetic(0.020, 0.017, shots=40_000)
-    diff = bootstrap_threshold_difference(herald, blind, joint_counts=joint, n_boot=400, seed=2)
-    herald_fit = fit_threshold(herald, n_boot=400, seed=2)
-    blind_fit = fit_threshold(blind, n_boot=400, seed=2)
+    diff = bootstrap_threshold_difference(
+        herald, blind, joint_counts=joint, n_boot=400, seed=2, metric="round"
+    )
+    herald_fit = fit_threshold(herald, n_boot=400, seed=2, metric="round")
+    blind_fit = fit_threshold(blind, n_boot=400, seed=2, metric="round")
     naive_width = _ci_width(herald_fit) + _ci_width(blind_fit)
     paired_width = diff.delta_ci[1] - diff.delta_ci[0]
     assert diff.converged
@@ -483,9 +489,11 @@ def test_shuffled_pairing_widens_ci() -> None:
     silently ignored the correlation, both CIs would match."""
     joint, herald, blind = _paired_synthetic(0.020, 0.017, shots=40_000)
     shuffled = _decorrelate(joint)
-    paired = bootstrap_threshold_difference(herald, blind, joint_counts=joint, n_boot=400, seed=3)
+    paired = bootstrap_threshold_difference(
+        herald, blind, joint_counts=joint, n_boot=400, seed=3, metric="round"
+    )
     unpaired = bootstrap_threshold_difference(
-        herald, blind, joint_counts=shuffled, n_boot=400, seed=3
+        herald, blind, joint_counts=shuffled, n_boot=400, seed=3, metric="round"
     )
     w_paired = paired.delta_ci[1] - paired.delta_ci[0]
     w_shuffled = unpaired.delta_ci[1] - unpaired.delta_ci[0]
@@ -501,7 +509,7 @@ def test_real_baseline_delta_is_control_consistent_with_zero() -> None:
     pts = load_sweep(FIXTURES / "real_baseline_pauli.csv")
     herald = [p for p in pts if p.decoder == "herald_mwpm"]
     blind = [p for p in pts if p.decoder == "blind_mwpm"]
-    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=400, seed=0)
+    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=400, seed=0, metric="round")
     assert r.converged, r.message
     assert not r.excludes_zero, (r.delta, r.delta_ci)
     assert r.delta_ci[0] <= 0.0 <= r.delta_ci[1], r.delta_ci
@@ -516,7 +524,7 @@ def test_real_r50_delta_excludes_zero_significant_separation() -> None:
     pts = load_sweep(FIXTURES / "real_erasure_r50.csv")
     herald = [p for p in pts if p.decoder == "herald_mwpm"]
     blind = [p for p in pts if p.decoder == "blind_mwpm"]
-    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=400, seed=0)
+    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=400, seed=0, metric="round")
     assert r.converged, r.message
     assert r.excludes_zero, (r.delta, r.delta_ci)
     assert r.delta < 0.0 and r.delta_ci[1] < 0.0, (r.delta, r.delta_ci)
@@ -622,7 +630,7 @@ def test_r50_discards_not_mar_but_significance_survives_tipping_point() -> None:
     pts = load_sweep(FIXTURES / "real_erasure_r50.csv")
     herald = [p for p in pts if p.decoder == "herald_mwpm"]
     blind = [p for p in pts if p.decoder == "blind_mwpm"]
-    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=1000, seed=0)
+    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=1000, seed=0, metric="round")
     assert r.n_paired_failed > 0 and r.failures
 
     # Almost all discards are bound-pinning (informative), not sparse windows,
@@ -656,7 +664,7 @@ def test_baseline_control_discards_are_missing_at_random() -> None:
     pts = load_sweep(FIXTURES / "real_baseline_pauli.csv")
     herald = [p for p in pts if p.decoder == "herald_mwpm"]
     blind = [p for p in pts if p.decoder == "blind_mwpm"]
-    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=1000, seed=0)
+    r = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=1000, seed=0, metric="round")
     failed_blind, success_blind = failed_vs_success_pth(r, "blind")
     assert abs(float(np.median(failed_blind)) - float(np.median(success_blind))) < 0.002
     assert not r.excludes_zero  # control: Delta consistent with zero
@@ -697,26 +705,26 @@ def _fit_fields(r: FitResult) -> tuple[object, ...]:
     )
 
 
-def test_default_metric_is_round_and_unchanged() -> None:
-    """Omitting `metric` and passing metric="round" give the identical fit."""
+def test_default_metric_is_shot_and_unchanged() -> None:
+    """Omitting `metric` and passing metric="shot" give the identical fit."""
     pts = [
         p for p in load_sweep(FIXTURES / "real_baseline_pauli.csv") if p.decoder == "herald_mwpm"
     ]
     default = fit_threshold(pts, d_min=7, n_boot=50, seed=0)
-    explicit = fit_threshold(pts, d_min=7, n_boot=50, seed=0, metric="round")
-    assert default.metric == explicit.metric == "round"
+    explicit = fit_threshold(pts, d_min=7, n_boot=50, seed=0, metric="shot")
+    assert default.metric == explicit.metric == "shot"
     assert _fit_fields(default) == _fit_fields(explicit)
 
 
-def test_default_difference_metric_is_round_and_unchanged() -> None:
+def test_default_difference_metric_is_shot_and_unchanged() -> None:
     pts = load_sweep(FIXTURES / "real_erasure_r50.csv")
     herald = [p for p in pts if p.decoder == "herald_mwpm"]
     blind = [p for p in pts if p.decoder == "blind_mwpm"]
     default = bootstrap_threshold_difference(herald, blind, d_min=7, n_boot=20, seed=0)
     explicit = bootstrap_threshold_difference(
-        herald, blind, d_min=7, n_boot=20, seed=0, metric="round"
+        herald, blind, d_min=7, n_boot=20, seed=0, metric="shot"
     )
-    assert default.metric == explicit.metric == "round"
+    assert default.metric == explicit.metric == "shot"
     assert (default.delta, default.delta_ci, default.n_paired_failed) == (
         explicit.delta,
         explicit.delta_ci,
@@ -746,4 +754,13 @@ def test_estimate_crossing_uses_requested_metric() -> None:
     """Shot curves coincide exactly at p = 0.01; per-round curves do not."""
     pts = _sigmoid_shot_points()
     assert estimate_crossing(pts, metric="shot") == 0.01
-    assert estimate_crossing(pts) != 0.01
+    assert estimate_crossing(pts, metric="round") != 0.01
+
+
+def test_public_defaults_are_shot() -> None:
+    """fit_threshold, bootstrap_threshold_difference and estimate_crossing default to "shot"."""
+    for func in (fit_threshold, bootstrap_threshold_difference, estimate_crossing):
+        assert inspect.signature(func).parameters["metric"].default == "shot", func.__name__
+    pts = _sigmoid_shot_points()
+    assert fit_threshold(pts, n_boot=0).metric == "shot"
+    assert estimate_crossing(pts) == estimate_crossing(pts, metric="shot") == 0.01

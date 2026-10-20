@@ -1,14 +1,15 @@
 """Finite-size scaling threshold fit (PLAN.md §10).
 
-Near the threshold the per-round logical rate collapses onto a universal curve
-of the single scaling variable ``x = (p - p_th) * d^(1/nu)``. We fit the
-quadratic ansatz
+Near the threshold the logical rate of the fitted ``metric`` (per-shot
+``P_L_shot`` by default, per-round ``p_L`` with ``metric="round"``; see below)
+collapses onto a universal curve of the single scaling variable
+``x = (p - p_th) * d^(1/nu)``. We fit the quadratic ansatz
 
     p_L(p, d) = A + B x + C x^2
 
 for the five parameters ``(p_th, nu, A, B, C)`` by weighted least squares
 (``scipy.optimize.curve_fit``), with per-point weights from the Wilson
-half-width of the per-round rate.
+half-width of that rate.
 
 Data-window selection rule
 --------------------------
@@ -19,7 +20,7 @@ of an initial crossing estimate ``p_center``:
     p_center / window_factor  <=  p  <=  p_center * window_factor
 
 ``p_center`` is estimated data-drivenly by :func:`estimate_crossing` as the p
-that minimizes the spread of per-round ``p_L`` across code distances (curves
+that minimizes the spread of the metric across code distances (curves
 for different d intersect at threshold). ``window_factor`` defaults to 1.5 and
 is configurable; widen it when the sweep is coarse, narrow it when the ansatz
 starts to bend. The exact window and the points used are recorded on the
@@ -46,11 +47,12 @@ significance test, since overlapping marginal CIs do not imply a
 non-significant difference.
 
 Every function here takes a keyword ``metric`` selecting the fitted quantity.
-``metric="shot"`` fits the block failure probability ``P_L_shot`` of the whole
-``T = d``-round experiment, which is the quantity the finite-size scaling of
-Wang-Harrington-Preskill and of Wu et al. is applied to. ``metric="round"``
-(the default) fits the per-round rate ``p_L`` and is kept for continuity with
-earlier results. At ``T = d`` the per-round crossing of two distances never
+``metric="shot"`` (the default of :func:`fit_threshold`,
+:func:`estimate_crossing` and :func:`bootstrap_threshold_difference`) fits the
+block failure probability ``P_L_shot`` of the whole ``T = d``-round experiment,
+which is the quantity the finite-size scaling of Wang-Harrington-Preskill and
+of Wu et al. is applied to. ``metric="round"`` fits the per-round rate ``p_L``
+and is reported as a secondary quantity. At ``T = d`` the per-round crossing of two distances never
 lies below their per-shot crossing
 (``tests/test_crossing.py::test_round_negative_wherever_shot_nonpositive``).
 Which of the two is closer to the asymptotic threshold at finite ``d`` is not
@@ -209,7 +211,7 @@ def _ordering_inverted(pl_by_d: dict[int, float]) -> bool:
     return upper > lower * (1.0 + _INVERSION_TOL)
 
 
-def estimate_crossing(points: Sequence[SweepPoint], *, metric: Metric = "round") -> float:
+def estimate_crossing(points: Sequence[SweepPoint], *, metric: Metric = "shot") -> float:
     """Estimate the threshold crossing as the p where the ``metric`` curves coincide.
 
     At threshold the per-round ``p_L`` becomes distance-independent, so the
@@ -235,7 +237,7 @@ def estimate_crossing(points: Sequence[SweepPoint], *, metric: Metric = "round")
        measures spread on the scale of the curves themselves.
 
     Falls back to the geometric-mean p when no p survives as a candidate. The
-    description above is for the default per-round metric; with
+    description above is written for ``metric="round"``; with the default
     ``metric="shot"`` every step acts on ``P_L_shot`` instead.
     """
     by_p: dict[float, dict[int, float]] = {}
@@ -279,7 +281,7 @@ def fit_threshold(
     n_boot: int = 1000,
     seed: int = 0,
     d_min: int | None = None,
-    metric: Metric = "round",
+    metric: Metric = "shot",
 ) -> FitResult:
     """Fit the finite-size scaling ansatz to ``points`` (one decoder/r_e).
 
@@ -289,8 +291,8 @@ def fit_threshold(
             (largest finite-size corrections) gives the asymptotic threshold;
             the effective crossing drifts upward when small-d curves are
             included (§10).
-        metric: the fitted quantity, ``"round"`` (per-round ``p_L``, default)
-            or ``"shot"`` (``P_L_shot``); see the module docstring. It is used
+        metric: the fitted quantity, ``"shot"`` (``P_L_shot``, default) or
+            ``"round"`` (per-round ``p_L``); see the module docstring. It is used
             by the crossing estimate, the saturation cut, the fit values and
             the Wilson weights, in the point fit and in every bootstrap
             replicate.
@@ -722,7 +724,7 @@ def bootstrap_threshold_difference(
     seed: int = 0,
     n_boot: int = 1000,
     decoders: tuple[str, str] = ("herald_mwpm", "blind_mwpm"),
-    metric: Metric = "round",
+    metric: Metric = "shot",
 ) -> ThresholdDifference:
     """Bootstrap ``delta = p_th(blind) - p_th(herald)`` and test it against 0.
 
