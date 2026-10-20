@@ -1,6 +1,6 @@
 """Shared configuration dataclasses (docs/archive/PLAN_v1.md §1).
 
-``NoiseParams`` (M4) parameterizes the biased-erasure noise model;
+``NoiseParams`` (M4) parameterizes the (unbiased) erasure noise model;
 ``ExperimentConfig`` + :func:`load_experiment_config` (M7) parse the
 ``experiments/configs/*.yaml`` sweep definitions. Rounds are always T = d
 (PLAN §9), so the config carries distances only.
@@ -19,7 +19,7 @@ def _check_probability(value: float, name: str) -> None:
 
 @dataclass(frozen=True)
 class NoiseParams:
-    """Physical noise parameters for the biased-erasure model (docs/archive/PLAN_v1.md §5).
+    """Physical noise parameters for the unbiased erasure model (docs/archive/PLAN_v1.md §5).
 
     ``p_meas``, ``p_reset``, and ``p_idle`` default to ``p`` for the uniform
     sweep; pass them explicitly to decouple measurement/reset/idle noise from

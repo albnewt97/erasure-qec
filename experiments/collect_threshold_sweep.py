@@ -4,7 +4,7 @@ Usage:
     uv run python experiments/collect_threshold_sweep.py experiments/configs/erasure_r50.yaml
     uv run python experiments/collect_threshold_sweep.py <config.yaml> --workers 8
 
-Builds one ``sinter.Task`` per (d, p) point — rounds T = d, biased-erasure
+Builds one ``sinter.Task`` per (d, p) point — rounds T = d, erasure (unbiased)
 noise at the config's ``r_e`` — with the §6-contract DEM attached explicitly
 (``decompose_errors=True, flatten_loops=True, approximate_disjoint_errors=True``;
 sinter does not add these flags itself and the Design-2 partition requires

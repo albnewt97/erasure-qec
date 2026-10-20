@@ -1,4 +1,4 @@
-# Threshold sweep, erasure-dominated regime: r_e = 0.98 (biased-erasure
+# Threshold sweep, erasure-dominated regime: r_e = 0.98 (erasure (unbiased)
 # hardware limit; threshold expected to slide toward ~4-5%).
 # Rounds are always T = d (docs/archive/PLAN_v1.md §9). herald_mwpm vs blind_mwpm on
 # identical shots is the §10 ablation.
