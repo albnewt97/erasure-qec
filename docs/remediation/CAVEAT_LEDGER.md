@@ -44,7 +44,7 @@ Conventions:
 | K021 | 57-58 | See [`docs/AUDIT.md`](docs/AUDIT.md#reproducibility-and-environment-sensitivity-2026-09-06). | reproducibility | superseded | K020 |
 | K022 | 59 | Pinned regression snapshots live at `tests/fixtures/real_*.csv`. | reproducibility | kept | README.md#layout |
 | K023 | 59-62 | Committed **synthetic fixtures** (`tests/fixtures/synthetic_*.csv`) drive the byte-stable plotting/analysis tests and are **not measurements** — they are generated from the same collapse variable the fitter inverts (one is deliberately adversarial and the fitter must *reject* it). | scope | kept | README.md#layout |
-| K024 | 62-63 | Stale pre-fix sweeps are preserved untracked under `data/stale_old_model/`. | reproducibility | kept | README.md#layout |
+| K024 | 62-63 | Stale pre-fix sweeps are preserved untracked under `data/stale_old_model/`. | reproducibility | retired | untracked directory, not part of the repository; reference removed by the P7 fix list |
 | K025 | 69-71 | 95% bootstrap percentile CI, `n_boot = 1000`, `seed = 0`, endpoints to **one decimal** — the second decimal moves with the seed and with the NumPy build (see [`docs/AUDIT.md`](docs/AUDIT.md#reproducibility-and-environment-sensitivity-2026-09-06)). | reproducibility | kept | README.md#results (renderer footnote; endpoints now print to 2 decimals) |
 | K026 | 71-72 | `p_th`, ν and χ²/dof carry no RNG and are exact. | reproducibility | kept | docs/METHODS.md#reproducibility |
 | K027 | 72-73 | A fit is only quoted as a threshold when the code marks it `resolved` (converged **and** CI narrower than `p_th`). | statistics | kept | docs/METHODS.md#collapse-fit |
