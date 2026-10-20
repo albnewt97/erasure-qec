@@ -11,8 +11,8 @@ block equals :func:`render` exactly. Tables and sources:
 - ``herald_vs_blind`` (results/headline.json): herald - blind difference of the
   per-shot (7,11) crossings with its 95% CI and the replicates in which either
   crossing is missing or saturated;
-- ``ablation`` (results/ablation.json): p_L(blind) / p_L(herald) per (p, r_e, d)
-  and each decoder's per-round Lambda_d;
+- ``ablation`` (results/ablation.json): each decoder's error count, p_L(blind) /
+  p_L(herald) per (p, r_e, d) and each decoder's per-round Lambda_d;
 - ``wu_validation`` (results/wu_validation.json): the herald (9,13) per-shot
   crossing per config against Wu et al.'s reported value.
 
@@ -128,17 +128,19 @@ def _lam(x: float | None) -> str:
 def _ablation(doc: dict[str, Any]) -> list[str]:
     params = doc["parameters"]
     lines = [
-        "| `p`, % | `r_e` | `d` | p_L(blind) / p_L(herald) | herald Λ_d | blind Λ_d |",
-        "|---|---|---|---|---|---|",
+        "| `p`, % | `r_e` | `d` | herald errors | blind errors | p_L(blind) / p_L(herald) "
+        "| herald Λ_d | blind Λ_d |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for c in sorted(doc["cells"], key=lambda c: (c["p"], c["r_e"], c["d"])):
         lines.append(
-            f"| {_pct(c['p'])} | {c['r_e']:g} | {c['d']} | {_ratio(c)} "
-            f"| {_lam(c['lambda_herald'])} | {_lam(c['lambda_blind'])} |"
+            f"| {_pct(c['p'])} | {c['r_e']:g} | {c['d']} | {c['h_err']:,} | {c['b_err']:,} "
+            f"| {_ratio(c)} | {_lam(c['lambda_herald'])} | {_lam(c['lambda_blind'])} |"
         )
     lines += [
         "",
-        f"{params['shots']:,} shots per cell, seed {params['seed']}. † fewer than "
+        f"{params['shots']:,} shots per cell, seed {params['seed']}; error counts are out of "
+        f"{params['shots']:,} shots. † fewer than "
         f"{params['min_errors']} herald errors: >= 95% one-sided lower confidence bound, not a "
         f"point ratio. Λ_d = per-round p_L(d) / p_L(d+2); — below {params['min_errors']} "
         "errors at d or d+2.",

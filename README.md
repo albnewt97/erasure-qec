@@ -88,30 +88,30 @@ The ratio column is the per-round `p_L(blind) / p_L(herald)`.
 `Λ_d` is one decoder's per-round `p_L(d) / p_L(d+2)`, the per-round suppression factor (see [docs/METHODS.md](docs/METHODS.md#lambda)).
 
 <!-- BEGIN:ablation -->
-| `p`, % | `r_e` | `d` | p_L(blind) / p_L(herald) | herald Λ_d | blind Λ_d |
-|---|---|---|---|---|---|
-| 0.50 | 0.5 | 3 | 1.3× | 5.11 | 3.29 |
-| 0.50 | 0.5 | 5 | 2.1× | 5.63 | 3.02 |
-| 0.50 | 0.5 | 7 | 3.9× | — | 3.00 |
-| 0.50 | 0.5 | 9 | > 3× † | — | 2.42 |
-| 0.50 | 0.5 | 11 | > 4× † | — | — |
-| 0.50 | 0.98 | 3 | 2.1× | 21.16 | 3.62 |
-| 0.50 | 0.98 | 5 | 12.5× | — | 3.53 |
-| 0.50 | 0.98 | 7 | > 16× † | — | 3.31 |
-| 0.50 | 0.98 | 9 | > 17× † | — | 2.75 |
-| 0.50 | 0.98 | 11 | > 10× † | — | — |
-| 1.00 | 0.5 | 3 | 1.3× | 2.48 | 1.72 |
-| 1.00 | 0.5 | 5 | 1.9× | 2.26 | 1.54 |
-| 1.00 | 0.5 | 7 | 2.8× | 1.99 | 1.35 |
-| 1.00 | 0.5 | 9 | 4.1× | 2.00 | 1.30 |
-| 1.00 | 0.5 | 11 | 6.4× | — | — |
-| 1.00 | 0.98 | 3 | 2.1× | 8.06 | 1.93 |
-| 1.00 | 0.98 | 5 | 8.8× | 7.76 | 1.66 |
-| 1.00 | 0.98 | 7 | 41.2× | — | 1.52 |
-| 1.00 | 0.98 | 9 | > 103× † | — | 1.44 |
-| 1.00 | 0.98 | 11 | > 339× † | — | — |
+| `p`, % | `r_e` | `d` | herald errors | blind errors | p_L(blind) / p_L(herald) | herald Λ_d | blind Λ_d |
+|---|---|---|---|---|---|---|---|
+| 0.50 | 0.5 | 3 | 1,344 | 1,793 | 1.3× | 5.11 | 3.29 |
+| 0.50 | 0.5 | 5 | 441 | 912 | 2.1× | 5.63 | 3.02 |
+| 0.50 | 0.5 | 7 | 110 | 424 | 3.9× | — | 3.00 |
+| 0.50 | 0.5 | 9 | 42 | 182 | > 3× † | — | 2.42 |
+| 0.50 | 0.5 | 11 | 9 | 92 | > 4× † | — | — |
+| 0.50 | 0.98 | 3 | 771 | 1,635 | 2.1× | 21.16 | 3.62 |
+| 0.50 | 0.98 | 5 | 61 | 756 | 12.5× | — | 3.53 |
+| 0.50 | 0.98 | 7 | 9 | 301 | > 16× † | — | 3.31 |
+| 0.50 | 0.98 | 9 | 1 | 117 | > 17× † | — | 2.75 |
+| 0.50 | 0.98 | 11 | 0 | 52 | > 10× † | — | — |
+| 1.00 | 0.5 | 3 | 4,828 | 6,290 | 1.3× | 2.48 | 1.72 |
+| 1.00 | 0.5 | 5 | 3,261 | 6,065 | 1.9× | 2.26 | 1.54 |
+| 1.00 | 0.5 | 7 | 2,035 | 5,521 | 2.8× | 1.99 | 1.35 |
+| 1.00 | 0.5 | 9 | 1,322 | 5,277 | 4.1× | 2.00 | 1.30 |
+| 1.00 | 0.5 | 11 | 810 | 4,971 | 6.4× | — | — |
+| 1.00 | 0.98 | 3 | 2,765 | 5,716 | 2.1× | 8.06 | 1.93 |
+| 1.00 | 0.98 | 5 | 580 | 4,924 | 8.8× | 7.76 | 1.66 |
+| 1.00 | 0.98 | 7 | 105 | 4,169 | 41.2× | — | 1.52 |
+| 1.00 | 0.98 | 9 | 23 | 3,543 | > 103× † | — | 1.44 |
+| 1.00 | 0.98 | 11 | 3 | 3,016 | > 339× † | — | — |
 
-100,000 shots per cell, seed 0. † fewer than 50 herald errors: >= 95% one-sided lower confidence bound, not a point ratio. Λ_d = per-round p_L(d) / p_L(d+2); — below 50 errors at d or d+2.
+100,000 shots per cell, seed 0; error counts are out of 100,000 shots. † fewer than 50 herald errors: >= 95% one-sided lower confidence bound, not a point ratio. Λ_d = per-round p_L(d) / p_L(d+2); — below 50 errors at d or d+2.
 
 CI endpoints can move in the second decimal with the NumPy version.
 <!-- END:ablation -->
@@ -127,12 +127,14 @@ The bound is per cell and not simultaneous across the table.
 It ignores the positive correlation from decoding identical shots, which only makes it looser.
 At single-digit counts the Wilson "95%" is a nominal approximation with no guaranteed coverage.
 
-The gated cells rest on few herald errors (`h_err` in `results/ablation.json`).
-At `p = 1.0%` and `r_e = 0.98` the `d = 9` cell has 23 herald errors and the `d = 11` cell has 3.
+The gated cells rest on few herald errors (herald and blind error columns, out of 100,000 shots; `h_err` and `b_err` in `results/ablation.json`).
+At `p = 1.0%` and `r_e = 0.98` the `d = 9` cell has 23 herald and 3,543 blind errors, and the `d = 11` cell has 3 herald and 3,016 blind errors.
 **The `d = 11` bound > 339× rests on 3 herald errors and is weak evidence.**
 It reads as "herald errors were too rare to measure at `d = 11`", not as "suppression is 339×".
-At `p = 0.5%` and `r_e = 0.98` the `d = 7`, 9 and 11 cells have 9, 1 and 0 herald errors.
-At `p = 0.5%` and `r_e = 0.5` the `d = 9` and 11 cells have 42 and 9 herald errors.
+At `p = 0.5%` and `r_e = 0.98` the `d = 7`, 9 and 11 cells have 9, 1 and 0 herald errors, against 301, 117 and 52 blind errors.
+At `r_e = 0.98`, `p = 0.5%` and `d ≥ 7`, herald failures were too rare to measure at 100,000 shots.
+At `p = 0.5%` and `r_e = 0.5` the `d = 9` and 11 cells have 42 and 9 herald errors, against 182 and 92 blind errors.
+No trend is read across the bounds.
 
 For each pair of `p` and `r_e`, the ungated ratios increase with `d`.
 In every cell that reports both, herald `Λ_d` exceeds blind `Λ_d`.
