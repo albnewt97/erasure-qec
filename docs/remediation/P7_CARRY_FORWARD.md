@@ -19,3 +19,27 @@ destination document(s).
 14. [README, P8] Legacy scripts (paired_separation.py and any other script whose recorded output was produced on the pre-dense CSVs) reproduce their baseline_outputs only at commit da47e3a. Move them to scripts/legacy/ with a header naming that commit, or drop them from the README reproduce table. They must not be listed as reproducing current results.
 15. [README, METHODS] At r_e = 0.98 the per-shot collapse fit (d >= 7) resolves both thresholds (herald 3.83%, blind 1.18%); the per-round fit resolves neither (herald bound_pin, blind unresolved_ci). State this as an observation with no claim about which metric is correct (see item 1).
 16. [README, METHODS] Lambda is reported per-round while thresholds are per-shot; label the metric at every appearance.
+
+## Status (P7 reconciliation, gate G6)
+
+Every item is `done` (file and section that carry it at the end of P7) or `deferred to P8`. Filled
+says whether the destination already carries the item at this commit or receives it in P7 session 2.
+
+| item | status | destination | filled |
+|---|---|---|---|
+| 1 | done | README.md#metric; docs/METHODS.md#ordering-of-per-shot-and-per-round-crossings | session 2 |
+| 2 | done | CHANGELOG.md#fixed | session 2 |
+| 3 | done | README.md#thresholds; CHANGELOG.md#withdrawn-claims | session 2 |
+| 4 | done | README.md#thresholds | session 2 |
+| 5 | done | README.md#thresholds (collapse and gap columns of the rendered `thresholds` table) | yes |
+| 6 | done | README.md#validation-against-wu-et-al; README.md#model | session 2 |
+| 7 | done | docs/VALIDATION.md#results; docs/VALIDATION.md#differences-from-wu-et-al (shift table) | session 2 |
+| 8 | done | docs/METHODS.md#sinter-text-pickling | session 2 |
+| 9 | done | CHANGELOG.md#fixed | session 2 |
+| 10 | deferred to P8 | — | — |
+| 11 | deferred to P8 | — | — |
+| 12 | done | docs/VALIDATION.md#analysis-rules-added-after-data | yes |
+| 13 | done | docs/VALIDATION.md#differences-from-wu-et-al (item 1); README.md#validation-against-wu-et-al | VALIDATION yes; README session 2 |
+| 14 | done | README.md#reproduce (legacy scripts listed as reproducing their baseline_outputs only at da47e3a, not as reproducing current results) | session 2 |
+| 15 | done | README.md#thresholds; docs/METHODS.md#collapse-fit | session 2 |
+| 16 | done | README.md#thresholds; README.md#ablation; docs/METHODS.md#lambda | session 2 |
