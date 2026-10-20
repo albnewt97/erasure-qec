@@ -64,7 +64,7 @@ have not built on any of these yet; each citation was verified against its arXiv
 ## Methodology
 
 **Paired herald-vs-blind threshold sweeps.** The threshold-difference test
-(`bootstrap_threshold_difference`, docs/AUDIT.md) currently uses an *unpaired*
+(`bootstrap_threshold_difference`, docs/archive/AUDIT_HISTORY.md) currently uses an *unpaired*
 bootstrap because `sinter` samples each decoder independently and the CSV stores
 only marginal `(shots, errors)`. Making it genuinely paired is small and
 concrete — it needs neither re-thinking nor a large re-collection, just a
@@ -90,7 +90,7 @@ is conservative, this can only tighten the interval — it would not change the
 its CI from `Λ = p_L(d) / p_L(d+2)` replicates and must do *something* with the
 draws where the `d+2` code logs zero errors and the denominator vanishes. It
 currently excludes them, now counted as `n_boot_dropped` and flagged by
-`LambdaEstimate.ci_conditioned` (docs/AUDIT.md, "Conditioning in the Lambda
+`LambdaEstimate.ci_conditioned` (docs/archive/AUDIT_HISTORY.md, "Conditioning in the Lambda
 bootstrap"). Exclusion is the conservative-looking choice but it is not the
 honest one: those replicates have `Λ = +∞`, so removing them pulls the upper
 endpoint down, and where they are more than 2.5% of the draws the true 97.5th
@@ -108,4 +108,4 @@ retains bound-pinned replicates and `bootstrap_threshold_difference` discards th
 inconsistency is deliberate and load-bearing, not a bug — making the two agree moves the r_e = 0.98
 blind `rel_ci_width` from 2.43–4.26 to 0.39–1.36 (astride the 1.0 guard) and flips `resolved` at 9 of
 30 seeds, but **not at seed 0**, so the seed this repo declares will show the change as inert. See
-docs/AUDIT.md, "The bootstrap pin asymmetry is load-bearing (2026-09-07)".
+docs/archive/AUDIT_HISTORY.md, "The bootstrap pin asymmetry is load-bearing (2026-09-07)".

@@ -1,4 +1,4 @@
-"""sinter integration: ``herald_mwpm`` and ``blind_mwpm`` (PLAN.md §9).
+"""sinter integration: ``herald_mwpm`` and ``blind_mwpm`` (docs/archive/PLAN_v1.md §9).
 
 Both decoders consume IDENTICAL bit-packed shot data — full detector vectors
 with the herald columns in place, exactly as sinter samples them from the

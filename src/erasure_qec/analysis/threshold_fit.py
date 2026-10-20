@@ -1,4 +1,4 @@
-"""Finite-size scaling threshold fit (PLAN.md §10).
+"""Finite-size scaling threshold fit (docs/archive/PLAN_v1.md §10).
 
 Near the threshold the logical rate of the fitted ``metric`` (per-shot
 ``P_L_shot`` by default, per-round ``p_L`` with ``metric="round"``; see below)
@@ -39,7 +39,7 @@ earlier bootstrap refit an *unweighted* model from the point estimate on a
 *frozen* window and dropped failures, all of which biased the CI narrow. The
 default ``n_boot`` is 1000: at 200 the percentile endpoints (5th/195th order
 statistics) were noticeably noisy (e.g. the r_e=0.5 herald CI's upper endpoint
-moved 2.64% -> 2.76% going 200 -> 1000, then held at 2000); see docs/AUDIT.md.
+moved 2.64% -> 2.76% going 200 -> 1000, then held at 2000); see docs/archive/AUDIT_HISTORY.md.
 
 To compare two decoders' thresholds, :func:`bootstrap_threshold_difference`
 bootstraps ``Delta = p_th(blind) - p_th(herald)`` directly -- the valid
@@ -112,7 +112,7 @@ _CI_PERCENTILES = (2.5, 97.5)
 # Chosen from the committed fits, not by taste: every fit the README quotes as a
 # result has rel width <= 0.49 (r_e=0.5 blind), while the r_e=0.98 blind
 # non-result sits at ~3.0 -- a ~6x gap, so the constant is not delicate and 1.0
-# rejects only that fit (verified in docs/AUDIT.md). 1.0 has a plain meaning:
+# rejects only that fit (verified in docs/archive/AUDIT_HISTORY.md). 1.0 has a plain meaning:
 # the 95% CI is at least as wide as the threshold value itself.
 _MAX_REL_CI_WIDTH = 1.0
 
@@ -574,7 +574,7 @@ def _bootstrap_pipeline(
     the verdict does NOT flip there. Testing seed 0 alone will show no change and
     will NOT reveal that roughly a third of other seeds now resolve a threshold
     the repo reports as unresolved. Any change here must be checked across seeds.
-    See docs/AUDIT.md "The bootstrap pin asymmetry is load-bearing".
+    See docs/archive/AUDIT_HISTORY.md "The bootstrap pin asymmetry is load-bearing".
     """
     rng = np.random.default_rng(seed)
     shots = np.array([pt.shots for pt in points])
@@ -604,14 +604,14 @@ def _bootstrap_pipeline(
 # (both-correct, herald-wrong-only, blind-wrong-only, both-wrong). This is the
 # shot-level information a *paired* difference bootstrap needs -- and which the
 # committed sweep CSVs do NOT record (they store only marginal (shots, errors)
-# per decoder). See docs/AUDIT.md "Paired-decoder separation".
+# per decoder). See docs/archive/AUDIT_HISTORY.md "Paired-decoder separation".
 _JointCounts = Mapping[tuple[float, int], tuple[int, int, int, int]]
 
 
 @dataclass(frozen=True)
 class ReplicateFailure:
     """Why one bootstrap replicate was discarded (for the missing-at-random and
-    guard-breakdown diagnostics in docs/AUDIT.md).
+    guard-breakdown diagnostics in docs/archive/AUDIT_HISTORY.md).
 
     ``herald_p_th`` / ``blind_p_th`` are the raw fitted ``p_th`` of each decoder
     on the resample: ``nan`` where the fit was rejected before producing a value
@@ -744,7 +744,7 @@ def bootstrap_threshold_difference(
     resampled independently) and the resulting CI is **conservative** -- it does
     not exploit any correlation. The committed sweeps are sampled independently
     per decoder (differing shot counts) and record only marginal errors, so real
-    data uses the unpaired path; see docs/AUDIT.md. The returned ``correlation``
+    data uses the unpaired path; see docs/archive/AUDIT_HISTORY.md. The returned ``correlation``
     quantifies how much pairing bought: near 0 means it bought nothing.
     """
     paired = joint_counts is not None

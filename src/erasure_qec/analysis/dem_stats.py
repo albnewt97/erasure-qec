@@ -115,7 +115,7 @@ def heralded_fraction(
 
     Pass ``count_no_op_heralds=True`` for the original (pre-correction)
     definition, which counted those branches in both. It is retained only so the
-    historical numbers in docs/AUDIT.md stay reproducible; it overstates how much
+    historical numbers in docs/archive/AUDIT_HISTORY.md stay reproducible; it overstates how much
     of the circuit's error budget is erasure-converted.
     """
     mass = dem_error_mass(params, d=d, rounds=rounds)

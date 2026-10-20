@@ -1,4 +1,4 @@
-"""Hook-safe CX schedules (PLAN.md §3.2).
+"""Hook-safe CX schedules (docs/archive/PLAN_v1.md §3.2).
 
 Schedules are stored as per-basis tuples of slot indices into layout.py's
 canonical [NE, NW, SE, SW] neighbor order — they say which plaquette

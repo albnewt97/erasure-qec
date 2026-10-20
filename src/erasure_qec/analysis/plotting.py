@@ -1,4 +1,4 @@
-"""Deterministic figure generation from sweep CSVs (PLAN.md §10).
+"""Deterministic figure generation from sweep CSVs (docs/archive/PLAN_v1.md §10).
 
 Every figure is byte-reproducible: the Agg backend is forced, a fixed rcParams
 block pins fonts/sizes, all bootstrap CIs use a fixed seed, and PNG metadata

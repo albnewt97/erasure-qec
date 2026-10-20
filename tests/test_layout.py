@@ -1,4 +1,4 @@
-"""Geometry invariants for erasure_qec.circuits.layout (PLAN.md §2)."""
+"""Geometry invariants for erasure_qec.circuits.layout (docs/archive/PLAN_v1.md §2)."""
 
 import pytest
 

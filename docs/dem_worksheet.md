@@ -1,6 +1,6 @@
 # DEM hand-verification — record
 
-This is a record of the milestone-M5 hand-verification (PLAN.md §7). Before I trusted
+This is a record of the milestone-M5 hand-verification (docs/archive/PLAN_v1.md §7). Before I trusted
 `dem_partition.py`, I predicted on paper exactly what Stim's detector error model (DEM) had to contain
 for three small probe circuits, ran Stim, and reconciled every line. Below is what I predicted and why,
 what Stim actually emitted, how the two reconciled, and what I took away — the sharpest result being
@@ -55,7 +55,7 @@ I verified the checkerboard assignment against `ancilla_coords(3)` on 2026-07-08
 | (4,6) | **X** | 2 | bottom-edge boundary check |
 
 The consistency checks held: 4 Z + 4 X = 8; Z-type boundary checks on the left/right edges and X-type
-on top/bottom, per PLAN.md §2; and the four round-0 (t=0) detectors from the live run sat exactly on the
+on top/bottom, per docs/archive/PLAN_v1.md §2; and the four round-0 (t=0) detectors from the live run sat exactly on the
 four Z-ancillas — so the builder and the layout agree about parity.
 
 ### Measurement outcomes, detectors, and the DEM
@@ -138,7 +138,7 @@ probe and dumps the detector count, the coordinates, the DEM, and the
 `explain_detector_error_model_errors()` output:
 
 ```python
-"""Dev tool for the PLAN.md §7 hand-verification worksheet. Not shipped."""
+"""Dev tool for the docs/archive/PLAN_v1.md §7 hand-verification worksheet. Not shipped."""
 import sys
 import stim
 
@@ -381,7 +381,7 @@ logical operator's matching graph.
 
 "Between layers 2 and 3" is defined by `scheduling.py`, not by counting TICKs. The Z-ancilla at (2,2) is
 a CX target; its data neighbors are the controls. The canonical slot order is [NE, NW, SE, SW], and the
-Z-schedule visits slots in the ᴎ order NE → SE → NW → SW (PLAN.md §3.2). Looking up which coordinate
+Z-schedule visits slots in the ᴎ order NE → SE → NW → SW (docs/archive/PLAN_v1.md §3.2). Looking up which coordinate
 sits in each slot from `plaquette_neighbors(2+2j, 3)`:
 
 | CX layer (0-idx) | Slot visited (Z-schedule) | Data qubit (control) | Done before injection? |

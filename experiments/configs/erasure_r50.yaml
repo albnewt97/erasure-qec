@@ -1,6 +1,6 @@
 # Threshold sweep, half-converted budget: r_e = 0.5 of the two-qubit error
 # budget becomes heralded erasure, the rest stays unheralded depolarizing.
-# Rounds are always T = d (PLAN.md §9). herald_mwpm vs blind_mwpm on
+# Rounds are always T = d (docs/archive/PLAN_v1.md §9). herald_mwpm vs blind_mwpm on
 # identical shots is the §10 ablation.
 name: erasure_r50
 r_e: 0.5

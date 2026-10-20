@@ -1,6 +1,6 @@
 """Phase-4 deliverable: the herald-vs-blind threshold-difference statistic.
 
-Emits the numbers docs/AUDIT.md "Paired-decoder separation" reports:
+Emits the numbers docs/archive/AUDIT_HISTORY.md "Paired-decoder separation" reports:
 
 1. Whether the sweeps are genuinely paired (evidence: shared shot counts).
 2. Before/after marginal p_th CIs at the old (200) and new (1000) n_boot.
@@ -17,7 +17,7 @@ is not seed-fragile.  `--full-stability` replaces that section with the full
 ten-seed table -- marginal CI spreads, `rel_ci_width`, `n_paired_failed`, the
 tipping point, the herald/blind correlation, and the r_e = 0.98 blind upper
 endpoint with its grid-pin check.  Those are the quantities quoted in the
-docs/AUDIT.md "Reproducibility and environment sensitivity" seed-spread column;
+docs/archive/AUDIT_HISTORY.md "Reproducibility and environment sensitivity" seed-spread column;
 running the ten-seed table costs ~24 s per seed, which is why it is opt-in.
 """
 
@@ -47,7 +47,7 @@ SWEEPS = [
     (0.98, "data/erasure_r98.csv"),
 ]
 D_MIN = 7
-_FULL_SEEDS = 10  # the seed range docs/AUDIT.md's seed-spread column quotes
+_FULL_SEEDS = 10  # the seed range docs/archive/AUDIT_HISTORY.md's seed-spread column quotes
 
 
 def _split(csv: str) -> tuple[list[SweepPoint], list[SweepPoint]]:
@@ -142,14 +142,14 @@ def _seed_stability(n_seeds: int = 5) -> None:
 
 
 def _full_stability_table() -> None:
-    """The ten-seed table behind docs/AUDIT.md's "seed spread" column.
+    """The ten-seed table behind docs/archive/AUDIT_HISTORY.md's "seed spread" column.
 
     Recomputes every seed-dependent quantity that section quotes, so a reviewer
     can check each one rather than taking it on trust.  ~24 s per seed.
     """
     seeds = range(_FULL_SEEDS)
     print(f"== 5. FULL seed-stability table (seeds 0-{_FULL_SEEDS - 1}, n_boot=1000) ==")
-    print("   Reproduces the 'seed spread' column of docs/AUDIT.md")
+    print("   Reproduces the 'seed spread' column of docs/archive/AUDIT_HISTORY.md")
     print("   'Reproducibility and environment sensitivity'.\n")
 
     h0, b0 = _split("data/baseline_pauli.csv")

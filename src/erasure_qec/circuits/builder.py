@@ -1,4 +1,4 @@
-"""Rotated surface-code Z-memory circuit builder (PLAN.md §3).
+"""Rotated surface-code Z-memory circuit builder (docs/archive/PLAN_v1.md §3).
 
 This is the only module that emits ``stim.Circuit``. It assembles the
 noiseless skeleton — the 8-TICK round structure (§3.1) using the hook-safe

@@ -1,4 +1,4 @@
-"""Threshold-sweep collection driver (PLAN.md §9).
+"""Threshold-sweep collection driver (docs/archive/PLAN_v1.md §9).
 
 Usage:
     uv run python experiments/collect_threshold_sweep.py experiments/configs/erasure_r50.yaml

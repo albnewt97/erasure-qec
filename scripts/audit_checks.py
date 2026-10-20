@@ -9,7 +9,7 @@ only measures. Run:
 NOTE: the "EXPECTED" column is the *pre-fix* audit baseline. The Phase-1 fixes
 (commits 6b6b87d noise, 0ce6ff5 fit) have since landed, so on HEAD several rows
 now differ from EXPECTED **by design** — that difference is the evidence the
-fixes took effect. See docs/AUDIT.md "Resolution (Phase 1)" for the post-fix
+fixes took effect. See docs/archive/AUDIT_HISTORY.md "Resolution (Phase 1)" for the post-fix
 values. To reproduce the original findings, run this against the pre-fix
 commit.
 """

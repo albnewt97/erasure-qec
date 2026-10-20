@@ -1,4 +1,4 @@
-"""Threshold-fit recovery and window rule (PLAN.md §10)."""
+"""Threshold-fit recovery and window rule (docs/archive/PLAN_v1.md §10)."""
 
 import inspect
 import math

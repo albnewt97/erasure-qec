@@ -1,4 +1,4 @@
-"""Noise injection interface (PLAN.md §3, §5).
+"""Noise injection interface (docs/archive/PLAN_v1.md §3, §5).
 
 The builder emits the bare Clifford + measurement structure and calls a
 ``NoiseInjector`` at each physically-motivated fault location. This keeps
@@ -92,7 +92,7 @@ class NullInjector:
 
 
 class ErasureInjector:
-    """Full erasure noise model (PLAN.md §5).
+    """Full erasure noise model (docs/archive/PLAN_v1.md §5).
 
     NB: ``HERALDED_ERASE`` replaces the qubit with the maximally-mixed ``I/2`` --
     an *unbiased* erasure (all four Paulis equally likely, conditioned on the

@@ -1,4 +1,4 @@
-"""sinter adapter + experiment config units (PLAN.md §9, M7).
+"""sinter adapter + experiment config units (docs/archive/PLAN_v1.md §9, M7).
 
 Fast checks: the bit-packed sinter path must be exactly equivalent to the M6
 decoders on identical shot data, and the three sweep configs must satisfy the

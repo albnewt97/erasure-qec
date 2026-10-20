@@ -1,4 +1,4 @@
-"""``NoiseParams`` -> concrete per-instruction channel probabilities (PLAN.md §5).
+"""``NoiseParams`` -> concrete per-instruction channel probabilities (docs/archive/PLAN_v1.md §5).
 
 Kept separate from ``injector.py`` so the arithmetic (what probability each
 stim instruction gets) is unit-testable independent of circuit construction.
@@ -29,7 +29,7 @@ class ChannelRates:
 def channel_rates(params: NoiseParams) -> ChannelRates:
     """Convert ``NoiseParams`` into the concrete per-instruction probabilities.
 
-    The two-qubit-gate error budget is held constant across ``r_e``: PLAN.md §0
+    The two-qubit-gate error budget is held constant across ``r_e``: docs/archive/PLAN_v1.md §0
     defines ``r_e`` as the fraction of the physical error budget per two-qubit
     gate that is converted into heralded erasures, so the total non-identity
     error probability per gate must equal ``p`` for every ``r_e``.
@@ -55,7 +55,7 @@ def channel_rates(params: NoiseParams) -> ChannelRates:
 
     This corrects the earlier ``p * r_e / 2`` rate, under which the per-gate
     non-identity budget shrank to ``p * (1 - r_e/4)`` as ``r_e`` grew, inflating
-    the apparent threshold (see docs/AUDIT.md).
+    the apparent threshold (see docs/archive/AUDIT_HISTORY.md).
     """
     convert = params.convert_idle
     return ChannelRates(
@@ -86,7 +86,7 @@ def nonidentity_pauli_probability(params: NoiseParams) -> float:
     inclusion-exclusion overlap -- ``p`` at ``r_e = 0`` falling to ``p - p^2/4``
     at ``r_e = 1``. Contrast the earlier ``p r_e / 2`` rate, whose budget fell
     *linearly* to ``p (1 - r_e/4)`` (a 25% shrink at ``r_e = 0.98``); ``p`` was
-    not an iso-noise axis then. See docs/AUDIT.md.
+    not an iso-noise axis then. See docs/archive/AUDIT_HISTORY.md.
     """
     rates = channel_rates(params)
     return (

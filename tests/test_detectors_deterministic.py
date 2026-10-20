@@ -1,4 +1,4 @@
-"""Determinism + structural checks for the noiseless builder (PLAN.md §3.5)."""
+"""Determinism + structural checks for the noiseless builder (docs/archive/PLAN_v1.md §3.5)."""
 
 from collections.abc import Callable
 

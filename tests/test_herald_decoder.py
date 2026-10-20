@@ -1,4 +1,4 @@
-"""Herald-conditioned decoder correctness (PLAN.md §8, M6 gate).
+"""Herald-conditioned decoder correctness (docs/archive/PLAN_v1.md §8, M6 gate).
 
 The headline test forces a specific erasure pattern with probability-1 probe
 erasures and shows the herald-aware decoder correcting a pattern the blind

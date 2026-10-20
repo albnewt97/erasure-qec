@@ -11,7 +11,7 @@ class UniformCircuitNoise:
 
     Sprinkles ``DEPOLARIZE2`` after every CX layer and ``X_ERROR`` around
     resets/measurements, giving the noiseless builder graphlike error
-    mechanisms so distance invariants can be probed (PLAN.md §4).
+    mechanisms so distance invariants can be probed (docs/archive/PLAN_v1.md §4).
     """
 
     def __init__(self, p: float) -> None:

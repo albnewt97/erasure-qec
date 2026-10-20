@@ -1,4 +1,7 @@
-"""Figure generation: byte-stability and partial-data robustness (PLAN.md §10, M8 gate)."""
+"""Figure generation: byte-stability and partial-data robustness.
+
+docs/archive/PLAN_v1.md §10, M8 gate.
+"""
 
 import hashlib
 import json

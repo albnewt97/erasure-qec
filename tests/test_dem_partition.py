@@ -1,4 +1,4 @@
-"""Frozen hand-verified ground truth for the Design-2 DEM partition (PLAN.md §6/§7).
+"""Frozen hand-verified ground truth for the Design-2 DEM partition (docs/archive/PLAN_v1.md §6/§7).
 
 Every literal index below was verified by hand and reconciled against Stim's
 emitted DEM in ``docs/dem_worksheet.md`` (Probe A run 2026-07-08; Probes B & C

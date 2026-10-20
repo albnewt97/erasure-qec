@@ -1,4 +1,4 @@
-"""Shared configuration dataclasses (PLAN.md §1).
+"""Shared configuration dataclasses (docs/archive/PLAN_v1.md §1).
 
 ``NoiseParams`` (M4) parameterizes the biased-erasure noise model;
 ``ExperimentConfig`` + :func:`load_experiment_config` (M7) parse the
@@ -19,7 +19,7 @@ def _check_probability(value: float, name: str) -> None:
 
 @dataclass(frozen=True)
 class NoiseParams:
-    """Physical noise parameters for the biased-erasure model (PLAN.md §5).
+    """Physical noise parameters for the biased-erasure model (docs/archive/PLAN_v1.md §5).
 
     ``p_meas``, ``p_reset``, and ``p_idle`` default to ``p`` for the uniform
     sweep; pass them explicitly to decouple measurement/reset/idle noise from
@@ -71,7 +71,7 @@ class NoiseParams:
 
 @dataclass(frozen=True)
 class ExperimentConfig:
-    """One threshold-sweep definition (PLAN.md §9), loaded from YAML.
+    """One threshold-sweep definition (docs/archive/PLAN_v1.md §9), loaded from YAML.
 
     ``p_values`` is the fully resolved, log-spaced physical error rate grid;
     rounds are implicitly T = d for every distance in ``distances``.

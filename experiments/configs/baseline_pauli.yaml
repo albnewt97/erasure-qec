@@ -1,5 +1,5 @@
 # Threshold sweep, pure-Pauli baseline: no erasure conversion (r_e = 0).
-# Rounds are always T = d (PLAN.md §9). p grid: 13 log-spaced points in
+# Rounds are always T = d (docs/archive/PLAN_v1.md §9). p grid: 13 log-spaced points in
 # [1e-3, 1e-1]. With r_e = 0 no heralds exist, so herald_mwpm and blind_mwpm
 # coincide; both run for CSV uniformity across configs.
 name: baseline_pauli
