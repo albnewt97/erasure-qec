@@ -263,11 +263,11 @@ History up to `da47e3a` is in [docs/archive/](docs/archive/README.md), and chang
 
 ## Citation
 
-Cite the repository and the commit you used:
+Cite the repository and the commit you used ([CITATION.cff](CITATION.cff)):
 
 ```bibtex
 @software{erasure_qec,
-  author = {Naman},
+  author = {Naman Srivastava},
   title  = {Herald-conditioned decoding of the erasure-converted rotated surface code},
   url    = {https://github.com/albnewt97/erasure-qec},
   note   = {version 0.2.0, commit <hash>},

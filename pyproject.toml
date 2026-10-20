@@ -1,10 +1,16 @@
 [project]
 name = "erasure-qec"
-version = "0.1.0"
+version = "0.2.0"
 description = "Herald-conditioned decoding of the erasure-converted rotated surface code"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
+authors = [{ name = "Naman Srivastava" }]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Physics",
+]
 dependencies = [
     "stim>=1.14",
     "pymatching>=2.2",
@@ -14,6 +20,10 @@ dependencies = [
     "matplotlib",
     "pyyaml",
 ]
+
+[project.urls]
+Homepage = "https://github.com/albnewt97/erasure-qec"
+Issues = "https://github.com/albnewt97/erasure-qec/issues"
 
 [dependency-groups]
 dev = [
