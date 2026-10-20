@@ -40,6 +40,6 @@ says whether the destination already carries the item at this commit or receives
 | 11 | deferred to P8 | — | — |
 | 12 | done | docs/VALIDATION.md#analysis-rules-added-after-data | yes |
 | 13 | done | docs/VALIDATION.md#differences-from-wu-et-al (item 1); README.md#validation-against-wu-et-al | VALIDATION yes; README session 2 |
-| 14 | done | README.md#reproduce (legacy scripts listed as reproducing their baseline_outputs only at da47e3a, not as reproducing current results) | session 2 |
+| 14 | done | docs/METHODS.md#commands-and-wall-times (legacy scripts listed as reproducing their baseline_outputs only at da47e3a, not as reproducing current results) | session 2 |
 | 15 | done | README.md#thresholds; docs/METHODS.md#collapse-fit | session 2 |
 | 16 | done | README.md#thresholds; README.md#ablation; docs/METHODS.md#lambda | session 2 |

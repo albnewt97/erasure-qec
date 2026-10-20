@@ -234,6 +234,35 @@ That is not a cross-environment guarantee.
 PNG bytes depend on the matplotlib and FreeType build, and `lambda_vs_p.png` draws bootstrap CIs that move with the NumPy RNG.
 On a different matplotlib or NumPy the figures should be visually identical but not byte-identical.
 
+### Commands and wall times
+
+Wall times are given only where a run was recorded; the machine is an Apple M2 with 8 cores.
+
+| step | command | wall time |
+|---|---|---|
+| install | `uv sync --group dev` | not timed |
+| fast tests | `uv run pytest -m "not slow" -q` | not timed |
+| headline thresholds | `uv run python scripts/headline_results.py` | not timed |
+| pairwise crossings and fits, both metrics | `uv run python scripts/threshold_table.py --out results/threshold_table_dense.json` | not timed |
+| ablation | `uv run python scripts/ablation_table.py` | not timed |
+| heralded fraction | `uv run python scripts/heralded_fraction.py` | not timed |
+| Wu validation table, JSON, figure | `uv run python scripts/wu_validation.py` | 29 s ([VALIDATION.md](VALIDATION.md#reproduce)) |
+| figures | `uv run python -m erasure_qec.analysis.plotting --data-dir data --figures-dir figures --ablation-json results/ablation.json` | not timed |
+| README tables | `uv run python scripts/render_readme_tables.py` | not timed |
+
+`scripts/ablation_table.py` is the slow step: it decodes 100,000 shots per cell from circuits, with no CSV shortcut.
+Its `d = 9` and `d = 11` cells dominate the runtime, and `--shots` trades runtime against the 50-error gate.
+It refuses to run on a dirty work tree.
+
+Collection appends to the CSVs and is resumable.
+The repo-model sweeps use `uv run python experiments/collect_threshold_sweep.py experiments/configs/<name>.yaml --workers 8` (not timed).
+The Wu sweeps use `experiments/collect_wu.py`; their recorded wall times are in [VALIDATION.md](VALIDATION.md#reproduce).
+
+Two legacy scripts are not part of the current results.
+`scripts/paired_separation.py` reproduces its recorded output (`docs/remediation/baseline_outputs/paired_separation.txt`) only at commit `da47e3a`.
+`scripts/audit_checks.py` reproduces the archived audit table in [archive/AUDIT_HISTORY.md](archive/AUDIT_HISTORY.md), and its expected column is the pre-fix baseline.
+Neither reproduces a number published in README.md.
+
 ### Seeds
 
 Every analysis bootstrap uses `seed = 0` through `numpy.random.default_rng`.
