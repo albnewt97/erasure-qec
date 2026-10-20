@@ -109,3 +109,19 @@ inconsistency is deliberate and load-bearing, not a bug — making the two agree
 blind `rel_ci_width` from 2.43–4.26 to 0.39–1.36 (astride the 1.0 guard) and flips `resolved` at 9 of
 30 seeds, but **not at seed 0**, so the seed this repo declares will show the change as inert. See
 docs/archive/AUDIT_HISTORY.md, "The bootstrap pin asymmetry is load-bearing (2026-09-07)".
+
+## Planned after v0.2.0
+
+### Union-Find / peeling decoder
+
+### XZZX code and native-gate circuits
+
+### Biased erasure
+
+### Imperfect heralds and soft weights
+
+### Dual-rail idle erasure
+
+### A (11,15) Wu run
+
+### More shots for the high-p ablation cells
