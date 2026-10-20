@@ -117,7 +117,7 @@ Machine: Apple M2 (4 performance + 4 efficiency cores), 8 GiB RAM, macOS. Softwa
 | step | command | wall time |
 |---|---|---|
 | collect one config | `uv run python experiments/collect_wu.py experiments/configs/wu/<name>.yaml --workers 8` | re000 not timed (no committed record); re050 4 min 49 s; re090 20 min 31 s; re100 18 min 6 s; pmp 30 min 27 s; re098 36 min 19 s; pm005 42 min 23 s; re050 extension not timed (no committed record) |
-| G5 check | `uv run python scripts/wu_g5_check.py` | 0.4 s |
-| table, JSON, figure | `uv run python scripts/wu_validation.py` | 29 s |
+| G5 check | `uv run python scripts/wu_g5_check.py` | 0.95 s, including uv start-up |
+| table, JSON, figure | `uv run python scripts/wu_validation.py` | 29.5 s, including uv start-up |
 
-The six batch wall times (re050 through pm005) are the start and end timestamps in the message of commit 1e71598. The re000 run and the re050 extension have no committed timing record.
+The six batch wall times (re050 through pm005) are the start and end timestamps in the message of commit 1e71598. The re000 run and the re050 extension have no committed timing record. The G5-check and table times are one run each under `caffeinate -i`, timed with `time uv run` on 2026-10-20 (source: the message of the commit that added this sentence).

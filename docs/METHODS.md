@@ -262,13 +262,13 @@ Wall times are given only where a run was recorded; the machine is an Apple M2 w
 | ablation | `uv run python scripts/ablation_table.py` | not timed |
 | heralded fraction | `uv run python scripts/heralded_fraction.py` | not timed |
 | per-round fit sensitivity (cap, pin retention) | `uv run python scripts/per_round_fit_sensitivity.py` | not timed |
-| Wu validation table, JSON, figure | `uv run python scripts/wu_validation.py` | 29 s ([VALIDATION.md](VALIDATION.md#reproduce)) |
+| Wu validation table, JSON, figure | `uv run python scripts/wu_validation.py` | 29.5 s, including uv start-up (source: the message of the commit that added this sentence; [VALIDATION.md](VALIDATION.md#reproduce)) |
 | figures | `uv run python -m erasure_qec.analysis.plotting --data-dir data --figures-dir figures --ablation-json results/ablation.json` | not timed |
 | README tables | `uv run python scripts/render_readme_tables.py` | not timed |
 
 `scripts/reproduce.sh analysis` runs the threshold, headline, fit-sensitivity, heralded-fraction and Wu rows above in a throwaway clone of `HEAD`, and `scripts/reproduce.sh collect` prints the ablation command ([README.md](../README.md#reproduce)).
 
-`analysis tier: <to be filled>`
+One run of the analysis tier under `caffeinate -i` took 7 min 14 s of wall time (7 min 0 s user CPU), including uv start-up (source: the message of the commit that added this sentence).
 
 `scripts/ablation_table.py` is the slow step: it decodes 100,000 shots per cell from circuits, with no CSV shortcut.
 Its `d = 9` and `d = 11` cells dominate the runtime, and `--shots` trades runtime against the 50-error gate.

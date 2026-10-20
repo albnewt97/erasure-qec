@@ -14,7 +14,8 @@
 #
 # analysis runs HEAD only: uncommitted changes are not included. Each analysis script
 # refuses a dirty work tree, so the clone commits each script's output before the next.
-# analysis tier: <to be filled>
+# analysis tier: 7 min 14 s wall time (7 min 0 s user CPU), one run on an Apple M2 under
+# caffeinate -i, including uv start-up (source: the message of the commit that added this sentence).
 #
 # collect prints the commands that sample new shots: the sweeps behind data/*.csv and
 # data/wu/*.csv, and the ablation. Collection appends to the committed CSVs; only the
