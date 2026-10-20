@@ -7,16 +7,20 @@ data/erasure_r98.csv) and each decoder in it, reports:
   metric ("shot" = P_L_shot, "round" = per-round p_L at T = d), with a 95%
   parametric-bootstrap percentile CI (binomial noise only; interpolation error
   inside the bracket is not included), the bracketing grid points, the number
-  of sign changes of g = ln m(d2) - ln m(d1), and the number of bootstrap
-  replicates without a crossing;
+  of sign changes of g = ln m(d2) - ln m(d1) over all retained points and over
+  unsaturated ones only (metric value below the 0.4 saturation cap at both
+  distances at both ends of the step), and the number of bootstrap replicates
+  without a crossing;
 - fit_threshold(d_min=7) in each metric: p_th with its 95% bootstrap
   percentile CI, nu, chi2/dof, converged, resolved and the reason code.
 
-Prints markdown tables to stdout and writes the full-precision results, with
-software versions, data-file sha256 digests, n_boot and seed, to
-results/threshold_table_committed.json. Run:
+Prints markdown tables to stdout (every value to 3 decimals; crossings, CIs,
+brackets and p_th in percent) and writes the full-precision results, with
+software versions, data-file sha256 digests, n_boot and seed, to the --out path
+(default results/threshold_table_committed.json). Run:
 
     uv run python scripts/threshold_table.py
+    uv run python scripts/threshold_table.py --out results/threshold_table_dense.json
 """
 
 from __future__ import annotations
@@ -69,9 +73,9 @@ def _pct(x: float | None, digits: int = 3) -> str:
     return "—" if x is None else f"{100.0 * x:.{digits}f}"
 
 
-def _ci(ci: tuple[float | None, float | None]) -> str:
+def _ci(ci: tuple[float | None, float | None], digits: int = 3) -> str:
     lo, hi = ci
-    return "—" if lo is None or hi is None else f"[{_pct(lo, 1)}, {_pct(hi, 1)}]"
+    return "—" if lo is None or hi is None else f"[{_pct(lo, digits)}, {_pct(hi, digits)}]"
 
 
 def _condition_results(points: list[Any]) -> dict[str, Any]:
@@ -89,6 +93,7 @@ def _condition_results(points: list[Any]) -> dict[str, Any]:
                     "value": _finite(est.value),
                     "bracket": list(est.bracket) if est.bracket is not None else None,
                     "n_sign_changes": est.n_sign_changes,
+                    "n_sign_changes_unsaturated": est.n_sign_changes_unsaturated,
                     "ci95": [_finite(ci[0]), _finite(ci[1])],
                     "n_no_crossing": n_no,
                 }
@@ -128,9 +133,9 @@ def _print_tables(results: dict[str, Any]) -> None:
     print(f"## Pairwise crossings (bootstrap 95% percentile CI, n_boot={N_BOOT}, seed={SEED})\n")
     print(
         "| data | decoder | metric | pair | crossing (%) | 95% CI (%) | bracket (%) "
-        "| n_sign_changes | n_no_crossing |"
+        "| n_sign_changes | n_sign_changes_unsaturated | n_no_crossing |"
     )
-    print("|---|---|---|---|---|---|---|---|---|")
+    print("|---|---|---|---|---|---|---|---|---|---|")
     for path, entry in results.items():
         for cond in entry["conditions"]:
             for row in cond["pairwise"]:
@@ -139,7 +144,8 @@ def _print_tables(results: dict[str, Any]) -> None:
                 print(
                     f"| {Path(path).stem} | {cond['decoder']} | {row['metric']} "
                     f"| ({row['d1']},{row['d2']}) | {_pct(row['value'])} | {_ci(row['ci95'])} "
-                    f"| {bracket} | {row['n_sign_changes']} | {row['n_no_crossing']} |"
+                    f"| {bracket} | {row['n_sign_changes']} "
+                    f"| {row['n_sign_changes_unsaturated']} | {row['n_no_crossing']} |"
                 )
     print(f"\n## fit_threshold(d_min={D_MIN}) (bootstrap 95% percentile CI, n_boot={N_BOOT})\n")
     print(
@@ -150,8 +156,8 @@ def _print_tables(results: dict[str, Any]) -> None:
     for path, entry in results.items():
         for cond in entry["conditions"]:
             for f in cond["fits"]:
-                nu = "—" if f["nu"] is None else f"{f['nu']:.2f}"
-                chi = "—" if f["chi2_dof"] is None else f"{f['chi2_dof']:.2f}"
+                nu = "—" if f["nu"] is None else f"{f['nu']:.3f}"
+                chi = "—" if f["chi2_dof"] is None else f"{f['chi2_dof']:.3f}"
                 print(
                     f"| {Path(path).stem} | {cond['decoder']} | {f['metric']} "
                     f"| {_pct(f['p_th'])} | {_ci(f['p_th_ci95'])} | {nu} | {chi} "
@@ -161,7 +167,13 @@ def _print_tables(results: dict[str, Any]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--json", default="results/threshold_table_committed.json")
+    parser.add_argument(
+        "--out",
+        "--json",
+        dest="out",
+        default="results/threshold_table_committed.json",
+        help="JSON output path (default: results/threshold_table_committed.json)",
+    )
     args = parser.parse_args()
 
     results: dict[str, Any] = {}
@@ -202,7 +214,7 @@ def main() -> None:
         },
         "data": results,
     }
-    out = Path(args.json)
+    out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, indent=2, sort_keys=True, allow_nan=False) + "\n")
     print(f"\nwrote {out}")

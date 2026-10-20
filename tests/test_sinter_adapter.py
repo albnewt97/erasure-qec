@@ -106,7 +106,28 @@ def test_config_satisfies_sweep_grid_requirements(name: str) -> None:
             0.085,
         ],
     }[name]
-    assert extra == pytest.approx(expected_band)
+    # Pre-registered per-shot densification bands (extra_p_shot; see the config
+    # comment block for the rule), merged into p_values alongside extra_p.
+    expected_shot_band = {
+        "baseline_pauli": [0.0079, 0.0085, 0.0091, 0.0105, 0.0113, 0.0123],
+        "erasure_r50": [0.0094, 0.0103, 0.0110, 0.0118, 0.0126, 0.0136, 0.0157, 0.0168, 0.0196],
+        "erasure_r98": [
+            0.0107,
+            0.0114,
+            0.0123,
+            0.0131,
+            0.0141,
+            0.0154,
+            0.0310,
+            0.0337,
+            0.0360,
+            0.0387,
+            0.0414,
+            0.0445,
+            0.0484,
+        ],
+    }[name]
+    assert extra == pytest.approx(sorted(expected_band + expected_shot_band))
 
     assert config.max_shots >= 1 and config.max_errors >= 1
     assert set(config.decoders) <= set(CUSTOM_DECODERS)

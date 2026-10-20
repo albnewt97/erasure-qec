@@ -13,6 +13,9 @@ the curves is fitted. By default no saturation cut is applied; with
 ``saturation_cap`` set, a first crossing whose bracket has a per-shot rate
 ``P_L_shot >= saturation_cap`` at either distance at either bracket point is
 classified as saturated and carries no value (see :class:`CrossingEstimate`).
+The 0.4 cap of :data:`~erasure_qec.analysis.threshold_fit.SATURATION_CAP` is
+used, independently of ``saturation_cap``, by the
+``n_sign_changes_unsaturated`` diagnostic.
 """
 
 import math
@@ -22,6 +25,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from erasure_qec.analysis.statistics import Metric, SweepPoint, metric_value
+from erasure_qec.analysis.threshold_fit import SATURATION_CAP
 
 _CI_PERCENTILES = (2.5, 97.5)
 
@@ -38,10 +42,24 @@ class CrossingEstimate:
     when a ``saturation_cap`` was given and ``bracket_max_p_l_shot`` reaches
     it; the crossing is then "saturated, not a threshold": ``value`` is NaN and
     ``bracket`` is kept. Later crossings on the grid are not searched.
-    ``n_sign_changes`` counts every change of sign class (negative vs
-    non-negative) between adjacent usable grid points, in either direction; a
-    value above 1 means the curves cross more than once on the grid and only
-    the first crossing is reported.
+
+    Both counters classify each retained point by the sign class of ``g``:
+    ``g < 0`` is *negative*, ``g >= 0`` (including ``g == 0`` exactly) is
+    *non-negative*. A sign change is a pair of consecutive retained points in
+    different classes, counted in either direction. "Retained" means the ``p``
+    is present at both distances with a metric value ``> 0`` at both.
+
+    - ``n_sign_changes`` counts sign changes over every consecutive pair of
+      retained points. A value above 1 means the curves cross more than once on
+      the grid; only the first crossing is reported in ``value``.
+    - ``n_sign_changes_unsaturated`` counts only the consecutive pairs whose
+      metric value is below
+      :data:`~erasure_qec.analysis.threshold_fit.SATURATION_CAP` at both
+      distances at both points (four values, compared with ``<``). It is a
+      diagnostic for repeated crossings in the saturated tail, where the
+      curves converge toward 1/2 and ``g`` flips sign on sampling noise. It does
+      not change ``value``, ``bracket``, ``saturated`` or ``n_sign_changes``,
+      and does not depend on ``saturation_cap``.
     """
 
     value: float
@@ -50,6 +68,7 @@ class CrossingEstimate:
     metric: str
     d1: int
     d2: int
+    n_sign_changes_unsaturated: int
     bracket_max_p_l_shot: float = float("nan")
     saturated: bool = False
 
@@ -82,15 +101,22 @@ def _crossing_from_curves(
 ) -> CrossingEstimate:
     ps: list[float] = []
     gs: list[float] = []
+    unsaturated: list[bool] = []  # both metric values < SATURATION_CAP at this p
     for p in sorted(set(c1) & set(c2)):
         m1 = metric_value(c1[p], metric)
         m2 = metric_value(c2[p], metric)
         if m1 > 0.0 and m2 > 0.0:
             ps.append(p)
             gs.append(math.log(m2) - math.log(m1))
+            unsaturated.append(m1 < SATURATION_CAP and m2 < SATURATION_CAP)
 
-    nonneg = [g >= 0.0 for g in gs]
+    nonneg = [g >= 0.0 for g in gs]  # g == 0 counts as non-negative
     n_sign_changes = sum(a != b for a, b in zip(nonneg, nonneg[1:], strict=False))
+    n_sign_changes_unsaturated = sum(
+        nonneg[i] != nonneg[i + 1]
+        for i in range(len(gs) - 1)
+        if unsaturated[i] and unsaturated[i + 1]
+    )
     for i in range(len(gs) - 1):
         if gs[i] < 0.0 <= gs[i + 1]:
             lp0, lp1 = math.log(ps[i]), math.log(ps[i + 1])
@@ -104,6 +130,7 @@ def _crossing_from_curves(
                 metric=metric,
                 d1=d1,
                 d2=d2,
+                n_sign_changes_unsaturated=n_sign_changes_unsaturated,
                 bracket_max_p_l_shot=peak,
                 saturated=saturated,
             )
@@ -114,6 +141,7 @@ def _crossing_from_curves(
         metric=metric,
         d1=d1,
         d2=d2,
+        n_sign_changes_unsaturated=n_sign_changes_unsaturated,
     )
 
 

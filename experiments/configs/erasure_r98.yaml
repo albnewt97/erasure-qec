@@ -26,3 +26,15 @@ decoders: [herald_mwpm, blind_mwpm]
 
 # Fixed sub-threshold p for the Lambda scan (below the ~4-5% r_e=0.98 threshold).
 lambda_p: 0.025
+
+# Per-shot densification band, added 2026-10-14 (pre-registered rule, integer
+# units of 1e-4). Source: results/threshold_table_committed.json
+# (sha256 5079307a87b73baf5142a7f0f4971e4f6799b51af0c082939af28fd4925ae443).
+# For each decoder, c = its per-shot (7,11) pairwise crossing in that file;
+#   u = round(c * f * 10_000) for f in (0.80, 0.87, 0.93, 1.00, 1.07, 1.15, 1.25).
+# Union over decoders; drop u if |u - e| <= 2 for any e = round(p * 10_000)
+# over the resolved p_values (log grid + extra_p); sort ascending; drop u within
+# 2 of the last kept one; extra_p_shot = kept u / 10_000. Merged into the p grid
+# like extra_p (union, sorted, de-duplicated).
+extra_p_shot: [0.0107, 0.0114, 0.0123, 0.0131, 0.0141, 0.0154, 0.0310, 0.0337,
+               0.0360, 0.0387, 0.0414, 0.0445, 0.0484]
